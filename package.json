@@ -1,0 +1,36 @@
+{
+  "name": "parceldelivery",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "description": "Parcel Delivery Application with TypeScript and Express",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.10.0",
+    "redis": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^22.13.1",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/mongoose": "^8.2.0",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.5.3",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5"
+  }
+}
