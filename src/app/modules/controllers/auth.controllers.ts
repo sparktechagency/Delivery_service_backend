@@ -1,85 +1,184 @@
-import { Request, Response } from 'express';
-import { UserModel } from '../../models/user.model';
-import { OTPService } from '../services/OTPService';
+import { Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import twilio from 'twilio';
+import { config } from '../../../config/index';
+import { User } from '../../models/user.model';
+import { OTPVerification } from '../../models/OTPVerification';
+import { AppError } from '../../middlewares/error';
+import { UserRole } from '../../../types/index';
+import { JWTPayload } from '../../middlewares/auth';
 
-const otpService = new OTPService();
+const twilioClient = twilio(config.twilio.accountSid, config.twilio.authToken);
 
-export class AuthController {
-  async register(req: Request, res: Response) {
-    try {
-      const { username, phoneNumber, role } = req.body;
+export const register = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { fullName, mobileNumber, role } = req.body;
 
-      // Check if user already exists
-      const existingUser = await UserModel.findOne({ phoneNumber });
-      if (existingUser) {
-        return res.status(400).json({ message: 'User already exists' });
-      }
+    const existingUser = await User.findOne({ mobileNumber });
+    if (existingUser) {
+      throw new AppError('Mobile number already registered', 400);
+    }
 
-      // Create new user
-      const user = new UserModel({
-        username,
-        phoneNumber,
-        role
+    const user = await User.create({
+      fullName,
+      mobileNumber,
+      role
+    });
+
+    // Generate OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    await OTPVerification.create({
+      userId: user._id,
+      mobileNumber,
+      otpCode,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry
+    });
+
+    // Send OTP via Twilio
+    await twilioClient.verify.v2
+      .services(config.twilio.verifyServiceSid)
+      .verifications.create({
+        to: mobileNumber,
+        channel: 'sms'
       });
-      await user.save();
 
-      // Generate and send OTP
-      const otp = await otpService.generateOTP(phoneNumber);
-      // In production, integrate with SMS service to send OTP
-      console.log(`OTP for ${phoneNumber}: ${otp}`);
-
-      res.status(201).json({ message: 'User registered successfully. Please verify OTP.' });
-    } catch (error) {
-      res.status(500).json({ message: 'Error registering user', error });
-    }
+    res.status(201).json({
+      status: 'success',
+      message: 'User registered successfully. Please verify your mobile number.'
+    });
+  } catch (error) {
+    next(error);
   }
+};
 
-  async verifyOTP(req: Request, res: Response) {
-    try {
-      const { phoneNumber, otp } = req.body;
+export const verifyOTP = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { mobileNumber, otpCode } = req.body;
 
-      const isValid = await otpService.verifyOTP(phoneNumber, otp);
+    const verification = await OTPVerification.findOne({
+      mobileNumber,
+      otpCode,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!verification) {
+      throw new AppError('Invalid or expired OTP', 400);
+    }
+
+    await User.findByIdAndUpdate(verification.userId, { isVerified: true });
+    await OTPVerification.deleteOne({ _id: verification._id });
+
+    res.json({
+      status: 'success',
+      message: 'Mobile number verified successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const login = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { mobileNumber, password } = req.body;
+
+    const user = await User.findOne({ mobileNumber });
+    if (!user || !user.isVerified) {
+      throw new AppError('Invalid credentials or unverified account', 401);
+    }
+
+    if (password && user.passwordHash) {
+      const isValid = await bcrypt.compare(password, user.passwordHash);
       if (!isValid) {
-        return res.status(400).json({ message: 'Invalid OTP' });
+        throw new AppError('Invalid credentials', 401);
       }
-
-      const user = await UserModel.findOne({ phoneNumber });
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      user.isVerified = true;
-      await user.save();
-
-      const token = jwt.sign(
-        { userId: user.id, role: user.role },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '24h' }
-      );
-
-      res.json({ message: 'OTP verified successfully', token });
-    } catch (error) {
-      res.status(500).json({ message: 'Error verifying OTP', error });
     }
-  }
 
-  async login(req: Request, res: Response) {
-    try {
-      const { phoneNumber } = req.body;
+    const payload: JWTPayload = {
+      id: user._id.toString(),
+      role: user.role as UserRole
+    };
 
-      const user = await UserModel.findOne({ phoneNumber });
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '24h' });
+
+    res.json({
+      status: 'success',
+      data: {
+        token,
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          mobileNumber: user.mobileNumber,
+          role: user.role,
+          isProfessional: user.isProfessional
+        }
       }
-
-      const otp = await otpService.generateOTP(phoneNumber);
-      // In production, integrate with SMS service to send OTP
-      console.log(`OTP for ${phoneNumber}: ${otp}`);
-
-      res.json({ message: 'OTP sent successfully' });
-    } catch (error) {
-      res.status(500).json({ message: 'Error logging in', error });
-    }
+    });
+  } catch (error) {
+    next(error);
   }
-}
+};
+
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { mobileNumber } = req.body;
+
+    const user = await User.findOne({ mobileNumber });
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Generate OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    await OTPVerification.create({
+      userId: user._id,
+      mobileNumber,
+      otpCode,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+    });
+
+    // Send OTP via Twilio
+    await twilioClient.verify.v2
+      .services(config.twilio.verifyServiceSid)
+      .verifications.create({
+        to: mobileNumber,
+        channel: 'sms'
+      });
+
+    res.json({
+      status: 'success',
+      message: 'Password reset OTP sent successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { mobileNumber, otpCode, newPassword } = req.body;
+
+    const verification = await OTPVerification.findOne({
+      mobileNumber,
+      otpCode,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!verification) {
+      throw new AppError('Invalid or expired OTP', 400);
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await User.findByIdAndUpdate(verification.userId, { passwordHash });
+    await OTPVerification.deleteOne({ _id: verification._id });
+
+    res.json({
+      status: 'success',
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
