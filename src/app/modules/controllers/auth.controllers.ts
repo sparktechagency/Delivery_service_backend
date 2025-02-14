@@ -111,7 +111,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
           fullName: user.fullName,
           mobileNumber: user.mobileNumber,
           role: user.role,
-          isProfessional: user.isProfessional
+          // isProfessional: user.isProfessional
         }
       }
     });
