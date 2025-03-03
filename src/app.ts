@@ -5,6 +5,8 @@ import authRoutes from './routes/auth';
 import deliveryRoutes from './routes/delivery.routes';
 import { errorHandler } from './app/middlewares/error';
 import parcelRoutes from './routes/parcel.routes';
+import userRoutesProfile from './routes/user.routes';
+import adminRouter from './routes/admin';
 
 const app = express();
 
@@ -20,6 +22,8 @@ app.use('/api/auth', authRoutes);
 // app.use('/api/delivery', deliveryRoutes);
 app.use('/api/parcel', parcelRoutes);
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/user',userRoutesProfile )
+app.use('/api/admin',adminRouter )
 
 // app.get('/api/delivery/test', (req, res) => {
 //     res.send('Test route is working');

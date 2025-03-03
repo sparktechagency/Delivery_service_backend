@@ -152,3 +152,48 @@ export const getParcelWithDeliveryRequests = async (req: Request, res: Response,
   }
 };
 
+
+export const updateParcelStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { parcelId, status } = req.body;
+    const delivererId = req.user?.id; // Delivery man's ID from the token
+
+    if (!delivererId) throw new AppError('Unauthorized', 401);
+
+    // Validate status
+    if (![DeliveryStatus.IN_TRANSIT, DeliveryStatus.DELIVERED].includes(status)) {
+      throw new AppError('Invalid status', 400);
+    }
+
+    const parcel = await ParcelRequest.findById(parcelId);
+    if (!parcel) throw new AppError('Parcel not found', 404);
+
+    // Check if the deliverer is the assigned one
+    if (!parcel.assignedDelivererId || !parcel.assignedDelivererId.equals(delivererId)) {
+      throw new AppError('You are not assigned to this parcel', 403);
+    }
+
+    // Update parcel status
+    parcel.status = status;
+    await parcel.save();
+
+    // 🟢 If Delivered, Update Sender & Receiver Profile
+    if (status === DeliveryStatus.DELIVERED) {
+      const sender = await User.findById(parcel.senderId);
+      if (sender) {
+        sender.totalSentParcels = (sender.totalSentParcels || 0) + 1;
+        await sender.save();
+      }
+
+      const receiver = await User.findById(parcel.receiverId); // Assuming `receiverId` exists
+      if (receiver) {
+        receiver.totalReceivedParcels = (receiver.totalReceivedParcels || 0) + 1;
+        await receiver.save();
+      }
+    }
+
+    res.status(200).json({ status: 'success', message: `Parcel status updated to ${status}`, data: parcel });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -1,11 +1,11 @@
-// import express from 'express';
-// import  AuthController  from './auth.controllers';
+import express from 'express';
+import  {register,verifyOTP,login}  from './auth.controllers';
 
-// const router = express.Router();
+const router = express.Router();
 // const authController = new AuthController();
 
-// router.post('/register', authController.register);
-// router.post('/verify-otp', authController.verifyOTP);
-// router.post('/login', authController.login);
+router.post('/register', register);
+router.post('/verify-otp', verifyOTP);
+router.post('/login', login);
 
-// export default router;
+export default router;
