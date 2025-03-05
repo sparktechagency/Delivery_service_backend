@@ -69,7 +69,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/index';
 import { AppError } from './error';
-import { UserRole } from '../../types/index';
+import { UserRole } from '../../types/enums';
 import { IUser } from '../../types/interfaces';
 import { User } from '../models/user.model';
 import { Admin } from '../models/admin';

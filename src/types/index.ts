@@ -1,36 +1,27 @@
 export enum UserRole {
     SENDER = 'sender',
     DELIVERER = 'deliverer',
-    ADMIN = 'admin',
-     USER = 'user'
+    ADMIN = 'admin'
   }
   
   export enum DeliveryType {
     TRUCK = 'truck',
     CAR = 'car',
-    BIKE = 'bike',
     BICYCLE = 'bicycle',
+    BIKE = 'bike',
     PERSON = 'person'
   }
   
   export enum DeliveryStatus {
     PENDING = 'pending',
+    REQUESTED = 'requested',
     ACCEPTED = 'accepted',
     IN_TRANSIT = 'in_transit',
-    DELIVERED = 'delivered',
-    CANCELLED = 'cancelled'
+    DELIVERED = 'delivered'
   }
   
-  export interface Location {
-    latitude: number;
-    longitude: number;
-    address: string;
+  export enum SenderType {
+    PROFESSIONAL = 'professional',
+    NON_PROFESSIONAL = 'non_professional'
   }
-  
-  // export enum UserRole {
-  //   SENDER = 'sender',
-  //   DELIVERER = 'deliverer',
-  //   ADMIN = 'admin',
-  //    // ✅ Add this if "USER" is needed
-  // }
   

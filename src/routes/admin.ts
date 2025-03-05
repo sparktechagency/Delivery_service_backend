@@ -2,7 +2,7 @@ import express from 'express';
 import { authenticate, authorize } from "../app/middlewares/auth";
 // import upload from "../app/modules/";
 import { changeAdminPassword, createAdmin, getAdminProfile, getOrders, getReports, getUsers, holdUser, loginAdmin, manageSubscriptions, updateAdminProfile } from "../app/modules/admin/admin.controller";
-import { UserRole } from "../types";
+import { UserRole } from "../types/enums";
 import multer from 'multer';
 
 const fileFilter = (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {

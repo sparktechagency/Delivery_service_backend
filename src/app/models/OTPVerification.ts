@@ -36,11 +36,7 @@ const otpVerificationSchema = new mongoose.Schema({
   expiresAt: { type: Date, required: true }
 }, { timestamps: true });
 
-// Hash OTP before saving
-otpVerificationSchema.pre('save', async function (next) {
-  if (!this.isModified('otpCode')) return next();
-  this.otpCode = await bcrypt.hash(this.otpCode, 10);
-  next();
-});
+
 
 export const OTPVerification = mongoose.model('OTPVerification', otpVerificationSchema);
+
