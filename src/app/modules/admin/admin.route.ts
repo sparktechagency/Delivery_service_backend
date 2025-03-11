@@ -1,9 +1,10 @@
 import express from 'express';
-import { authenticate, authorize } from "../app/middlewares/auth";
+import { authenticate, authorize } from "../../middlewares/auth";
 // import upload from "../app/modules/";
-import { changeAdminPassword, createAdmin, getAdminProfile, getOrders, getReports, getUsers, holdUser, loginAdmin, manageSubscriptions, updateAdminProfile } from "../app/modules/admin/admin.controller";
-import { UserRole } from "../types/enums";
+import { changeAdminPassword, createAdmin, getAdminProfile, getOrders, getReports, getUsers, holdUser, loginAdmin, manageSubscriptions, updateAdminProfile, } from "./admin.controller";
+import { UserRole } from "../../../types/enums";
 import multer from 'multer';
+import { assignFreeDeliveriesToUser, updateGlobalFreeDeliveries } from '../parcel/delivery.controller';
 
 const fileFilter = (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Add your file filtering logic here
@@ -16,14 +17,24 @@ const upload = multer({ storage });
 const adminRouter = express.Router();
 adminRouter.post('/create', authenticate, authorize(UserRole.ADMIN), upload.single('image'), createAdmin);
 adminRouter.post('/login', loginAdmin);
-adminRouter.put('/profile/:id', authenticate, authorize(UserRole.ADMIN), upload.single('image'), updateAdminProfile);
+// adminRouter.put('/profile/:id', authenticate, authorize(UserRole.ADMIN), upload.single('image'), updateAdminProfile);
+
+// Route to update admin profile (authenticate, authorize, upload image, then update profile)
+adminRouter.put('/profile/:id', authenticate, upload.single('profileImage'), updateAdminProfile);
+
+
+
 adminRouter.put('/change-password', authenticate, authorize(UserRole.ADMIN), changeAdminPassword);
+
 adminRouter.get('/profile', authenticate, authorize(UserRole.ADMIN), getAdminProfile);
 adminRouter.post('/login', loginAdmin);
 
 // Order Management
 adminRouter.get('/orders', authenticate, authorize(UserRole.ADMIN), getOrders);
 
+//assign delivery global and single user free routes
+adminRouter.post('/global-free-Delivery', authenticate, updateGlobalFreeDeliveries );
+adminRouter.post('/single-free-delivery', authenticate, assignFreeDeliveriesToUser );
 // User Management
 adminRouter.get('/users', authenticate, authorize(UserRole.ADMIN), getUsers);
 adminRouter.post('/users/hold', authenticate, authorize(UserRole.ADMIN), holdUser);

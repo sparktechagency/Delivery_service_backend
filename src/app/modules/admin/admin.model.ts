@@ -1,6 +1,6 @@
 // Admin Model
 import mongoose from 'mongoose';
-import { UserRole } from '../../types/enums';
+import { UserRole } from '../../../types/enums';
 
 const adminSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
@@ -10,7 +10,7 @@ const adminSchema = new mongoose.Schema({
   permanentAddress: { type: String },
   postalCode: { type: String },
   username: { type: String, unique: true, required: true },
-  profileImage: { type: String },
+   profileImage: { type: String },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.ADMIN },
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },

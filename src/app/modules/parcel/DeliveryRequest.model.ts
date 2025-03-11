@@ -62,7 +62,7 @@
 // export const DeliveryRequest = mongoose.model('DeliveryRequest', deliveryRequestSchema);
 
 import mongoose from 'mongoose';
-import { DeliveryType, DeliveryStatus } from '../../types/enums';
+import { DeliveryType, DeliveryStatus } from '../../../types/enums';
 
 const locationSchema = new mongoose.Schema({
   latitude: { type: Number, required: true },

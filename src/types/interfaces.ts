@@ -7,19 +7,28 @@ export interface Location {
   address: string;
 }
 
-export interface IUser { // Renamed from User to IUser
-  id: string;
-  username: string;
-  phoneNumber: string;
-  email: string;
-  role: UserRole;
-  senderType?: SenderType;
-  deliveryType?: DeliveryType[];
-  isVerified: boolean;
-  freeDeliveries: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export interface IUser {
+    id: string;
+    role: UserRole;
+    username: string;
+    phoneNumber: string;
+    email: string;
+    isVerified: boolean;
+    freeDeliveries: number;
+    tripsCompleted: number;
+    tripsPerDay: number;
+    monthlyEarnings: number;
+    totalAmountSpent: number;
+    totalSentParcels: number;
+    totalReceivedParcels: number;
+    isRestricted: boolean;
+    notifications: string;
+    review: string;
+    adminFeedback?: string;
+  }
+  
+
+
 
 
 export interface IDelivery {

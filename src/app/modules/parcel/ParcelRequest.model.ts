@@ -13,15 +13,17 @@
 
 
 import mongoose from 'mongoose';
-import { DeliveryType, DeliveryStatus, SenderType } from '../../types/enums';
+import { DeliveryType, DeliveryStatus, SenderType } from '../../../types/enums';
 
 const parcelRequestSchema = new mongoose.Schema({
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  receiverId: { type: mongoose.Types.ObjectId, ref: 'User', required: true }, // ✅ Add this field
+  receiverId: { type: mongoose.Types.ObjectId, ref: 'User', required: false }, // ✅ Add this field
   pickupLocation: { type: String, required: true },
   deliveryLocation: { type: String, required: true },
+  deliveryTime: {type: String, required: true },
   deliveryType: { type: String, enum: Object.values(DeliveryType), required: true },
   senderType: { type: String, enum: Object.values(SenderType), required: true },
+  price: { type: Number, required: true },
   status: { type: String, enum: Object.values(DeliveryStatus), default: DeliveryStatus.PENDING },
   deliveryRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   assignedDelivererId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
