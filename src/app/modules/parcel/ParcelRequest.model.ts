@@ -20,7 +20,8 @@ const parcelRequestSchema = new mongoose.Schema({
   receiverId: { type: mongoose.Types.ObjectId, ref: 'User', required: false }, // ✅ Add this field
   pickupLocation: { type: String, required: true },
   deliveryLocation: { type: String, required: true },
-  deliveryTime: {type: String, required: true },
+  deliveryStartTime:{type: String, required: true },
+  deliveryEndTime: {type: String, required: true },
   deliveryType: { type: String, enum: Object.values(DeliveryType), required: true },
   senderType: { type: String, enum: Object.values(SenderType), required: true },
   price: { type: Number, required: true },

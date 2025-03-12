@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import nodemailer from 'nodemailer';
-import AWS from 'aws-sdk';
+import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';  // Correct import for AWS SDK v3
 import { sendOTP } from "../../../util/awsSNS";
 import bcrypt from 'bcryptjs';
 // import bcrypt from "bcrypt";
@@ -270,29 +270,7 @@ import { formatPhoneNumber } from "../../../util/formatPhoneNumber";
 
 
 
-AWS.config.update({
-  region: 'eu-north-1', // Update based on your AWS SNS region
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-});
 
-const sns = new AWS.SNS();
-
-// const formatPhoneNumber = (number: string): string => {
-//   if (!number.startsWith('+')) {
-//     return `+88${number.replace(/\D/g, '')}`;
-//   }
-//   return number;
-// };
-
-/**
- * Send OTP via AWS SNS
- */
-
-
-/**
- * Register User & Send OTP
- */
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { fullName, mobileNumber } = req.body;
@@ -365,9 +343,6 @@ export const verifyOTP = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
-/**
- * Login User with OTP Verification
- */
 export const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { mobileNumber } = req.body;
@@ -401,6 +376,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     next(error);
   }
 };
+
 
 /**
  * Verify OTP & Authenticate User
@@ -560,6 +536,44 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
     next(error);
   }
 };
+
+// export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { email } = req.body;
+
+//     if (!email) {
+//       throw new AppError('Email is required', 400);
+//     }
+
+//     const user = await User.findOne({ email });
+//     if (!user || !user.isVerified) {
+//       throw new AppError('Invalid credentials or unverified account', 401);
+//     }
+
+//     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+//     // ✅ Store OTP as plain text (No hashing)
+//     await OTPVerification.create({
+//       userId: user._id,
+//       email,
+//       otpCode,
+//       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+//     });
+
+//     // ✅ Send OTP via email
+//     await transporter.sendMail({
+//       from: config.email.user,
+//       to: email,
+//       subject: 'Your Login OTP',
+//       text: `Your OTP for login is: ${otpCode}`,
+//     });
+
+//     res.json({ status: 'success', message: 'OTP sent to your email' });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email } = req.body;
@@ -573,17 +587,22 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
       throw new AppError('Invalid credentials or unverified account', 401);
     }
 
+    // Check if user is restricted
+    if (user.isRestricted) {
+      throw new AppError('Your profile is restricted. Please contact support team.', 403); // Restricted account error
+    }
+
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // ✅ Store OTP as plain text (No hashing)
+    // Store OTP as plain text (No hashing)
     await OTPVerification.create({
       userId: user._id,
       email,
       otpCode,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // OTP expiry time (10 minutes)
     });
 
-    // ✅ Send OTP via email
+    // Send OTP via email
     await transporter.sendMail({
       from: config.email.user,
       to: email,
@@ -596,6 +615,7 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
+
 
 export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {

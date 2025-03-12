@@ -378,7 +378,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
     const users = await User.find()
       .skip(skip)
       .limit(limit)
-      .select('fullName email role isVerified freeDeliveries tripsPerDay isSubscribed subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted createdAt') // Select only necessary fields
+      .select('fullName email role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate  subscriptionExpiryDate subscriptionCount TotaltripsCompleted createdAt') // Select only necessary fields
       .exec();
     
     console.log("📌 Query Result:", users);  

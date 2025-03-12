@@ -13,6 +13,7 @@ interface EnvVars {
   JWT_SECRET: string;
 }
 
+
 // Validate and cast environment variables
 const requiredEnvVars: EnvVars = {
   MONGODB_URI: process.env.MONGODB_URI || '',

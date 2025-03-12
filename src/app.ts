@@ -28,7 +28,7 @@ app.use(express.json());
 
 
 app.use(cors({
-    origin: ["http://10.0.70.213:4000", "http://localhost:4000"],
+    origin: ["http://10.0.70.213:4000", "http://localhost:4000" ,"https://ivan-parcel-delivery.vercel.app/auth/login"],
     credentials: true
   }));
   app.use(cors({

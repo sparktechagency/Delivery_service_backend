@@ -33,7 +33,8 @@ export enum UserRole {
   export enum SubscriptionType {
     BASIC = "Basic",
     PREMIUM = "Premium",
-    ENTERPRISE = "Enterprise" 
+    ENTERPRISE = "Enterprise", 
+
   }
   
   

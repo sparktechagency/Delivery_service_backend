@@ -5,6 +5,8 @@ import { changeAdminPassword, createAdmin, getAdminProfile, getOrders, getReport
 import { UserRole } from "../../../types/enums";
 import multer from 'multer';
 import { assignFreeDeliveriesToUser, updateGlobalFreeDeliveries } from '../parcel/delivery.controller';
+import { getSubscriptionRevenue } from './report.controller';
+import { getTransactionSummary } from './transection.controller';
 
 const fileFilter = (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Add your file filtering logic here
@@ -41,6 +43,10 @@ adminRouter.post('/users/hold', authenticate, authorize(UserRole.ADMIN), holdUse
 
 // Report Management
 adminRouter.get('/reports', authenticate, authorize(UserRole.ADMIN), getReports);
+//revinue
+adminRouter.get('/revenue', authenticate, authorize(UserRole.ADMIN),getSubscriptionRevenue );
+//transection
+adminRouter.get('/transection', authenticate, authorize(UserRole.ADMIN),getTransactionSummary );
 
 // Subscription Management
 adminRouter.post('/subscriptions', authenticate, authorize(UserRole.ADMIN), manageSubscriptions);

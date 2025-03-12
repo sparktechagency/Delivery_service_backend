@@ -57,7 +57,8 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     const {
       pickupLocation,
       deliveryLocation,
-      deliveryTime,
+      deliveryStartTime,
+      deliveryEndTime,
       senderType,
       deliveryType,
       price,
@@ -70,7 +71,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     if (!userId) throw new AppError("Unauthorized", 401);
 
     // Validate required fields
-    if (!pickupLocation || !deliveryLocation || !deliveryTime || !senderType || !deliveryType || !price || !receiverDetails) {
+    if (!pickupLocation || !deliveryLocation || !deliveryStartTime || !deliveryEndTime|| !senderType || !deliveryType || !price || !receiverDetails) {
       throw new AppError("All fields are required", 400);
     }
 
@@ -100,7 +101,8 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       senderId: userId,
       pickupLocation,
       deliveryLocation,
-      deliveryTime,
+      deliveryStartTime,
+      deliveryEndTime,
       senderType,
       deliveryType,
       price,
