@@ -1,12 +1,13 @@
 
 import express from 'express';
-import { register, verifyOTP, login,  registerWithEmail, loginWithEmailOTP, verifyEmailOTP, verifyLoginOTP } from './auth.controllers';
+import { register, verifyOTP, login,  registerWithEmail, loginWithEmailOTP, verifyEmailOTP, verifyLoginOTP, verifyLoginOTPNumber } from './auth.controllers';
 
 const router = express.Router();
 
 router.post('/register', register);
 router.post('/verify-otp', verifyOTP);
 router.post('/login', login);
+router.post('/login-otp', verifyLoginOTPNumber);
 // router.post('/forgot-password', forgotPassword);
 // router.post('/reset-password', resetPassword);
 router.post('/register-email',registerWithEmail);

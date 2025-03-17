@@ -7,6 +7,7 @@ import { assignDeliveryMan, cancelAssignedDeliveryMan, removeDeliveryRequest } f
 
 const parcelRouter = express.Router();
 // parcelRouter.post('/create', authenticate, createParcelRequest);
+
 parcelRouter.post("/create",authenticate, upload.array('images', 5), createParcelRequest);// ✅ Allow up to 5 images
 parcelRouter.get('/available', authenticate, getAvailableParcels);
 parcelRouter.get("/user-parcels", authenticate, getUserParcels);

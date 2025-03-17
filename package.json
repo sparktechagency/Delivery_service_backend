@@ -28,7 +28,8 @@
     "nodemailer": "^6.10.0",
     "redis": "^4.7.0",
     "stripe": "^17.7.0",
-    "twilio": "^5.4.4"
+    "twilio": "^5.4.4",
+    "winston": "^3.17.0"
   },
   "compilerOptions": {
     "outDir": "./dist",
@@ -36,10 +37,12 @@
     "module": "CommonJS",
     "target": "ES6",
     "strict": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "include": [
-    "src"
+    "src/**/*.ts",
+    "src/types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules"

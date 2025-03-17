@@ -23,6 +23,7 @@ import fs from 'fs';
 import mongoose from 'mongoose';
 import { AuthRequest } from '../../middlewares/auth';
 import upload from '../../../multer/multer';
+import { ParcelRequest } from '../parcel/ParcelRequest.model';
 // import upload from '../../../multer/multer';
 
 export const createAdmin = async (req: Request, res: Response, next: NextFunction) => {
@@ -365,31 +366,86 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
 //     }
 //   };
 
+// export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const page = parseInt(req.query.page as string) || 1; // Page number from query parameter
+//     const limit = parseInt(req.query.limit as string) || 10; // Number of users per page
+
+//     const skip = (page - 1) * limit; // Calculate skip for pagination
+
+//     console.log("🔍 Fetching users with pagination...");
+    
+//     // Query to fetch users with pagination and select only relevant fields
+//     const users = await User.find()
+//       .skip(skip)
+//       .limit(limit)
+//       .select('fullName email role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate  subscriptionExpiryDate subscriptionCount TotaltripsCompleted createdAt') // Select only necessary fields
+//       .exec();
+    
+//     console.log("📌 Query Result:", users);  
+
+//     if (users.length === 0) {
+//       console.log("❌ No users found in database!");
+//       return res.status(404).json({ status: "error", message: "No users found" });
+//     }
+
+//     // Get the total count of users for pagination purposes
+//     const totalUsers = await User.countDocuments();
+
+//     res.json({
+//       status: 'success',
+//       data: {
+//         users,
+//         totalUsers,
+//         currentPage: page,
+//         totalPages: Math.ceil(totalUsers / limit)
+//       }
+//     });
+//   } catch (error) {
+//     console.error("❌ Error fetching users:", error);
+//     res.status(500).json({ status: "error", message: "Internal Server Error" });
+//   }
+// };
+
 export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const page = parseInt(req.query.page as string) || 1; // Page number from query parameter
-    const limit = parseInt(req.query.limit as string) || 10; // Number of users per page
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 10;
+    const skip = (page - 1) * limit;
+    const { filterType, filterValue } = req.query;
 
-    const skip = (page - 1) * limit; // Calculate skip for pagination
-
-    console.log("🔍 Fetching users with pagination...");
+    console.log("🔍 Fetching users with pagination, total trips completed, and total earnings...");
     
-    // Query to fetch users with pagination and select only relevant fields
-    const users = await User.find()
+    // Build filter criteria
+    let filter: any = {};
+    if (filterType === "mobile") filter.email = filterValue;
+    if (filterType === "email") filter.mobileNumber = filterValue;
+
+    // Fetch users with pagination and filter
+    const users = await User.find(filter)
       .skip(skip)
       .limit(limit)
-      .select('fullName email role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate  subscriptionExpiryDate subscriptionCount TotaltripsCompleted createdAt') // Select only necessary fields
-      .exec();
+      .select('fullName email mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt')
+      .lean();
     
-    console.log("📌 Query Result:", users);  
-
     if (users.length === 0) {
       console.log("❌ No users found in database!");
       return res.status(404).json({ status: "error", message: "No users found" });
     }
 
+    // Calculate total trips completed and total earnings from parcels for each user
+    for (let user of users) {
+      const tripData = await ParcelRequest.aggregate([
+        { $match: { assignedDelivererId: user._id, status: "DELIVERED" } },
+        { $group: { _id: null, totalTrips: { $sum: 1 }, totalEarnings: { $sum: "$price" } } }
+      ]);
+
+      user.TotaltripsCompleted = tripData.length > 0 ? tripData[0].totalTrips : 0;
+      user.totalEarning = tripData.length > 0 ? tripData[0].totalEarnings : 0;
+    }
+
     // Get the total count of users for pagination purposes
-    const totalUsers = await User.countDocuments();
+    const totalUsers = await User.countDocuments(filter);
 
     res.json({
       status: 'success',
@@ -477,6 +533,86 @@ export const manageSubscriptions = async (req: Request, res: Response, next: Nex
     res.json({ status: 'success', message: 'Subscription updated successfully', data: subscription });
   } catch (error) {
     next(error);
+  }
+};
+
+// export const getParcelDetails = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     // Fetch all parcel details with sender and receiver populated
+//     const parcels = await ParcelRequest.find()
+//       .populate('senderId', 'fullName email role')  // Populate sender details
+//       .populate('assignedDelivererId', 'fullName email role')  // Populate deliverer details
+//       .select('pickupLocation deliveryLocation status deliveryType price senderId assignedDelivererId')  // Select necessary fields
+
+//     // If no parcels are found
+//     if (parcels.length === 0) {
+//       return res.status(404).json({
+//         status: 'error',
+//         message: 'No parcels found'
+//       });
+//     }
+
+//     // Return the parcel details along with sender and deliverer information
+//     res.status(200).json({
+//       status: 'success',
+//       message: 'Parcel details fetched successfully',
+//       data: parcels
+//     });
+//   } catch (error) {
+//     next(error);  // Pass error to global error handler
+//   }
+// };
+
+export const getParcelDetails = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { status, page = 1, limit = 10 } = req.query;
+
+    // Convert page and limit to numbers
+    const pageNumber = parseInt(page as string, 10) || 1;
+    const limitNumber = parseInt(limit as string, 10) || 10;
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Build the filter object
+    let filter: any = {};
+    if (status) {
+      filter.status = status.toString();
+    }
+
+    // Fetch filtered parcels with pagination
+    const parcels = await ParcelRequest.find(filter)
+      .populate('senderId', 'fullName email role') // Populate sender details
+      .populate('assignedDelivererId', 'fullName email role') // Populate deliverer details
+      .select('pickupLocation deliveryLocation status deliveryType price senderId assignedDelivererId') // Select necessary fields
+      .skip(skip)
+      .limit(limitNumber)
+      .lean();
+
+    // Count total parcels for pagination metadata
+    const totalParcels = await ParcelRequest.countDocuments(filter);
+    const totalPages = Math.ceil(totalParcels / limitNumber);
+
+    // If no parcels are found
+    if (parcels.length === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No parcels found'
+      });
+    }
+
+    // Return paginated parcel details
+    res.status(200).json({
+      status: 'success',
+      message: 'Parcel details fetched successfully',
+      data: parcels,
+      pagination: {
+        totalParcels,
+        totalPages,
+        currentPage: pageNumber,
+        limit: limitNumber
+      }
+    });
+  } catch (error) {
+    next(error); // Pass error to global error handler
   }
 };
 

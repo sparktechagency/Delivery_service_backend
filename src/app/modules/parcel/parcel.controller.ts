@@ -8,122 +8,86 @@ import { DeliveryStatus, SenderType, UserRole } from '../../../types/enums';
 import { AuthRequest } from '../../middlewares/auth';
 import mongoose from 'mongoose';
 import upload from "../../../multer/multer"; // ✅ Import multer configuration
-// export const createParcelRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+
+// export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
-//     console.log("Received Body:", req.body); // 🔍 Debugging Line
-    
-//     const { pickupLocation, deliveryLocation, deliveryType, senderType } = req.body;
-//     const senderId = req.user?.id;
-
-//     if (!senderId) return res.status(401).json({ message: 'Unauthorized' });
-
-//     const sender = await User.findById(senderId);
-//     if (!sender) return res.status(404).json({ message: 'Sender not found' });
-
-//     if (!pickupLocation || !deliveryLocation || !deliveryType || !senderType) {
-//       return res.status(400).json({ message: 'All fields are required' });
+//     // Handle file upload with Multer
+//     let images: string[] = [];
+//     if (req.files) {
+//       images = (req.files as Express.Multer.File[]).map(file => file.filename);
 //     }
 
-//     if (sender.freeDeliveries > 0) {
-//       sender.freeDeliveries -= 1;
-//       await sender.save();
-//     }
-
-//     const parcel = await ParcelRequest.create({
-//       senderId,
+//     // Ensure the required fields are properly extracted
+//     const {
 //       pickupLocation,
 //       deliveryLocation,
-//       deliveryType,
+//       deliveryStartTime,
+//       deliveryEndTime,
 //       senderType,
+//       deliveryType,
+//       price,
+//       receiverDetails,
+//       title,
+//       description,
+//     } = req.body;
+
+//     const userId = req.user?.id;
+//     if (!userId) throw new AppError("Unauthorized", 401);
+
+//     // Validate required fields
+//     if (!pickupLocation || !deliveryLocation || !deliveryStartTime || !deliveryEndTime|| !senderType || !deliveryType || !price || !receiverDetails) {
+//       throw new AppError("All fields are required", 400);
+//     }
+
+//     // Validate senderType from enum
+//     if (!Object.values(SenderType).includes(senderType as SenderType)) {
+//       throw new AppError(`Invalid senderType. Allowed values: ${Object.values(SenderType).join(", ")}`, 400);
+//     }
+
+//     const user = await User.findById(userId);
+//     if (!user) throw new AppError("User not found", 404);
+
+//     if (user.freeDeliveries > 0) {
+//       user.freeDeliveries -= 1;
+//       await user.save();
+//     }
+
+//     // Parse `receiverDetails` from JSON
+//     let parsedReceiverDetails;
+//     try {
+//       parsedReceiverDetails = JSON.parse(receiverDetails);
+//     } catch (error) {
+//       throw new AppError("Invalid receiverDetails format. Must be a valid JSON object.", 400);
+//     }
+
+//     // Create Parcel Request
+//     const parcel = await ParcelRequest.create({
+//       senderId: userId,
+//       pickupLocation,
+//       deliveryLocation,
+//       deliveryStartTime,
+//       deliveryEndTime,
+//       senderType,
+//       deliveryType,
+//       price,
+//       receiverDetails: parsedReceiverDetails,
+//       title,
+//       description,
+//       images,
+//       status: DeliveryStatus.PENDING,
 //     });
 
-//     res.status(201).json({ status: 'success', data: parcel });
+//     // Fetch the newly created parcel with populated senderId (optional)
+//     const fullParcel = await ParcelRequest.findById(parcel._id).populate("senderId", "fullName email mobileNumber image");
+
+//     res.status(201).json({ 
+//       status: "success", 
+//       data: fullParcel // Ensure all fields, including price, are returned
+//     });
 //   } catch (error) {
-//     console.error("Error Creating Parcel:", error); // 🔍 Debugging Line
 //     next(error);
 //   }
 // };
-
-
-export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Handle file upload with Multer
-    let images: string[] = [];
-    if (req.files) {
-      images = (req.files as Express.Multer.File[]).map(file => file.filename);
-    }
-
-    // Ensure the required fields are properly extracted
-    const {
-      pickupLocation,
-      deliveryLocation,
-      deliveryStartTime,
-      deliveryEndTime,
-      senderType,
-      deliveryType,
-      price,
-      receiverDetails,
-      title,
-      description,
-    } = req.body;
-
-    const userId = req.user?.id;
-    if (!userId) throw new AppError("Unauthorized", 401);
-
-    // Validate required fields
-    if (!pickupLocation || !deliveryLocation || !deliveryStartTime || !deliveryEndTime|| !senderType || !deliveryType || !price || !receiverDetails) {
-      throw new AppError("All fields are required", 400);
-    }
-
-    // Validate senderType from enum
-    if (!Object.values(SenderType).includes(senderType as SenderType)) {
-      throw new AppError(`Invalid senderType. Allowed values: ${Object.values(SenderType).join(", ")}`, 400);
-    }
-
-    const user = await User.findById(userId);
-    if (!user) throw new AppError("User not found", 404);
-
-    if (user.freeDeliveries > 0) {
-      user.freeDeliveries -= 1;
-      await user.save();
-    }
-
-    // Parse `receiverDetails` from JSON
-    let parsedReceiverDetails;
-    try {
-      parsedReceiverDetails = JSON.parse(receiverDetails);
-    } catch (error) {
-      throw new AppError("Invalid receiverDetails format. Must be a valid JSON object.", 400);
-    }
-
-    // Create Parcel Request
-    const parcel = await ParcelRequest.create({
-      senderId: userId,
-      pickupLocation,
-      deliveryLocation,
-      deliveryStartTime,
-      deliveryEndTime,
-      senderType,
-      deliveryType,
-      price,
-      receiverDetails: parsedReceiverDetails,
-      title,
-      description,
-      images,
-      status: DeliveryStatus.PENDING,
-    });
-
-    // Fetch the newly created parcel with populated senderId (optional)
-    const fullParcel = await ParcelRequest.findById(parcel._id).populate("senderId", "fullName email mobileNumber");
-
-    res.status(201).json({ 
-      status: "success", 
-      data: fullParcel // Ensure all fields, including price, are returned
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 
 
 
@@ -144,6 +108,125 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 //   }
   
 // };
+
+export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log("🔄 createParcelRequest called");
+    console.log("📄 Request body:", JSON.stringify(req.body, null, 2));
+    console.log("📄 Request files:", req.files);
+    
+    // Handle file upload with Multer
+    let images: string[] = [];
+    if (req.files && Array.isArray(req.files)) {
+      // For debugging
+      console.log(`📸 Received ${(req.files as Express.Multer.File[]).length} files`);
+      (req.files as Express.Multer.File[]).forEach((file, index) => {
+        console.log(`📸 File ${index + 1}:`, file.filename, file.path);
+      });
+      
+      // Store URLs instead of just filenames for better frontend accessibility
+      images = (req.files as Express.Multer.File[]).map(file => `/uploads/parcels/${file.filename}`);
+      console.log("📸 Processed image paths:", images);
+    } else {
+      console.log("⚠️ No files received in request");
+    }
+
+    // Ensure the required fields are properly extracted
+    const {
+      pickupLocation,
+      deliveryLocation,
+      deliveryStartTime,
+      deliveryEndTime,
+      senderType,
+      deliveryType,
+      price,
+      receiverDetails,
+      title,
+      description,
+    } = req.body;
+
+    const userId = req.user?.id;
+    if (!userId) {
+      console.log("❌ No user ID found in request");
+      throw new AppError("Unauthorized", 401);
+    }
+    
+    console.log("👤 User ID:", userId);
+
+    // Validate required fields
+    if (!pickupLocation || !deliveryLocation || !deliveryStartTime || !deliveryEndTime || !senderType || !deliveryType || !price || !receiverDetails) {
+      console.log("❌ Missing required fields");
+      throw new AppError("All fields are required", 400);
+    }
+
+    // Validate senderType from enum
+    if (!Object.values(SenderType).includes(senderType as SenderType)) {
+      console.log("❌ Invalid senderType:", senderType);
+      throw new AppError(`Invalid senderType. Allowed values: ${Object.values(SenderType).join(", ")}`, 400);
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log("❌ User not found with ID:", userId);
+      throw new AppError("User not found", 404);
+    }
+    
+    console.log("👤 Found user:", user.email || user.fullName);
+
+    if (user.freeDeliveries > 0) {
+      user.freeDeliveries -= 1;
+      await user.save();
+      console.log("🎫 Used a free delivery. Remaining:", user.freeDeliveries);
+    }
+
+    // Parse `receiverDetails` from JSON if it's a string
+    let parsedReceiverDetails;
+    try {
+      parsedReceiverDetails = typeof receiverDetails === 'string' 
+        ? JSON.parse(receiverDetails) 
+        : receiverDetails;
+      console.log("📦 Parsed receiver details:", JSON.stringify(parsedReceiverDetails, null, 2));
+    } catch (error) {
+      console.log("❌ Error parsing receiverDetails:", error);
+      throw new AppError("Invalid receiverDetails format. Must be a valid JSON object.", 400);
+    }
+
+    // Create Parcel Request
+    const parcel = await ParcelRequest.create({
+      senderId: userId,
+      pickupLocation,
+      deliveryLocation,
+      deliveryStartTime,
+      deliveryEndTime,
+      senderType,
+      deliveryType,
+      price,
+      receiverDetails: parsedReceiverDetails,
+      title,
+      description,
+      images,  // Now storing the full relative path
+      status: DeliveryStatus.PENDING,
+    });
+    
+    console.log("✅ Created parcel request:", parcel._id);
+    console.log("📸 Saved image paths:", parcel.images);
+
+    // Fetch the newly created parcel with populated senderId
+    const fullParcel = await ParcelRequest.findById(parcel._id).populate("senderId", "fullName email mobileNumber image");
+
+    res.status(201).json({
+      status: "success",
+      data: fullParcel
+    });
+  } catch (error) {
+    console.error("❌ Error in createParcelRequest:", error);
+    next(error);
+  }
+};
+
+
+
+
 
 /**
  * ✅ Get Available Parcels (Only `pending` status)
