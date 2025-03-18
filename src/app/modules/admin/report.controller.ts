@@ -1,126 +1,195 @@
+// import { Request, Response, NextFunction } from 'express';
+// import { User } from '../user/user.model'; // Assuming the User model is located here
+// import { ParcelRequest } from '../parcel/ParcelRequest.model'; // Assuming the ParcelRequest model is located here
+// import { Order } from '../parcel/order.model'; // Assuming the Order model is located here
+// import { UserSubscription } from '../subscriptions/subscription.model'; // Assuming the Subscription model is located here
 
+// // Helper function to get the date range
+// const getDateRange = (period: string) => {
+//   const now = new Date();
+//   let startDate: Date;
+  
+//   switch (period) {
+//     case 'day':
+//       startDate = new Date(now.setDate(now.getDate() - 1));
+//       break;
+//     case 'week':
+//       startDate = new Date(now.setDate(now.getDate() - 7));
+//       break;
+//     case 'month':
+//       startDate = new Date(now.setMonth(now.getMonth() - 1));
+//       break;
+//     case 'year':
+//       startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+//       break;
+//     default:
+//       startDate = new Date(now.setDate(now.getDate() - 1)); // Default to day if unknown
+//   }
+  
+//   return startDate;
+// };
 
-import { NextFunction } from "express";
-import { SubscriptionType } from "../../../types/enums";
-import { ParcelRequest } from "../parcel/ParcelRequest.model";
-import { User } from "../user/user.model";
-import { AppError } from "../../middlewares/error";
-
-// export const getSubscriptionRevenue = async (req: Request, res: Response, next: NextFunction) => {
+// // Main controller function
+// export const getFilteredSummary = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
-//     const { timeFrame } = req.query; // Get the time frame for revenue report (week, month, year)
+//     const { period } = req.query; // Get the period from the query parameters (day, week, month, year)
+//     const startDate = getDateRange(period as string);
 
-//     // Validate time frame
-//     if (!['week', 'month', 'year'].includes(timeFrame as string)) {
-//       throw new AppError('Invalid time frame', 400);
-//     }
+//     // Calculate total revenue for the given period
+//     const totalRevenue = await Order.aggregate([
+//       { $match: { date: { $gte: startDate } } },
+//       { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
+//     ]);
 
-//     // Initialize with default values
-//     let startDate: Date = new Date();
-//     let endDate: Date = new Date(); // Current date as end date
+//     // Total Users in the given period
+//     const totalUsers = await User.countDocuments({ startDate: { $gte: startDate } });
 
-//     // Assign start date based on time frame
-//     if (timeFrame === 'week') {
-//       // Calculate the start date of the current week (Sunday)
-//       startDate = new Date();
-//       startDate.setDate(startDate.getDate() - startDate.getDay()); // Get the Sunday of the current week
-//     } else if (timeFrame === 'month') {
-//       // For month, just get the first day of the current month
-//       startDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-//     } else if (timeFrame === 'year') {
-//       // For year, get the first day of the current year
-//       startDate = new Date(new Date().getFullYear(), 0, 1); // January 1st of current year
-//     }
+//     // New Users in the given period
+//     const newUsers = await User.countDocuments({ createdAt: { $gte: startDate } });
 
-//     console.log('Start Date:', startDate);
-//     console.log('End Date:', endDate);
+//     // Total Subscribers in the given period
+//     const totalSubscribers = await User.countDocuments({ isSubscribed: true });
 
-//     // Query for users who have active subscriptions within the given time frame
-//     const users = await User.find({
-//       isSubscribed: true,  // Ensure the user is subscribed
-//       subscriptionPrice: { $gt: 0 },  // Ensure subscription price is greater than 0
-//       subscriptionType: { $in: [SubscriptionType.BASIC, SubscriptionType.PREMIUM, SubscriptionType.ENTERPRISE] },
-//       $and: [
-//         { subscriptionStartDate: { $lte: endDate } },  // Subscription started before or on the end date
-//         { subscriptionExpiryDate: { $gte: startDate } }  // Subscription expires after or on the start date
-//       ]
+//     // New Subscribers in the given period
+//     const newSubscribers = await User.countDocuments({
+//       isSubscribed: true,
+//       subscriptionStartDate: { $gte: startDate }
 //     });
 
-//     // Debugging: Log the filtered users count
-//     console.log("📊 Filtered Users Count:", users.length);
+//     // Total Orders in the given period
+//     const totalOrders = await Order.countDocuments({ date: { $gte: startDate } });
 
-//     // Calculate the total subscription revenue for users in the given time frame
-//     const totalRevenue = users.reduce((sum, user) => {
-//       return sum + user.subscriptionPrice;  // Add the subscription price for each user
-//     }, 0);
+//     // Total Completed Orders in the given period
+//     const totalCompletedOrders = await Order.countDocuments({
+//       status: 'delivered',
+//       date: { $gte: startDate }
+//     });
 
-//     // Debugging: Log the total revenue
-//     console.log("📈 Total Revenue:", totalRevenue);
+//     // Total Revenue from Subscriptions
+//     const totalSubscriptionRevenue = await UserSubscription.aggregate([
+//       { $match: { expiryDate: { $gte: startDate } } },
+//       { $group: { _id: null, totalRevenue: { $sum: '$price' } } }
+//     ]);
 
 //     res.status(200).json({
 //       status: 'success',
-//       message: 'Revenue calculated successfully',
+//       message: 'all summary fetched successfully',
 //       data: {
-//         timeFrame,
-//         totalRevenue,
-//         userCount: users.length
-//       }
+//         totalRevenue: totalRevenue[0]?.totalRevenue || 0,
+//         totalSubscriptionRevenue: totalSubscriptionRevenue[0]?.totalRevenue || 0,
+//         totalUsers,
+//         newUsers,
+//         totalSubscribers,
+//         newSubscribers,
+//         totalOrders,
+//         totalCompletedOrders,
+//       },
 //     });
-
 //   } catch (error) {
-//     next(error);  // Pass error to the error-handling middleware
+//     next(error);
 //   }
 // };
 
-export const getDashboardSummary = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+
+import { Request, Response, NextFunction } from 'express';
+import { User } from '../user/user.model'; // Assuming the User model is located here
+import { ParcelRequest } from '../parcel/ParcelRequest.model'; // Assuming the ParcelRequest model is located here
+import { Order } from '../parcel/order.model'; // Assuming the Order model is located here
+import { UserSubscription } from '../subscriptions/subscription.model'; // Assuming the Subscription model is located here
+
+// Helper function to get the date range
+const getDateRange = (period: string) => {
+  const now = new Date();
+  let startDate: Date;
+  let endDate: Date;
+
+  switch (period) {
+    case 'day':
+      startDate = new Date(now.setDate(now.getDate() - 1)); // 1 day back
+      endDate = new Date(); // Today's date
+      break;
+    case 'week':
+      startDate = new Date(now.setDate(now.getDate() - 7)); // 7 days back
+      endDate = new Date(); // Today's date
+      break;
+    case 'month':
+      startDate = new Date(now.setMonth(now.getMonth() - 1)); // 1 month back
+      endDate = new Date(); // Today's date
+      break;
+    case 'year':
+      // Set to the beginning of the previous year (Jan 1st)
+      startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+      startDate.setMonth(0, 1); // Set to Jan 1st
+      startDate.setHours(0, 0, 0, 0); // Set time to 00:00
+      endDate = new Date(now.setFullYear(now.getFullYear() - 1));
+      endDate.setMonth(11, 31); // Set to Dec 31st
+      endDate.setHours(23, 59, 59, 999); // Set time to 23:59:59
+      break;
+    default:
+      startDate = new Date(now.setDate(now.getDate() - 1)); // Default to 1 day if unknown
+      endDate = new Date();
+  }
+
+  return { startDate, endDate };
+};
+
+// Main controller function
+export const getFilteredSummary = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { timeFrame } = req.query; // Get the time frame for the report (day, week, month, year)
+    const { period } = req.query; // Get the period from the query parameters (day, week, month, year)
+    const { startDate, endDate } = getDateRange(period as string);
 
-    // Validate time frame
-    if (!['day', 'week', 'month', 'year'].includes(timeFrame as string)) {
-      throw new Error('Invalid time frame');
-    }
+    // Calculate total revenue for the given period
+    const totalRevenue = await Order.aggregate([
+      { $match: { date: { $gte: startDate, $lte: endDate } } },
+      { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
+    ]);
 
-    // Initialize start and end dates based on the time frame
-    let startDate: Date = new Date();
-    let endDate: Date = new Date(); // Current date as end date
+    // Total Users in the given period
+    const totalUsers = await User.countDocuments({ startDate: { $gte: startDate, $lte: endDate } });
 
-    // Calculate start date based on the time frame
-    if (timeFrame === 'day') {
-      startDate = new Date();
-    } else if (timeFrame === 'week') {
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - startDate.getDay()); // Get the Sunday of the current week
-    } else if (timeFrame === 'month') {
-      startDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1); // First day of the current month
-    } else if (timeFrame === 'year') {
-      startDate = new Date(new Date().getFullYear(), 0, 1); // January 1st of current year
-    }
+    // New Users in the given period
+    const newUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
 
-    // Example data retrieval - replace with actual logic
-    const totalUsers = 100; // Placeholder
-    const totalSubscribers = 50; // Placeholder
-    const totalOrders = 30; // Placeholder
-    const totalRevenue = 5000; // Placeholder
-    const totalTransactions = 20; // Placeholder
+    // Total Subscribers in the given period
+    const totalSubscribers = await User.countDocuments({ isSubscribed: true });
 
-    // Send response with summary data
+    // New Subscribers in the given period
+    const newSubscribers = await User.countDocuments({
+      isSubscribed: true,
+      subscriptionStartDate: { $gte: startDate, $lte: endDate }
+    });
+
+    // Total Orders in the given period
+    const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+
+    // Total Completed Orders in the given period
+    const totalCompletedOrders = await Order.countDocuments({
+      status: 'delivered',
+      date: { $gte: startDate, $lte: endDate }
+    });
+
+    // Total Revenue from Subscriptions
+    const totalSubscriptionRevenue = await UserSubscription.aggregate([
+      { $match: { expiryDate: { $gte: startDate, $lte: endDate } } },
+      { $group: { _id: null, totalRevenue: { $sum: '$price' } } }
+    ]);
+
     res.status(200).json({
       status: 'success',
-      message: 'Dashboard summary fetched successfully',
+      message: 'All summary fetched successfully',
       data: {
+        totalRevenue: totalRevenue[0]?.totalRevenue || 0,
+        totalSubscriptionRevenue: totalSubscriptionRevenue[0]?.totalRevenue || 0,
         totalUsers,
+        newUsers,
         totalSubscribers,
+        newSubscribers,
         totalOrders,
-        totalRevenue,
-        totalTransactions,
+        totalCompletedOrders,
       },
     });
   } catch (error) {
-    next(error); // Pass error to the error-handling middleware
+    next(error);
   }
 };

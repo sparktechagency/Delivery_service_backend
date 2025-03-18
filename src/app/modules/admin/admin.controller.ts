@@ -366,31 +366,47 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
 //     }
 //   };
 
+
+
 // export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
-//     const page = parseInt(req.query.page as string) || 1; // Page number from query parameter
-//     const limit = parseInt(req.query.limit as string) || 10; // Number of users per page
+//     const page = parseInt(req.query.page as string) || 1;
+//     const limit = 10;
+//     const skip = (page - 1) * limit;
+//     const { filterType, filterValue } = req.query;
 
-//     const skip = (page - 1) * limit; // Calculate skip for pagination
-
-//     console.log("🔍 Fetching users with pagination...");
+//     console.log("🔍 Fetching users with pagination, total trips completed, and total earnings...");
     
-//     // Query to fetch users with pagination and select only relevant fields
-//     const users = await User.find()
+//     // Build filter criteria
+//     let filter: any = {};
+//     if (filterType === "mobile") filter.email = filterValue;
+//     if (filterType === "email") filter.mobileNumber = filterValue;
+
+//     // Fetch users with pagination and filter
+//     const users = await User.find(filter)
 //       .skip(skip)
 //       .limit(limit)
-//       .select('fullName email role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate  subscriptionExpiryDate subscriptionCount TotaltripsCompleted createdAt') // Select only necessary fields
-//       .exec();
+//       .select('fullName email mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt')
+//       .lean();
     
-//     console.log("📌 Query Result:", users);  
-
 //     if (users.length === 0) {
 //       console.log("❌ No users found in database!");
 //       return res.status(404).json({ status: "error", message: "No users found" });
 //     }
 
+//     // Calculate total trips completed and total earnings from parcels for each user
+//     for (let user of users) {
+//       const tripData = await ParcelRequest.aggregate([
+//         { $match: { assignedDelivererId: user._id, status: "DELIVERED" } },
+//         { $group: { _id: null, totalTrips: { $sum: 1 }, totalEarnings: { $sum: "$price" } } }
+//       ]);
+
+//       user.TotaltripsCompleted = tripData.length > 0 ? tripData[0].totalTrips : 0;
+//       user.totalEarning = tripData.length > 0 ? tripData[0].totalEarnings : 0;
+//     }
+
 //     // Get the total count of users for pagination purposes
-//     const totalUsers = await User.countDocuments();
+//     const totalUsers = await User.countDocuments(filter);
 
 //     res.json({
 //       status: 'success',
@@ -433,15 +449,17 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
       return res.status(404).json({ status: "error", message: "No users found" });
     }
 
-    // Calculate total trips completed and total earnings from parcels for each user
-    for (let user of users) {
-      const tripData = await ParcelRequest.aggregate([
-        { $match: { assignedDelivererId: user._id, status: "DELIVERED" } },
-        { $group: { _id: null, totalTrips: { $sum: 1 }, totalEarnings: { $sum: "$price" } } }
-      ]);
+    // Fetch total earnings and trips completed in one aggregation query for all users
+    const earningsData = await ParcelRequest.aggregate([
+      { $match: { status: "DELIVERED", assignedDelivererId: { $in: users.map(user => user._id) } } },
+      { $group: { _id: "$assignedDelivererId", totalTrips: { $sum: 1 }, totalEarnings: { $sum: "$price" } } }
+    ]);
 
-      user.TotaltripsCompleted = tripData.length > 0 ? tripData[0].totalTrips : 0;
-      user.totalEarning = tripData.length > 0 ? tripData[0].totalEarnings : 0;
+    // Map earnings data to users
+    for (let user of users) {
+      const earnings = earningsData.find(data => data._id.toString() === user._id.toString());
+      user.TotaltripsCompleted = earnings ? earnings.totalTrips : 0;
+      user.totalEarning = earnings ? earnings.totalEarnings : 0;
     }
 
     // Get the total count of users for pagination purposes
@@ -461,6 +479,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
     res.status(500).json({ status: "error", message: "Internal Server Error" });
   }
 };
+
 
 
   export const getUserData = async (req: Request, res: Response, next: NextFunction) => {

@@ -29,6 +29,8 @@ const parcelRequestSchema = new mongoose.Schema({
   deliveryType: { type: String, enum: Object.values(DeliveryType), required: true },
   senderType: { type: String, enum: Object.values(SenderType), required: true },
   price: { type: Number, required: true },
+  name: String,  // Add name field
+  phoneNumber: String, 
   images: [String],
   status: { type: String, enum: Object.values(DeliveryStatus), default: DeliveryStatus.PENDING },
   deliveryRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

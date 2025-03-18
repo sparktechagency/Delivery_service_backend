@@ -7,7 +7,7 @@ import multer from 'multer';
 import { assignFreeDeliveriesToUser, updateGlobalFreeDeliveries } from '../parcel/delivery.controller';
 // import { getSubscriptionRevenue } from './report.controller';
 import { getTransactionSummary } from './transection.controller';
-import { getDashboardSummary } from './report.controller';
+import { getFilteredSummary } from './report.controller';
 
 const fileFilter = (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Add your file filtering logic here
@@ -44,10 +44,7 @@ adminRouter.post('/users/hold', authenticate, authorize(UserRole.ADMIN), holdUse
 
 // Report Management
 adminRouter.get('/reports', authenticate, authorize(UserRole.ADMIN), getReports);
-//revinue
-// adminRouter.get('/revenue', authenticate, authorize(UserRole.ADMIN),getSubscriptionRevenue );
-adminRouter.get('/dashboard-summary', authenticate, authorize(UserRole.ADMIN), getDashboardSummary);
-//transection
+adminRouter.get('/summary', getFilteredSummary,authenticate, authorize(UserRole.ADMIN));
 adminRouter.get('/transection', authenticate, authorize(UserRole.ADMIN),getTransactionSummary );
 //parcel status
 adminRouter.get('/parcel-status', authenticate, authorize(UserRole.ADMIN), getParcelDetails);

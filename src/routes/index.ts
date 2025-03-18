@@ -3,7 +3,7 @@ import parcelRoutes from '../app/modules/parcel/parcel.routes';
 import deliveryRoutes from '../app/modules/parcel/delivery.routes';
 import userRoutesProfile from './user.routes';
 import adminRouter from '../app/modules/admin/admin.route';
-import NotificationRoute from './notification';
+import NotificationRoute from '../app/modules/notification/notification.route';
 import subscription from '../app/modules/subscriptions/route';
 import PaymentRoutes from '../app/modules/payments/payment.routes';
 

@@ -669,16 +669,3 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
 };
 
 
-export const viewNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) throw new AppError('Unauthorized', 401);
-
-    const user = await User.findById(userId).select('notifications');
-    if (!user) throw new AppError('User not found', 404);
-
-    res.status(200).json({ status: 'success', data: user.notifications });
-  } catch (error) {
-    next(error);
-  }
-};
