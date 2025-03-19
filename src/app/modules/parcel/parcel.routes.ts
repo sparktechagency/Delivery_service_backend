@@ -1,7 +1,7 @@
 // routes/parcel.routes.ts
 import express from 'express';
 import { authenticate } from '../../middlewares/auth';
-import { createParcelRequest, getAvailableParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels } from './parcel.controller';
+import { createParcelRequest, getAvailableParcels, getFilteredParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels } from './parcel.controller';
 import upload from '../../../multer/multer';
 import { assignDeliveryMan, cancelAssignedDeliveryMan, removeDeliveryRequest } from './delivery.controller';
 
@@ -16,6 +16,8 @@ parcelRouter.get('/:parcelId/requests', getParcelWithDeliveryRequests);
 parcelRouter.put("/assign", authenticate, assignDeliveryMan);
 parcelRouter.put("/cancel-assignment", authenticate, cancelAssignedDeliveryMan);
 parcelRouter.put('/remove-request',authenticate, removeDeliveryRequest )
+//DeliverParcel
+parcelRouter.get('/filtered', getFilteredParcels);
 
 export default parcelRouter;
 

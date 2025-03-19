@@ -139,37 +139,34 @@ export const getFilteredSummary = async (req: Request, res: Response, next: Next
     const { period } = req.query; // Get the period from the query parameters (day, week, month, year)
     const { startDate, endDate } = getDateRange(period as string);
 
-    // Calculate total revenue for the given period
+
     const totalRevenue = await Order.aggregate([
       { $match: { date: { $gte: startDate, $lte: endDate } } },
       { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
     ]);
 
-    // Total Users in the given period
+
     const totalUsers = await User.countDocuments({ startDate: { $gte: startDate, $lte: endDate } });
 
-    // New Users in the given period
+
     const newUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
 
-    // Total Subscribers in the given period
+
     const totalSubscribers = await User.countDocuments({ isSubscribed: true });
 
-    // New Subscribers in the given period
     const newSubscribers = await User.countDocuments({
       isSubscribed: true,
       subscriptionStartDate: { $gte: startDate, $lte: endDate }
     });
 
-    // Total Orders in the given period
     const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
 
-    // Total Completed Orders in the given period
     const totalCompletedOrders = await Order.countDocuments({
       status: 'delivered',
       date: { $gte: startDate, $lte: endDate }
     });
 
-    // Total Revenue from Subscriptions
+
     const totalSubscriptionRevenue = await UserSubscription.aggregate([
       { $match: { expiryDate: { $gte: startDate, $lte: endDate } } },
       { $group: { _id: null, totalRevenue: { $sum: '$price' } } }

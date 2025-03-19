@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ParcelRequest } from './ParcelRequest.model';
 import { User } from '../user/user.model';
 import { AppError } from '../../middlewares/error';
-import { DeliveryStatus, SenderType, UserRole } from '../../../types/enums';
+import { DeliveryStatus, DeliveryType, SenderType, UserRole } from '../../../types/enums';
 import { AuthRequest } from '../../middlewares/auth';
 import mongoose from 'mongoose';
 import upload from "../../../multer/multer"; // ✅ Import multer configuration
@@ -238,7 +238,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
  */
 export const getAvailableParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const parcels = await ParcelRequest.find({ status: DeliveryStatus.PENDING });
+    const parcels = await ParcelRequest.find({ status: DeliveryStatus.PENDING }).select('title senderId pickupLocation deliveryLocation deliveryTime deliveryType senderType status deliveryRequests createdAt updatedAt images');
 
     res.status(200).json({
       status: "success",
@@ -248,6 +248,7 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
     next(error);
   }
 };
+
 
 
 /**
@@ -509,6 +510,53 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response, next: 
     res.status(200).json({
       status: "success",
       message: `Parcel status updated to ${status}`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//DeliverParcel
+
+export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Extract DeliveryType, pickupLocation, and deliveryLocation from query params
+    const { deliveryType, pickupLocation, deliveryLocation } = req.query;
+
+    // Ensure locations are trimmed and case-insensitive
+    let query: any = { status: DeliveryStatus.PENDING };
+
+    // Apply filters to query
+    if (deliveryType) {
+      query.deliveryType = deliveryType;
+    }
+
+    if (pickupLocation) {
+      query.pickupLocation = { $regex: new RegExp(`^${pickupLocation}$`, 'i') }; // Case-insensitive match
+    }
+
+    if (deliveryLocation) {
+      query.deliveryLocation = { $regex: new RegExp(`^${deliveryLocation}$`, 'i') }; // Case-insensitive match
+    }
+
+    // Fetch filtered parcels from the database
+    const parcels = await ParcelRequest.find(query)
+      .select('title senderId pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status images')
+      .populate("senderId", "fullName email mobileNumber role")
+      .lean();
+
+    if (parcels.length === 0) {
+      // Handle case when no parcels are found
+      return res.status(200).json({
+        status: "success",
+        message: "No parcels match the filter criteria",
+        data: [],
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: parcels,
     });
   } catch (error) {
     next(error);
