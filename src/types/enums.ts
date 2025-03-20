@@ -27,7 +27,7 @@ export enum UserRole {
   
   export enum SenderType {
     PROFESSIONAL = 'professional',
-    NON_PROFESSIONAL = 'non_professional'
+    NON_PROFESSIONAL = 'non-professional'
     //  = 'non_professional'
   }
   export enum SubscriptionType {

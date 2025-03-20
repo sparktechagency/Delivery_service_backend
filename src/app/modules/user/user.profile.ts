@@ -62,22 +62,53 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
   });
 };
 
+//   export const getProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//     try {
+//         const userId = req.user?.id; // Logged-in user ID
 
+//         // Fetch user details
+//         const user = await User.findById(userId).select("-password"); // Exclude password for security
+//         if (!user) throw new AppError("User not found", 404);
 
-  export const getProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user?.id; // Logged-in user ID
+//         res.status(200).json({ 
+//             status: "success", 
+//             message: "User profile fetched successfully", 
+//             data: user 
+//         });
+//     } catch (error) {
+//         next(error);
+//     }
+// };
 
-        // Fetch user details
-        const user = await User.findById(userId).select("-password"); // Exclude password for security
-        if (!user) throw new AppError("User not found", 404);
-
-        res.status(200).json({ 
-            status: "success", 
-            message: "User profile fetched successfully", 
-            data: user 
-        });
-    } catch (error) {
-        next(error);
+export const getProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("Unauthorized", 401);
     }
+
+    // Fetch the user and populate SendOrders and RecciveOrders with parcel data
+    const user = await User.findById(userId)
+      .populate({
+        path: 'SendOrders.parcelId',  // Populate the parcel data in SendOrders
+        select: 'pickupLocation deliveryLocation price title description senderType deliveryType deliveryStartTime deliveryEndTime',
+      })
+      .populate({
+        path: 'RecciveOrders.parcelId',  // Populate the parcel data in RecciveOrders
+        select: 'pickupLocation deliveryLocation price title description senderType deliveryType deliveryStartTime deliveryEndTime',
+      });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "User profile fetched successfully",
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
 };
+

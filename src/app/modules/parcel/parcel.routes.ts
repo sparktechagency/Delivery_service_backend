@@ -1,7 +1,7 @@
 // routes/parcel.routes.ts
 import express from 'express';
 import { authenticate } from '../../middlewares/auth';
-import { createParcelRequest, getAvailableParcels, getFilteredParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels } from './parcel.controller';
+import { createParcelRequest, getAvailableParcels, getFilteredParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels, getUserReviews, updateParcelStatus } from './parcel.controller';
 import upload from '../../../multer/multer';
 import { assignDeliveryMan, cancelAssignedDeliveryMan, removeDeliveryRequest } from './delivery.controller';
 
@@ -12,10 +12,13 @@ parcelRouter.post("/create",authenticate, upload.array('images', 5), createParce
 parcelRouter.get('/available', authenticate, getAvailableParcels);
 parcelRouter.get("/user-parcels", authenticate, getUserParcels);
 parcelRouter.get('/availableByRadius', authenticate,getParcelsByRadius );
-parcelRouter.get('/:parcelId/requests', getParcelWithDeliveryRequests);
+parcelRouter.get('/requests/:parcelId', getParcelWithDeliveryRequests);
+parcelRouter.get('/get-user-reviews', authenticate, getUserReviews);
 parcelRouter.put("/assign", authenticate, assignDeliveryMan);
 parcelRouter.put("/cancel-assignment", authenticate, cancelAssignedDeliveryMan);
 parcelRouter.put('/remove-request',authenticate, removeDeliveryRequest )
+parcelRouter.post('/delivery',authenticate, updateParcelStatus )
+
 //DeliverParcel
 parcelRouter.get('/filtered', getFilteredParcels);
 
