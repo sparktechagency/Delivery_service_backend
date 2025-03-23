@@ -97,33 +97,8 @@ import { Request, Response, NextFunction } from 'express';
 import { Order } from '../parcel/order.model'; // Assuming the Order model is located here
 import { UserSubscription } from '../subscriptions/subscription.model'; // Assuming the Subscription model is located here
 import { User } from '../user/user.model'; // Assuming the User model is located here
+import { ParcelRequest } from '../parcel/ParcelRequest.model';
 
-// Helper function to get the date range for exact year/month/day filtering
-// const getDateRange = (year?: number, month?: number, day?: number) => {
-//   const now = new Date();
-//   let startDate: Date;
-//   let endDate: Date;
-
-//   if (year && month && day) {
-//     // Specific date: year, month, day
-//     startDate = new Date(year, month - 1, day, 0, 0, 0, 0); // Month is 0-based in JavaScript
-//     endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
-//   } else if (year && month) {
-//     // Specific month of a specific year
-//     startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
-//     endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of the month
-//   } else if (year) {
-//     // Specific year
-//     startDate = new Date(year, 0, 1, 0, 0, 0, 0); // Jan 1st of the year
-//     endDate = new Date(year, 11, 31, 23, 59, 59, 999); // Dec 31st of the year
-//   } else {
-//     // Default to today
-//     startDate = new Date(now.setDate(now.getDate() - 1)); // 1 day back
-//     endDate = new Date(); // Today's date
-//   }
-
-//   return { startDate, endDate };
-// };
 
 const getDateRange = (year?: number, month?: number, day?: number) => {
   const now = new Date();
@@ -168,22 +143,28 @@ export const getTotalRevenue = async (req: Request, res: Response, next: NextFun
 
     const { startDate, endDate } = getDateRange(year, month, day);
 
-    // If a specific day is selected, return data for that day
-    if (year && month && day) {
-      const totalRevenue = await Order.aggregate([
-        { $match: { date: { $gte: startDate, $lte: endDate } } },
-        { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
-      ]);
+    // If year is selected, return data for each month
+    if (year && !month) {
+      const dataByMonth = [];
+      for (let month = 1; month <= 12; month++) {
+        const { startDate, endDate } = getDateRange(year, month);
+        const totalRevenue = await Order.aggregate([
+          { $match: { date: { $gte: startDate, $lte: endDate } } },
+          { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
+        ]);
+        dataByMonth.push({
+          x: month, // Month number (1 to 12)
+          y: totalRevenue[0]?.totalRevenue || 0, // Total revenue for that month
+        });
+      }
       return res.status(200).json({
         status: 'success',
-        data: {
-          totalRevenue: totalRevenue[0]?.totalRevenue || 0,
-        },
+        data: dataByMonth,
       });
     }
 
-    // If only a month is selected, return data for all days of that month
-    if (year && month) {
+    // If year and month are selected, return data for each day of that month
+    if (year && month && !day) {
       const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
       const dataByDay = [];
       for (let day = 1; day <= daysInMonth; day++) {
@@ -193,8 +174,8 @@ export const getTotalRevenue = async (req: Request, res: Response, next: NextFun
           { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
         ]);
         dataByDay.push({
-          day,
-          totalRevenue: totalRevenue[0]?.totalRevenue || 0,
+          x: day, // Day of the month (1, 2, 3, ...)
+          y: totalRevenue[0]?.totalRevenue || 0, // Total revenue for that day
         });
       }
       return res.status(200).json({
@@ -203,27 +184,24 @@ export const getTotalRevenue = async (req: Request, res: Response, next: NextFun
       });
     }
 
-    // If only the year is selected, return data for all months of the year
-    if (year) {
-      const dataByMonth = [];
-      for (let month = 1; month <= 12; month++) {
-        const { startDate, endDate } = getDateRange(year, month);
-        const totalRevenue = await Order.aggregate([
-          { $match: { date: { $gte: startDate, $lte: endDate } } },
-          { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
-        ]);
-        dataByMonth.push({
-          month,
-          totalRevenue: totalRevenue[0]?.totalRevenue || 0,
-        });
-      }
+    // If year, month, and day are all selected, return data for that specific day
+    if (year && month && day) {
+      const totalRevenue = await Order.aggregate([
+        { $match: { date: { $gte: startDate, $lte: endDate } } },
+        { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
+      ]);
       return res.status(200).json({
         status: 'success',
-        data: dataByMonth,
+        data: [
+          {
+            x: day, // Day of the month (e.g., 15)
+            y: totalRevenue[0]?.totalRevenue || 0, // Total revenue for that specific day
+          },
+        ],
       });
     }
 
-    // Default: Return data for today
+    // Default case: Return total revenue count for the entire date range (today by default)
     const totalRevenue = await Order.aggregate([
       { $match: { date: { $gte: startDate, $lte: endDate } } },
       { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
@@ -231,42 +209,17 @@ export const getTotalRevenue = async (req: Request, res: Response, next: NextFun
 
     res.status(200).json({
       status: 'success',
-      data: {
-        totalRevenue: totalRevenue[0]?.totalRevenue || 0,
-      },
+      data: [
+        {
+          x: new Date().getDate(), // Today's day
+          y: totalRevenue[0]?.totalRevenue || 0, // Total revenue for today
+        },
+      ],
     });
   } catch (error) {
     next(error);
   }
 };
-
-// export const getTotalRevenue = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const year = parseQueryParamToNumber(req.query.year as string);
-//     const month = parseQueryParamToNumber(req.query.month as string);
-//     const day = parseQueryParamToNumber(req.query.day as string);
-
-//     const { startDate, endDate } = getDateRange(year, month, day);
-
-//     const totalRevenue = await Order.aggregate([
-//       { $match: { date: { $gte: startDate, $lte: endDate } } },
-//       { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
-//     ]);
-
-//     res.status(200).json({
-//       status: 'success',
-//       data: {
-//         totalRevenue: totalRevenue[0]?.totalRevenue || 0,
-//       },
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-
-
-// Controller: Total Subscription Revenue API
 export const getTotalSubscriptionRevenue = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
@@ -275,63 +228,18 @@ export const getTotalSubscriptionRevenue = async (req: Request, res: Response, n
 
     const { startDate, endDate } = getDateRange(year, month, day);
 
-    const totalSubscriptionRevenue = await UserSubscription.aggregate([
-      { $match: { expiryDate: { $gte: startDate, $lte: endDate } } },
-      { $group: { _id: null, totalRevenue: { $sum: '$price' } } }
-    ]);
-
-    res.status(200).json({
-      status: 'success',
-      data: {
-        totalSubscriptionRevenue: totalSubscriptionRevenue[0]?.totalRevenue || 0,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Controller: Total Users API
-// export const getTotalUsers = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const year = parseQueryParamToNumber(req.query.year as string);
-//     const month = parseQueryParamToNumber(req.query.month as string);
-//     const day = parseQueryParamToNumber(req.query.day as string);
-
-//     const { startDate, endDate } = getDateRange(year, month, day);
-
-//     const totalUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
-
-//     res.status(200).json({
-//       status: 'success',
-//       data: {
-//         totalUsers,
-//       },
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-export const getTotalUsers = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Parse the year, month, and day from query params
-    const year = parseQueryParamToNumber(req.query.year as string);
-    const month = parseQueryParamToNumber(req.query.month as string);
-    const day = parseQueryParamToNumber(req.query.day as string);
-
-    // Get the appropriate date range based on the year, month, and day
-    const { startDate, endDate } = getDateRange(year, month, day);
-
-    // If year and month are selected, aggregate data for all months in the year
+    // If year is selected, return data for each month
     if (year && !month) {
       const dataByMonth = [];
-      for (let month = 1; month <= 12; month++) {
-        const { startDate, endDate } = getDateRange(year, month);
-        const totalUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
+      for (let m = 1; m <= 12; m++) {
+        const { startDate, endDate } = getDateRange(year, m);
+        const totalRevenue = await UserSubscription.aggregate([
+          { $match: { expiryDate: { $gte: startDate, $lte: endDate } } },
+          { $group: { _id: null, totalRevenue: { $sum: '$price' } } }
+        ]);
         dataByMonth.push({
-          month,
-          totalUsers,
+          x: m, // Month number (1 to 12)
+          y: totalRevenue[0]?.totalRevenue || 0, // Total subscription revenue for that month
         });
       }
       return res.status(200).json({
@@ -340,7 +248,91 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
       });
     }
 
-    // If year and month are selected, aggregate data for all days in the month
+    // If year and month are selected, return data for each day in the month
+    if (year && month && !day) {
+      const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
+      const dataByDay = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const { startDate, endDate } = getDateRange(year, month, d);
+        const totalRevenue = await UserSubscription.aggregate([
+          { $match: { expiryDate: { $gte: startDate, $lte: endDate } } },
+          { $group: { _id: null, totalRevenue: { $sum: '$price' } } }
+        ]);
+        dataByDay.push({
+          x: d, // Day of the month (1, 2, 3, ...)
+          y: totalRevenue[0]?.totalRevenue || 0, // Total revenue for that day
+        });
+      }
+      return res.status(200).json({
+        status: 'success',
+        data: dataByDay,
+      });
+    }
+
+    // If year, month, and day are all selected, return data for that specific day
+    if (year && month && day) {
+      const totalRevenue = await UserSubscription.aggregate([
+        { $match: { expiryDate: { $gte: startDate, $lte: endDate } } },
+        { $group: { _id: null, totalRevenue: { $sum: '$price' } } }
+      ]);
+      return res.status(200).json({
+        status: 'success',
+        data: [
+          {
+            x: day, // Day of the month (e.g., 15)
+            y: totalRevenue[0]?.totalRevenue || 0, // Total subscription revenue for that specific day
+          },
+        ],
+      });
+    }
+
+    // Default case: Return total subscription revenue count for the entire date range (today by default)
+    const totalRevenue = await UserSubscription.aggregate([
+      { $match: { expiryDate: { $gte: startDate, $lte: endDate } } },
+      { $group: { _id: null, totalRevenue: { $sum: '$price' } } }
+    ]);
+    res.status(200).json({
+      status: 'success',
+      data: [
+        {
+          x: new Date().getDate(), // Today's day
+          y: totalRevenue[0]?.totalRevenue || 0, // Total subscription revenue for today
+        },
+      ],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+export const getTotalUsers = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const year = parseQueryParamToNumber(req.query.year as string);
+    const month = parseQueryParamToNumber(req.query.month as string);
+    const day = parseQueryParamToNumber(req.query.day as string);
+
+    const { startDate, endDate } = getDateRange(year, month, day);
+
+    // If year is selected, return data for each month
+    if (year && !month) {
+      const dataByMonth = [];
+      for (let month = 1; month <= 12; month++) {
+        const { startDate, endDate } = getDateRange(year, month);
+        const totalUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
+        dataByMonth.push({
+          x: month, // Month number (1 to 12)
+          y: totalUsers, // Total users for that month
+        });
+      }
+      return res.status(200).json({
+        status: 'success',
+        data: dataByMonth,
+      });
+    }
+
+    // If year and month are selected, return data for each day of the month
     if (year && month && !day) {
       const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
       const dataByDay = [];
@@ -348,8 +340,8 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
         const { startDate, endDate } = getDateRange(year, month, day);
         const totalUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
         dataByDay.push({
-          day,
-          totalUsers,
+          x: day, // Day of the month (1, 2, 3, ...)
+          y: totalUsers, // Total users for that day
         });
       }
       return res.status(200).json({
@@ -363,19 +355,25 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
       const totalUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
       return res.status(200).json({
         status: 'success',
-        data: {
-          totalUsers,
-        },
+        data: [
+          {
+            x: day, // Day of the month (e.g., 15)
+            y: totalUsers, // Total users for that specific day
+          },
+        ],
       });
     }
 
-    // If only the year is selected, show data for that year
+    // Default case: Return total users count for the entire date range (today by default)
     const totalUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
-    res.status(200).json({
+    return res.status(200).json({
       status: 'success',
-      data: {
-        totalUsers,
-      },
+      data: [
+        {
+          x: new Date().getDate(), // Today's day
+          y: totalUsers, // Total users for today
+        },
+      ],
     });
   } catch (error) {
     next(error);
@@ -383,7 +381,8 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
 };
 
 
-// Controller: New Users API
+
+
 // Controller: New Users API
 export const getNewUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -391,7 +390,6 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
     const month = parseQueryParamToNumber(req.query.month as string);
     const day = parseQueryParamToNumber(req.query.day as string);
 
-    // Get the appropriate date range based on the year, month, and day
     const { startDate, endDate } = getDateRange(year, month, day);
 
     // If year and month are selected, return data for all months of the year
@@ -401,8 +399,8 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
         const { startDate, endDate } = getDateRange(year, month);
         const newUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
         dataByMonth.push({
-          month,
-          newUsers,
+          x: month, // Month number (1 to 12)
+          y: newUsers, // Total new users for that month
         });
       }
       return res.status(200).json({
@@ -419,8 +417,8 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
         const { startDate, endDate } = getDateRange(year, month, day);
         const newUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
         dataByDay.push({
-          day,
-          newUsers,
+          x: day, // Day of the month (1, 2, 3, ...)
+          y: newUsers, // Total new users for that day
         });
       }
       return res.status(200).json({
@@ -434,9 +432,12 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
       const newUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
       return res.status(200).json({
         status: 'success',
-        data: {
-          newUsers,
-        },
+        data: [
+          {
+            x: day, // Day of the month (e.g., 15)
+            y: newUsers, // Total new users for that specific day
+          },
+        ],
       });
     }
 
@@ -444,9 +445,12 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
     const newUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
     res.status(200).json({
       status: 'success',
-      data: {
-        newUsers,
-      },
+      data: [
+        {
+          x: new Date().getDate(), // Today's day
+          y: newUsers, // Total new users for today
+        },
+      ],
     });
   } catch (error) {
     next(error);
@@ -454,7 +458,7 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
 };
 
 
-// Controller: Total Subscribers API
+
 // Controller: Total Subscribers API
 export const getTotalSubscribers = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -464,13 +468,65 @@ export const getTotalSubscribers = async (req: Request, res: Response, next: Nex
 
     const { startDate, endDate } = getDateRange(year, month, day);
 
-    const totalSubscribers = await User.countDocuments({ isSubscribed: true });
+    // If year is selected, return data for each month
+    if (year && !month) {
+      const dataByMonth = [];
+      for (let m = 1; m <= 12; m++) {
+        const { startDate, endDate } = getDateRange(year, m);
+        const totalSubscribers = await User.countDocuments({ isSubscribed: true, createdAt: { $gte: startDate, $lte: endDate } });
+        dataByMonth.push({
+          x: m, // Month number (1 to 12)
+          y: totalSubscribers || 0, // Total subscribers for that month
+        });
+      }
+      return res.status(200).json({
+        status: 'success',
+        data: dataByMonth,
+      });
+    }
 
-    res.status(200).json({
+    // If year and month are selected, return data for each day of the month
+    if (year && month && !day) {
+      const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
+      const dataByDay = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const { startDate, endDate } = getDateRange(year, month, d);
+        const totalSubscribers = await User.countDocuments({ isSubscribed: true, createdAt: { $gte: startDate, $lte: endDate } });
+        dataByDay.push({
+          x: d, // Day of the month (1, 2, 3, ...)
+          y: totalSubscribers || 0, // Total subscribers for that day
+        });
+      }
+      return res.status(200).json({
+        status: 'success',
+        data: dataByDay,
+      });
+    }
+
+    // If year, month, and day are all selected, return data for that specific day
+    if (year && month && day) {
+      const totalSubscribers = await User.countDocuments({ isSubscribed: true, createdAt: { $gte: startDate, $lte: endDate } });
+      return res.status(200).json({
+        status: 'success',
+        data: [
+          {
+            x: day, // Day of the month (e.g., 15)
+            y: totalSubscribers || 0, // Total subscribers for that specific day
+          },
+        ],
+      });
+    }
+
+    // Default case: Return total subscribers count for today
+    const totalSubscribers = await User.countDocuments({ isSubscribed: true, createdAt: { $gte: startDate, $lte: endDate } });
+    return res.status(200).json({
       status: 'success',
-      data: {
-        totalSubscribers,
-      },
+      data: [
+        {
+          x: new Date().getDate(), // Today's day
+          y: totalSubscribers || 0, // Total subscribers for today
+        },
+      ],
     });
   } catch (error) {
     next(error);
@@ -479,7 +535,6 @@ export const getTotalSubscribers = async (req: Request, res: Response, next: Nex
 
 
 // Controller: New Subscribers API
-
 export const getNewSubscribers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
@@ -488,21 +543,83 @@ export const getNewSubscribers = async (req: Request, res: Response, next: NextF
 
     const { startDate, endDate } = getDateRange(year, month, day);
 
+    // If year is selected, return data for each month
+    if (year && !month) {
+      const dataByMonth = [];
+      for (let m = 1; m <= 12; m++) {
+        const { startDate, endDate } = getDateRange(year, m);
+        const newSubscribers = await User.countDocuments({
+          isSubscribed: true,
+          subscriptionStartDate: { $gte: startDate, $lte: endDate }
+        });
+        dataByMonth.push({
+          x: m, // Month number (1 to 12)
+          y: newSubscribers || 0, // Total new subscribers for that month
+        });
+      }
+      return res.status(200).json({
+        status: 'success',
+        data: dataByMonth,
+      });
+    }
+
+    // If year and month are selected, return data for each day in the month
+    if (year && month && !day) {
+      const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
+      const dataByDay = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const { startDate, endDate } = getDateRange(year, month, d);
+        const newSubscribers = await User.countDocuments({
+          isSubscribed: true,
+          subscriptionStartDate: { $gte: startDate, $lte: endDate }
+        });
+        dataByDay.push({
+          x: d, // Day of the month (1, 2, 3, ...)
+          y: newSubscribers || 0, // Total new subscribers for that day
+        });
+      }
+      return res.status(200).json({
+        status: 'success',
+        data: dataByDay,
+      });
+    }
+
+    // If year, month, and day are all selected, return data for that specific day
+    if (year && month && day) {
+      const newSubscribers = await User.countDocuments({
+        isSubscribed: true,
+        subscriptionStartDate: { $gte: startDate, $lte: endDate }
+      });
+      return res.status(200).json({
+        status: 'success',
+        data: [
+          {
+            x: day, // Day of the month (e.g., 15)
+            y: newSubscribers || 0, // Total new subscribers for that specific day
+          },
+        ],
+      });
+    }
+
+    // Default case: Return new subscribers count for today
     const newSubscribers = await User.countDocuments({
       isSubscribed: true,
       subscriptionStartDate: { $gte: startDate, $lte: endDate }
     });
-
-    res.status(200).json({
+    return res.status(200).json({
       status: 'success',
-      data: {
-        newSubscribers,
-      },
+      data: [
+        {
+          x: new Date().getDate(), // Today's day
+          y: newSubscribers || 0, // Total new subscribers for today
+        },
+      ],
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 // Controller: Total Orders API
 export const getTotalOrders = async (req: Request, res: Response, next: NextFunction) => {
@@ -513,18 +630,75 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
 
     const { startDate, endDate } = getDateRange(year, month, day);
 
-    const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+    // If year is provided, return data for all 12 months of that year
+    if (year && !month) {
+      const dataByMonth = [];
 
-    res.status(200).json({
+      for (let m = 1; m <= 12; m++) {
+        const { startDate, endDate } = getDateRange(year, m);
+        const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+        dataByMonth.push({
+          x: m, // Month number (1 to 12)
+          y: totalOrders || 0, // Total orders for that month, or 0 if no data
+        });
+      }
+
+      return res.status(200).json({
+        status: 'success',
+        data: dataByMonth,
+      });
+    }
+
+    // If year and month are provided, return data for each day in the month
+    if (year && month && !day) {
+      const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
+      const dataByDay = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const { startDate, endDate } = getDateRange(year, month, d);
+        const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+        dataByDay.push({
+          x: d, // Day of the month (1, 2, 3, ...)
+          y: totalOrders || 0, // Total orders for that day, or 0 if no data
+        });
+      }
+
+      return res.status(200).json({
+        status: 'success',
+        data: dataByDay,
+      });
+    }
+
+    // If year, month, and day are all selected, return data for that specific day
+    if (year && month && day) {
+      const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+      return res.status(200).json({
+        status: 'success',
+        data: [
+          {
+            x: day, // Day of the month (e.g., 15)
+            y: totalOrders || 0, // Total orders for that specific day, or 0 if no data
+          },
+        ],
+      });
+    }
+
+    // Default case: Return total orders count for today
+    const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+    return res.status(200).json({
       status: 'success',
-      data: {
-        totalOrders,
-      },
+      data: [
+        {
+          x: new Date().getDate(), // Today's day
+          y: totalOrders || 0, // Total orders for today
+        },
+      ],
     });
   } catch (error) {
     next(error);
   }
 };
+
+
 
 
 
@@ -537,6 +711,65 @@ export const getTotalCompletedOrders = async (req: Request, res: Response, next:
 
     const { startDate, endDate } = getDateRange(year, month, day);
 
+    // If year is selected, return data for each month of the year
+    if (year && !month) {
+      const dataByMonth = [];
+      for (let m = 1; m <= 12; m++) {
+        const { startDate, endDate } = getDateRange(year, m);
+        const totalCompletedOrders = await Order.countDocuments({
+          status: 'delivered',
+          date: { $gte: startDate, $lte: endDate }
+        });
+        dataByMonth.push({
+          x: m, // Month number (1 to 12)
+          y: totalCompletedOrders || 0, // Total completed orders for that month
+        });
+      }
+      return res.status(200).json({
+        status: 'success',
+        data: dataByMonth,
+      });
+    }
+
+    // If year and month are selected, return data for each day in that month
+    if (year && month && !day) {
+      const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
+      const dataByDay = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const { startDate, endDate } = getDateRange(year, month, d);
+        const totalCompletedOrders = await Order.countDocuments({
+          status: 'delivered',
+          date: { $gte: startDate, $lte: endDate }
+        });
+        dataByDay.push({
+          x: d, // Day of the month (1, 2, 3, ...)
+          y: totalCompletedOrders || 0, // Total completed orders for that day
+        });
+      }
+      return res.status(200).json({
+        status: 'success',
+        data: dataByDay,
+      });
+    }
+
+    // If year, month, and day are all selected, return data for that specific day
+    if (year && month && day) {
+      const totalCompletedOrders = await Order.countDocuments({
+        status: 'delivered',
+        date: { $gte: startDate, $lte: endDate }
+      });
+      return res.status(200).json({
+        status: 'success',
+        data: [
+          {
+            x: day, // Day of the month (e.g., 15)
+            y: totalCompletedOrders || 0, // Total completed orders for that specific day
+          },
+        ],
+      });
+    }
+
+    // Default case: Return total completed orders for the entire date range (today by default)
     const totalCompletedOrders = await Order.countDocuments({
       status: 'delivered',
       date: { $gte: startDate, $lte: endDate }
@@ -544,12 +777,216 @@ export const getTotalCompletedOrders = async (req: Request, res: Response, next:
 
     res.status(200).json({
       status: 'success',
-      data: {
-        totalCompletedOrders,
-      },
+      data: [
+        {
+          x: new Date().getDate(), // Today's day
+          y: totalCompletedOrders || 0, // Total completed orders for today
+        },
+      ],
     });
   } catch (error) {
     next(error);
   }
 };
 
+
+
+export const getTransactions = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const year = parseQueryParamToNumber(req.query.year as string);
+    const month = parseQueryParamToNumber(req.query.month as string);
+    const day = parseQueryParamToNumber(req.query.day as string);
+
+    const { startDate, endDate } = getDateRange(year, month, day);
+
+    // If year is selected, return data for each month of the year
+    if (year && !month) {
+      const dataByMonth = [];
+      for (let m = 1; m <= 12; m++) {
+        const { startDate, endDate } = getDateRange(year, m);
+        
+        // Total Transactions for the Month
+        const totalTransactions = await ParcelRequest.countDocuments({
+          status: { $in: ['accepted', 'delivered'] },
+          createdAt: { $gte: startDate, $lte: endDate }
+        });
+
+        dataByMonth.push({
+          x: m, // Month number (1 to 12)
+          y: totalTransactions || 0, // Total transactions for that month
+        });
+      }
+
+      return res.status(200).json({
+        status: 'success',
+        data: dataByMonth,
+      });
+    }
+
+    // If year and month are selected, return data for each day of the month
+    if (year && month && !day) {
+      const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
+      const dataByDay = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const { startDate, endDate } = getDateRange(year, month, d);
+        
+        // Total Transactions for the Day
+        const totalTransactions = await ParcelRequest.countDocuments({
+          status: { $in: ['accepted', 'delivered'] },
+          createdAt: { $gte: startDate, $lte: endDate }
+        });
+
+        dataByDay.push({
+          x: d, // Day of the month (1, 2, 3, ...)
+          y: totalTransactions || 0, // Total transactions for that day
+        });
+      }
+
+      return res.status(200).json({
+        status: 'success',
+        data: dataByDay,
+      });
+    }
+
+    // If year, month, and day are all selected, return data for that specific day
+    if (year && month && day) {
+      const totalTransactions = await ParcelRequest.countDocuments({
+        status: { $in: ['accepted', 'delivered'] },
+        createdAt: { $gte: startDate, $lte: endDate }
+      });
+
+      return res.status(200).json({
+        status: 'success',
+        data: [
+          {
+            x: day, // Day of the month (e.g., 15)
+            y: totalTransactions || 0, // Total transactions for that specific day
+          },
+        ],
+      });
+    }
+
+    // Default case: Return total transactions count for today
+    const totalTransactions = await ParcelRequest.countDocuments({
+      status: { $in: ['accepted', 'delivered'] },
+      createdAt: { $gte: startDate, $lte: endDate }
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      data: [
+        {
+          x: new Date().getDate(), // Today's day
+          y: totalTransactions || 0, // Total transactions for today
+        },
+      ],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMostUsedDeliveryType = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log("🔄 getMostUsedDeliveryType called");
+
+    // Aggregate the number of times each deliveryType is used
+    const deliveryTypeCounts = await ParcelRequest.aggregate([
+      {
+        $group: {
+          _id: "$deliveryType",  // Group by deliveryType
+          count: { $sum: 1 }  // Count the number of occurrences
+        }
+      },
+      {
+        $sort: { count: -1 }  // Sort by the count in descending order
+      }
+    ]);
+
+    // Log the result to verify
+    console.log("📊 Delivery type counts:", JSON.stringify(deliveryTypeCounts, null, 2));
+
+    if (deliveryTypeCounts.length === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "No parcel requests found."
+      });
+    }
+
+    // Get the most used deliveryType (first element after sorting)
+    const mostUsedDeliveryType = deliveryTypeCounts[0];
+
+    // Return the response with the counts and the most used type
+    res.status(200).json({
+      status: "success",
+      data: {
+        deliveryTypeCounts,
+        mostUsedDeliveryType
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error in getMostUsedDeliveryType:", error);
+    next(error);
+  }
+};
+
+export const getUserRatingCounts = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log("🔄 getUserRatingCounts called");
+
+    // Aggregate to count the number of users for each rating (1 to 5 stars)
+    const ratingCounts = await User.aggregate([
+      // Unwind the reviews array to work with individual reviews
+      { $unwind: "$reviews" },
+
+      // Group by rating and count the number of occurrences of each rating
+      {
+        $group: {
+          _id: "$reviews.rating", // Group by the rating field
+          count: { $sum: 1 } // Count the number of users with that rating
+        }
+      },
+
+      // Sort the results by rating in descending order
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Log the results for debugging
+    console.log("📊 User rating counts:", JSON.stringify(ratingCounts, null, 2));
+
+    // If no ratings are found, return an empty list or a message
+    if (ratingCounts.length === 0) {
+      return res.status(404).json({
+        status: "error",
+        message: "No users found with reviews."
+      });
+    }
+
+    // Send the response with the counts of users for each rating
+    const userRatings = {
+      "5_star": 0,
+      "4_star": 0,
+      "3_star": 0,
+      "2_star": 0,
+      "1_star": 0
+    };
+
+    // Populate the user ratings counts based on the aggregation result
+    ratingCounts.forEach((ratingCount) => {
+      if (ratingCount._id === 5) userRatings["5_star"] = ratingCount.count;
+      if (ratingCount._id === 4) userRatings["4_star"] = ratingCount.count;
+      if (ratingCount._id === 3) userRatings["3_star"] = ratingCount.count;
+      if (ratingCount._id === 2) userRatings["2_star"] = ratingCount.count;
+      if (ratingCount._id === 1) userRatings["1_star"] = ratingCount.count;
+    });
+
+    // Return the counts of users with each star rating
+    res.status(200).json({
+      status: "success",
+      data: userRatings
+    });
+  } catch (error) {
+    console.error("❌ Error in getUserRatingCounts:", error);
+    next(error);
+  }
+};

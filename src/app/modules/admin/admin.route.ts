@@ -7,7 +7,8 @@ import multer from 'multer';
 import { assignFreeDeliveriesToUser, updateGlobalFreeDeliveries } from '../parcel/delivery.controller';
 // import { getSubscriptionRevenue } from './report.controller';
 import { getTransactionSummary } from './transection.controller';
-import { getNewSubscribers, getNewUsers, getTotalCompletedOrders, getTotalOrders, getTotalRevenue, getTotalSubscribers, getTotalSubscriptionRevenue, getTotalUsers } from './report.controller';
+import { getMostUsedDeliveryType, getNewSubscribers, getNewUsers, getTotalCompletedOrders, getTotalOrders, getTotalRevenue, getTotalSubscribers, getTotalSubscriptionRevenue, getTotalUsers, getTransactions, getUserRatingCounts } from './report.controller';
+import { getAllAnnouncements } from '../notification/notification.controller';
 
 const fileFilter = (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Add your file filtering logic here
@@ -24,9 +25,6 @@ adminRouter.post('/login', loginAdmin);
 
 // Route to update admin profile (authenticate, authorize, upload image, then update profile)
 adminRouter.put('/profile/:id', authenticate, upload.single('profileImage'), updateAdminProfile);
-
-
-
 adminRouter.put('/change-password', authenticate, authorize(UserRole.ADMIN), changeAdminPassword);
 
 adminRouter.get('/profile', authenticate, authorize(UserRole.ADMIN), getAdminProfile);
@@ -52,11 +50,22 @@ adminRouter.get('/totalSubscribers', getTotalSubscribers);
 adminRouter.get('/newSubscribers', getNewSubscribers);
 adminRouter.get('/totalOrders', getTotalOrders);
 adminRouter.get('/totalCompletedOrders', getTotalCompletedOrders);
-adminRouter.get('/transection', authenticate, authorize(UserRole.ADMIN),getTransactionSummary );
+adminRouter.get('/transectionSummary', authenticate, authorize(UserRole.ADMIN),getTransactionSummary );
+adminRouter.get('/transection', authenticate, authorize(UserRole.ADMIN), getTransactions);
 //parcel status
 adminRouter.get('/parcel-status', authenticate, authorize(UserRole.ADMIN), getParcelDetails);
 
 // Subscription Management
 adminRouter.post('/subscriptions', authenticate, authorize(UserRole.ADMIN), manageSubscriptions);
+
+
+//get all announcement admin
+adminRouter.get('/announcements', authenticate, authorize(UserRole.ADMIN), getAllAnnouncements);
+
+//get most DeliveryType like car, bike etc
+adminRouter.get('/delivery-type', authenticate, authorize(UserRole.ADMIN), getMostUsedDeliveryType);
+
+//rating user
+adminRouter.get('/rating-user', authenticate, authorize(UserRole.ADMIN), getUserRatingCounts);
 
 export default adminRouter;

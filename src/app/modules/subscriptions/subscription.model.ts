@@ -92,6 +92,7 @@ import { SubscriptionType } from '../../../types/enums';
 interface BaseSubscription extends Document {
   type: SubscriptionType;
   freeDeliveries: number;
+  description: string;
   totalDeliveries: number;
   price: number;
   earnings: number;
@@ -121,6 +122,7 @@ const baseSchema = new Schema<BaseSubscription>(
       required: true,
     },
     freeDeliveries: { type: Number, default: 3 },
+    description: { type: String, required: true }, 
     totalDeliveries: { type: Number, default: 0 },
     price: { type: Number, required: true },
     earnings: { type: Number, default: 0 },

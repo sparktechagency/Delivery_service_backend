@@ -317,56 +317,6 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
   };
 
 
-//   export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//       const page = parseInt(req.query.page as string) || 1; // Page number from query parameter
-//       const limit = parseInt(req.query.limit as string) || 10; // Number of users per page
-  
-//       const skip = (page - 1) * limit; // Calculate skip for pagination
-  
-//       console.log("🔍 Fetching users with pagination...");
-      
-//       // Query to fetch users with pagination and select only relevant fields
-//       const users = await User.find()
-//         .skip(skip)
-//         .limit(limit)
-//         .select('fullName email role isVerified freeDeliveries tripsPerDay isSubscribed subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted  createdAt') // Select only necessary fields
-//         .exec();
-      
-//       console.log("📌 Query Result:", users);  
-//       /*
-//  isSubscribed?: boolean;
-//   subscriptionType: SubscriptionType; // Added subscription type
-//   subscriptionPrice: number; // Added subscription price
-//   subscriptionStartDate: Date; // Added subscription start date
-//   subscriptionExpiryDate: Date; // Added subscription expiry date
-//   subscriptionCount: number;
-//       */
-  
-//       if (users.length === 0) {
-//         console.log("❌ No users found in database!");
-//         return res.status(404).json({ status: "error", message: "No users found" });
-//       }
-  
-//       // Get the total count of users for pagination purposes
-//       const totalUsers = await User.countDocuments();
-  
-//       res.json({
-//         status: 'success',
-//         data: {
-//           users,
-//           totalUsers,
-//           currentPage: page,
-//           totalPages: Math.ceil(totalUsers / limit)
-//         }
-//       });
-//     } catch (error) {
-//       console.error("❌ Error fetching users:", error);
-//       res.status(500).json({ status: "error", message: "Internal Server Error" });
-//     }
-//   };
-
-
 
 // export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
@@ -394,15 +344,17 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
 //       return res.status(404).json({ status: "error", message: "No users found" });
 //     }
 
-//     // Calculate total trips completed and total earnings from parcels for each user
-//     for (let user of users) {
-//       const tripData = await ParcelRequest.aggregate([
-//         { $match: { assignedDelivererId: user._id, status: "DELIVERED" } },
-//         { $group: { _id: null, totalTrips: { $sum: 1 }, totalEarnings: { $sum: "$price" } } }
-//       ]);
+//     // Fetch total earnings and trips completed in one aggregation query for all users
+//     const earningsData = await ParcelRequest.aggregate([
+//       { $match: { status: "DELIVERED", assignedDelivererId: { $in: users.map(user => user._id) } } },
+//       { $group: { _id: "$assignedDelivererId", totalTrips: { $sum: 1 }, totalEarnings: { $sum: "$price" } } }
+//     ]);
 
-//       user.TotaltripsCompleted = tripData.length > 0 ? tripData[0].totalTrips : 0;
-//       user.totalEarning = tripData.length > 0 ? tripData[0].totalEarnings : 0;
+//     // Map earnings data to users
+//     for (let user of users) {
+//       const earnings = earningsData.find(data => data._id.toString() === user._id.toString());
+//       user.TotaltripsCompleted = earnings ? earnings.totalTrips : 0;
+//       user.totalEarning = earnings ? earnings.totalEarnings : 0;
 //     }
 
 //     // Get the total count of users for pagination purposes
@@ -422,45 +374,67 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
 //     res.status(500).json({ status: "error", message: "Internal Server Error" });
 //   }
 // };
-
 export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
-    const { filterType, filterValue } = req.query;
+    const { filterType, filterValue, sortBy, sortOrder } = req.query;
 
-    console.log("🔍 Fetching users with pagination, total trips completed, and total earnings...");
-    
+    console.log("🔍 Fetching users with pagination, rating, earnings, and sorting...");
+
     // Build filter criteria
     let filter: any = {};
-    if (filterType === "mobile") filter.email = filterValue;
-    if (filterType === "email") filter.mobileNumber = filterValue;
-
-    // Fetch users with pagination and filter
-    const users = await User.find(filter)
-      .skip(skip)
-      .limit(limit)
-      .select('fullName email mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt')
-      .lean();
     
-    if (users.length === 0) {
-      console.log("❌ No users found in database!");
-      return res.status(404).json({ status: "error", message: "No users found" });
+    // Filter by rating or earning
+    if (filterType === "rating") {
+      const ratingValue = filterValue ? parseInt(filterValue as string) : 0;  // Default to 0 if not provided
+      if (ratingValue === 0) {
+        filter["reviews.rating"] = { $exists: true };  // Include users with any rating, including 0
+      } else {
+        filter["reviews.rating"] = ratingValue;  // Filter for the exact rating
+      }
     }
 
-    // Fetch total earnings and trips completed in one aggregation query for all users
-    const earningsData = await ParcelRequest.aggregate([
-      { $match: { status: "DELIVERED", assignedDelivererId: { $in: users.map(user => user._id) } } },
-      { $group: { _id: "$assignedDelivererId", totalTrips: { $sum: 1 }, totalEarnings: { $sum: "$price" } } }
-    ]);
-
-    // Map earnings data to users
-    for (let user of users) {
-      const earnings = earningsData.find(data => data._id.toString() === user._id.toString());
-      user.TotaltripsCompleted = earnings ? earnings.totalTrips : 0;
-      user.totalEarning = earnings ? earnings.totalEarnings : 0;
+    if (filterType === "earning") {
+      const earningValue = filterValue ? parseInt(filterValue as string) : 0;  // Default to 0 if not provided
+      if (earningValue === 0) {
+        filter["totalEarning"] = 0;  // Filter for users with 0 earnings
+      } else {
+        filter["totalEarning"] = earningValue;  // Filter for the exact earning value
+      }
     }
+
+    // Handle sorting logic
+    let sortCriteria: any = {};
+    if (sortBy === "rating") {
+      sortCriteria["reviews.rating"] = sortOrder === "desc" ? -1 : 1;  // Sort by rating (desc/asc)
+    } else if (sortBy === "earning") {
+      sortCriteria["totalEarning"] = sortOrder === "desc" ? -1 : 1;  // Sort by totalEarning (desc/asc)
+    }
+
+    console.log('Filter Criteria:', filter);
+    console.log('Sort Criteria:', sortCriteria);
+
+    // Fetch users with pagination, filter, and sorting
+    const users = await User.find(filter)
+    .skip(skip)
+    .limit(limit)
+    .select('fullName email mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt reviews')
+    .lean();
+  
+  users.forEach((user) => {
+    // Calculate the average rating for each user
+    if (user.reviews && user.reviews.length > 0) {
+      const totalRating = user.reviews.reduce((sum, review) => sum + review.rating, 0);
+      const avgRating = totalRating / user.reviews.length;
+      // Ensure avgRating is a number (parseFloat or Number)
+      user.avgRating = parseFloat(avgRating.toFixed(2));  // Convert to a number with two decimals
+    } else {
+      user.avgRating = 0;  // No rating available
+    }
+  });
+  
 
     // Get the total count of users for pagination purposes
     const totalUsers = await User.countDocuments(filter);
@@ -479,8 +453,6 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
     res.status(500).json({ status: "error", message: "Internal Server Error" });
   }
 };
-
-
 
   export const getUserData = async (req: Request, res: Response, next: NextFunction) => {
     try {

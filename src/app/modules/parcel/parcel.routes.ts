@@ -19,6 +19,7 @@ parcelRouter.put("/cancel-assignment", authenticate, cancelAssignedDeliveryMan);
 parcelRouter.put('/remove-request',authenticate, removeDeliveryRequest )
 parcelRouter.post('/delivery',authenticate, updateParcelStatus )
 
+
 //DeliverParcel
 parcelRouter.get('/filtered', getFilteredParcels);
 

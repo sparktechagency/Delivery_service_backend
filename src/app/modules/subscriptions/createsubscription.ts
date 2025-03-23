@@ -3,29 +3,33 @@ import { BaseSubscription, GlobalSubscription, UserSubscription } from "./subscr
 import { User } from "../user/user.model";
 import { SubscriptionType } from "../../../types/enums";
 
-// ✅ Admin Creates a Global Subscription Plan (Without User ID)
+
+
+// ✅ Admin Creates a Global Subscription Plan
 // export const createGlobalSubscriptionPlan = async (req: Request, res: Response) => {
 //   try {
 //     const { type, price, freeDeliveries, totalDeliveries, earnings } = req.body;
 
-//     const existingPlan = await GlobalSubscription.findOne({type: type})
+//     // Check if the global plan already exists
+//     const existingPlan = await GlobalSubscription.findOne({ type });
 //     if (existingPlan) {
 //       return res.status(400).json({ message: "This subscription plan template already exists" });
 //     }
     
+//     // Create the global subscription plan
 //     const newSubscriptionPlan = await GlobalSubscription.create({
-//       type,
+//       type, // No need to convert type to lowercase anymore
 //       price,
 //       freeDeliveries: freeDeliveries ?? 3,
 //       totalDeliveries: totalDeliveries ?? 0,
 //       earnings: earnings ?? 0,
 //       isTrial: false
-//     })
+//     });
 
 //     res.status(201).json({
 //       message: "Global subscription plan template created successfully",
 //       subscription: newSubscriptionPlan
-//     })
+//     });
     
 //   } catch (error) {
 //     console.error("Error creating global subscription plan:", error);
@@ -33,83 +37,51 @@ import { SubscriptionType } from "../../../types/enums";
 //   }
 // };
 
-
-// ✅ Admin Creates a Global Subscription Plan
 export const createGlobalSubscriptionPlan = async (req: Request, res: Response) => {
   try {
-    const { type, price, freeDeliveries, totalDeliveries, earnings } = req.body;
+    const { type, price, freeDeliveries, totalDeliveries, earnings, version, description } = req.body;
 
-    // Check if the global plan already exists
-    const existingPlan = await GlobalSubscription.findOne({ type });
-    if (existingPlan) {
-      return res.status(400).json({ message: "This subscription plan template already exists" });
+    // Log the request body to verify description is passed
+    console.log("Request Body:", req.body);
+
+    // Validate if version and description are provided
+    if (!version) {
+      return res.status(400).json({ message: "Subscription version is required." });
     }
-    
-    // Create the global subscription plan
-    const newSubscriptionPlan = await GlobalSubscription.create({
-      type, // No need to convert type to lowercase anymore
+
+    // Check if a plan with the same type and version already exists
+    const existingPlan = await GlobalSubscription.findOne({ type, version });
+    if (existingPlan) {
+      return res.status(400).json({ message: `The subscription plan '${type}' with version '${version}' already exists` });
+    }
+
+    // Create the global subscription plan manually before saving to check if description is passed correctly
+    const newSubscriptionPlan = new GlobalSubscription({
+      type,
       price,
       freeDeliveries: freeDeliveries ?? 3,
       totalDeliveries: totalDeliveries ?? 0,
       earnings: earnings ?? 0,
-      isTrial: false
+      version,
+      description:  description,
+      isTrial: false,
     });
 
+    console.log("Created Subscription Plan:", newSubscriptionPlan);  // Log before saving to verify description
+
+    await newSubscriptionPlan.save(); // Save the plan
+
     res.status(201).json({
-      message: "Global subscription plan template created successfully",
+      message: `Global subscription plan '${type}' version '${version}' created successfully`,
       subscription: newSubscriptionPlan
     });
-    
   } catch (error) {
     console.error("Error creating global subscription plan:", error);
     res.status(500).json({ message: "Error creating global subscription plan", error });
   }
 };
 
-// ✅ Assign a subscription to a user
-// export const assignUserSubscription = async (req: Request, res: Response) => {
-//   try {
-//     const { userId, subscriptionType } = req.body; // Get userId and subscriptionType
 
-//     // Validate userId
-//     if (!userId || !subscriptionType) {
-//       return res.status(400).json({ message: "User ID and subscription type are required" });
-//     }
-
-//     // Check if user exists
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       return res.status(404).json({ message: "User not found" });
-//     }
-
-//     // Get the subscription plan based on the selected subscription type
-//     const subscriptionPlan = await GlobalSubscription.findOne({ type: subscriptionType });
-//     if (!subscriptionPlan) {
-//       return res.status(404).json({ message: `Subscription plan '${subscriptionType}' not found` });
-//     }
-
-//     // Update the user's subscription information
-//     user.subscriptionType = subscriptionPlan.type;
-//     user.subscriptionPrice = subscriptionPlan.price;
-//     user.subscriptionCount += 1; // Increment subscription count
-//     user.subscriptionStartDate = new Date(); // Set the current date as the start date
-//     user.subscriptionExpiryDate = new Date(new Date().setMonth(new Date().getMonth() + 1)); // Set the expiry date (1 month later)
-//     user.isSubscribed = true; // Mark the user as subscribed
-//     user.freeDeliveries = subscriptionPlan.freeDeliveries; // Update free deliveries based on the plan
-
-//     // Save the updated user document
-//     await user.save();
-
-//     res.status(200).json({
-//       message: "User subscription updated successfully",
-//       user
-//     });
-
-//   } catch (error) {
-//     console.error("Error assigning user subscription:", error);
-//     res.status(500).json({ message: "Error assigning user subscription", error });
-//   }
-// };
 
 export const assignUserSubscription = async (req: Request, res: Response) => {
   try {
@@ -153,82 +125,75 @@ export const assignUserSubscription = async (req: Request, res: Response) => {
   }
 };
 
-// ✅ Update User Subscription Plan
-// export const updateUserSubscription = async (req: Request, res: Response) => {
+// ✅ Admin can Update Global Subscription Plan Pricing
+// export const updateGlobalSubscriptionPrice = async (req: Request, res: Response) => {
 //   try {
-//     const { userId, type } = req.body;
+//     const { type, price } = req.body;
     
-//     if (!userId) {
-//       return res.status(400).json({ message: "userId is required" });
+//     if (!type || price === undefined) {
+//       return res.status(400).json({ message: "Subscription type and price are required" });
 //     }
 
-//     // Validate subscription type
+//     // Validate subscription type (remove toLowerCase())
 //     if (!Object.values(SubscriptionType).includes(type)) {
 //       return res.status(400).json({ 
 //         message: `Invalid subscription type. Valid types are: ${Object.values(SubscriptionType).join(', ')}` 
 //       });
 //     }
 
-//     // Get the global plan to copy its properties
-//     const globalPlan = await GlobalSubscription.findOne({ 
-//       type: type
-//     });
+//     // Update the global plan
+//     const globalPlan = await GlobalSubscription.findOneAndUpdate(
+//       { type: type }, // Remove toLowerCase here
+//       { price },
+//       { new: true }
+//     );
 
 //     if (!globalPlan) {
-//       return res.status(404).json({ 
-//         message: `Global subscription plan for type '${type}' not found` 
-//       });
+//       return res.status(404).json({ message: "Global subscription plan not found" });
 //     }
 
-//     // Find and update the user's subscription
-//     const userSubscription = await UserSubscription.findOne({ userId });
-    
-//     if (!userSubscription) {
-//       return res.status(404).json({ message: "User subscription not found" });
+//     // Optionally update all user subscriptions of this type
+//     if (req.body.updateAllUsers) {
+//       await UserSubscription.updateMany(
+//         { type: type }, // Remove toLowerCase here
+//         { price }
+//       );
 //     }
-
-//     // Update with values from the global plan
-//     userSubscription.type = globalPlan.type;
-//     userSubscription.price = globalPlan.price;
-//     userSubscription.freeDeliveries = globalPlan.freeDeliveries;
-    
-//     // Keep user-specific data
-//     // Don't reset totalDeliveries or other user-specific data
-    
-//     await userSubscription.save();
 
 //     res.status(200).json({ 
-//       message: "User subscription updated successfully", 
-//       subscription: userSubscription 
+//       message: req.body.updateAllUsers 
+//         ? "Global and user subscription prices updated successfully" 
+//         : "Global subscription price updated successfully",
+//       globalPlan
 //     });
 //   } catch (error) {
-//     console.error("Error updating user subscription:", error);
-//     res.status(500).json({ message: "Error updating user subscription", error });
+//     console.error("Error updating subscription price:", error);
+//     res.status(500).json({ message: "Error updating subscription price", error });
 //   }
 // };
 
-
-// ✅ Admin can Update Global Subscription Plan Pricing
-export const updateGlobalSubscriptionPrice = async (req: Request, res: Response) => {
+// ✅ Admin Can Update Global Subscription Plan Price and Description
+export const updateGlobalSubscriptionPriceAndDescription = async (req: Request, res: Response) => {
   try {
-    const { type, price } = req.body;
-    
-    if (!type || price === undefined) {
-      return res.status(400).json({ message: "Subscription type and price are required" });
+    const { type, price, description } = req.body;
+
+    // Validate if type, price, or description is provided
+    if (!type || price === undefined || !description) {
+      return res.status(400).json({ message: "Subscription type, price, and description are required" });
     }
 
-    // Validate subscription type (remove toLowerCase())
+    // Validate subscription type (remove toLowerCase() if necessary)
     if (!Object.values(SubscriptionType).includes(type)) {
       return res.status(400).json({ 
         message: `Invalid subscription type. Valid types are: ${Object.values(SubscriptionType).join(', ')}` 
       });
     }
 
-    // Update the global plan
+    // Update the global plan price and description
     const globalPlan = await GlobalSubscription.findOneAndUpdate(
-      { type: type }, // Remove toLowerCase here
-      { price },
-      { new: true }
+      { type: type }, // Ensure type is used as is, no need for toLowerCase
+      { price, description }, // Update both price and description
+      { new: true } // Return the updated document
     );
 
     if (!globalPlan) {
@@ -238,22 +203,23 @@ export const updateGlobalSubscriptionPrice = async (req: Request, res: Response)
     // Optionally update all user subscriptions of this type
     if (req.body.updateAllUsers) {
       await UserSubscription.updateMany(
-        { type: type }, // Remove toLowerCase here
-        { price }
+        { type: type }, // Remove toLowerCase() here
+        { price, description } // Update both price and description for user subscriptions as well
       );
     }
 
     res.status(200).json({ 
       message: req.body.updateAllUsers 
-        ? "Global and user subscription prices updated successfully" 
-        : "Global subscription price updated successfully",
+        ? "Global and user subscription prices and descriptions updated successfully" 
+        : "Global subscription price and description updated successfully",
       globalPlan
     });
   } catch (error) {
-    console.error("Error updating subscription price:", error);
-    res.status(500).json({ message: "Error updating subscription price", error });
+    console.error("Error updating subscription price and description:", error);
+    res.status(500).json({ message: "Error updating subscription price and description", error });
   }
 };
+
 
 // ✅ Get All Global Subscription Plans
 export const getAllGlobalSubscriptions = async (req: Request, res: Response) => {

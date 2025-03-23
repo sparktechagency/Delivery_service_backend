@@ -4,7 +4,7 @@ import { checkSubscription } from './createsubscription';
 import { getUserData } from '../admin/admin.controller';
 // import { assignSubscriptionToUser } from './assignOrUpdateUser.controller';
 import { UserRole } from '../../../types/enums';
-import { assignUserSubscription, createGlobalSubscriptionPlan, getAllGlobalSubscriptions, updateGlobalSubscriptionPrice,  } from './createsubscription';
+import { assignUserSubscription, createGlobalSubscriptionPlan, getAllGlobalSubscriptions, updateGlobalSubscriptionPriceAndDescription,  } from './createsubscription';
 
 const subscription = express.Router();
 
@@ -13,7 +13,7 @@ subscription.get('/user-data', authenticate, checkSubscription, getUserData);
 subscription.get('/globalsubscription', authenticate,getAllGlobalSubscriptions )
 subscription.put('/assign-user-subscription', authenticate, authorize(UserRole.ADMIN), assignUserSubscription);
 // subscription.put('/update-user-subscription', authenticate, authorize(UserRole.ADMIN), updateUserSubscription);
-subscription.put('/update-price', authenticate, authorize(UserRole.ADMIN), updateGlobalSubscriptionPrice);
+subscription.put('/update-price', authenticate, authorize(UserRole.ADMIN),updateGlobalSubscriptionPriceAndDescription );
 subscription.post('/createsubscription', authenticate, createGlobalSubscriptionPlan)
 
 export default subscription;

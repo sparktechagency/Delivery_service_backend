@@ -154,6 +154,7 @@ interface UserDocument extends Document {
   subscriptionStartDate: Date; // Added subscription start date
   subscriptionExpiryDate: Date; // Added subscription expiry date
   subscriptionCount: number; // Added subscription count
+  avgRating?: number;
   reviews: { 
     parcelId: Types.ObjectId; // Reference to the parcel
     rating: number; // Rating out of 5
