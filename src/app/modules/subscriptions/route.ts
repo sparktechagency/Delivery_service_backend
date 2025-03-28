@@ -1,10 +1,10 @@
 import express from 'express';
 import { authenticate, authorize } from '../../middlewares/auth';
-import { checkSubscription } from './createsubscription';
+import { checkSubscription, deleteSubscriptionById } from './createsubscription';
 import { getUserData } from '../admin/admin.controller';
 // import { assignSubscriptionToUser } from './assignOrUpdateUser.controller';
 import { UserRole } from '../../../types/enums';
-import { assignUserSubscription, createGlobalSubscriptionPlan, getAllGlobalSubscriptions, updateGlobalSubscriptionPriceAndDescription,  } from './createsubscription';
+import { assignUserSubscription, createGlobalSubscriptionPlan, getAllGlobalSubscriptions, updateSubscriptionById,  } from './createsubscription';
 
 const subscription = express.Router();
 
@@ -13,7 +13,8 @@ subscription.get('/user-data', authenticate, checkSubscription, getUserData);
 subscription.get('/globalsubscription', authenticate,getAllGlobalSubscriptions )
 subscription.put('/assign-user-subscription', authenticate, authorize(UserRole.ADMIN), assignUserSubscription);
 // subscription.put('/update-user-subscription', authenticate, authorize(UserRole.ADMIN), updateUserSubscription);
-subscription.put('/update-price', authenticate, authorize(UserRole.ADMIN),updateGlobalSubscriptionPriceAndDescription );
+subscription.put('/update-plan/:id', authenticate, authorize(UserRole.ADMIN),updateSubscriptionById );
 subscription.post('/createsubscription', authenticate, createGlobalSubscriptionPlan)
+subscription.delete('/delete/:id', authenticate, deleteSubscriptionById)
 
 export default subscription;

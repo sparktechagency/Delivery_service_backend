@@ -96,7 +96,79 @@
 
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 import { SenderType, SubscriptionType, UserRole } from '../../../types/enums';
+import { ParcelRequest, ParcelRequestDocument } from '../parcel/ParcelRequest.model'; 
+// interface UserDocument extends Document {
+//   _id: Types.ObjectId;
+//   fullName: string;
+//   mobileNumber?: string;
+//   email?: string;
+//   profileImage: string;
+//   passwordHash?: string;
+//   facebook: string;
+//   instagram: string;
+//   whatsapp: string;
+//   role: UserRole;
+//   isVerified: boolean;
+//   senderType?: SenderType;
+//   freeDeliveries: number;
+//   TotaltripsCompleted: number;
+//   totalOrders: number;
+  
+//   RecciveOrders: {
+//     parcelId: Types.ObjectId;
+//     pickupLocation: string;
+//     deliveryLocation: string;
+//     price: number;
+//     title: string;
+//     description: string;
+//     senderType: SenderType;
+//     deliveryType: string;
+//     deliveryStartTime: Date;
+//     deliveryEndTime: Date;
+//   }[];
 
+//   SendOrders: { 
+//     parcelId: Types.ObjectId;  // Reference to ParcelRequest
+//     pickupLocation: string;
+//     deliveryLocation: string;
+//     price: number;
+//     title: string;
+//     description: string;
+//     senderType: SenderType;
+//     deliveryType: string;
+//     deliveryStartTime: Date;
+//     deliveryEndTime: Date;
+//   }[];  // Modified SendOrders to store an array of objects
+//   tripsPerDay: number;
+//   monthlyEarnings: number;
+//   totalEarning: number;
+//   totalAmountSpent: number;
+//   totalSentParcels: number;
+//   totalReceivedParcels: number;
+//   isRestricted: boolean;
+//   notifications: string;
+//   review: string;
+//   adminFeedback?: string;
+//   isSubscribed?: boolean;
+//   subscriptionType: SubscriptionType; // Added subscription type
+//   subscriptionPrice: number; // Added subscription price
+//   subscriptionStartDate: Date; // Added subscription start date
+//   subscriptionExpiryDate: Date; // Added subscription expiry date
+//   subscriptionCount: number; // Added subscription count
+//   avgRating?: number;
+//   reviews: { 
+//     parcelId: Types.ObjectId; // Reference to the parcel
+//     rating: number; // Rating out of 5
+//     review: string; // Review text
+//   }[];
+//   activity?: {  // Add this line to temporarily allow the activity field
+//     loginTime: string | Date;
+//     logoutTime: string | Date;
+//     timeSpent: number;
+//   };
+//   startDate: Date;
+//   expiryDate: Date;
+// }
 interface UserDocument extends Document {
   _id: Types.ObjectId;
   fullName: string;
@@ -113,21 +185,13 @@ interface UserDocument extends Document {
   freeDeliveries: number;
   TotaltripsCompleted: number;
   totalOrders: number;
-  RecciveOrders: {
-    parcelId: Types.ObjectId;
-    pickupLocation: string;
-    deliveryLocation: string;
-    price: number;
-    title: string;
-    description: string;
-    senderType: SenderType;
-    deliveryType: string;
-    deliveryStartTime: Date;
-    deliveryEndTime: Date;
-  }[];
+  earnings: number;
+  totalDelivered: number;  
+  
 
-  SendOrders: { 
-    parcelId: Types.ObjectId;  // Reference to ParcelRequest
+  // Using ParcelRequestDocument as the type for parcelId
+  RecciveOrders: Array<{
+    parcelId: ParcelRequestDocument; // ParcelRequestDocument is used here
     pickupLocation: string;
     deliveryLocation: string;
     price: number;
@@ -137,7 +201,21 @@ interface UserDocument extends Document {
     deliveryType: string;
     deliveryStartTime: Date;
     deliveryEndTime: Date;
-  }[];  // Modified SendOrders to store an array of objects
+  }>;
+
+  SendOrders: Array<{
+    parcelId: ParcelRequestDocument; // ParcelRequestDocument is used here
+    pickupLocation: string;
+    deliveryLocation: string;
+    price: number;
+    title: string;
+    description: string;
+    senderType: SenderType;
+    deliveryType: string;
+    deliveryStartTime: Date;
+    deliveryEndTime: Date;
+  }>;
+
   tripsPerDay: number;
   monthlyEarnings: number;
   totalEarning: number;
@@ -149,17 +227,22 @@ interface UserDocument extends Document {
   review: string;
   adminFeedback?: string;
   isSubscribed?: boolean;
-  subscriptionType: SubscriptionType; // Added subscription type
-  subscriptionPrice: number; // Added subscription price
-  subscriptionStartDate: Date; // Added subscription start date
-  subscriptionExpiryDate: Date; // Added subscription expiry date
-  subscriptionCount: number; // Added subscription count
+  subscriptionType: SubscriptionType;
+  subscriptionPrice: number;
+  subscriptionStartDate: Date;
+  subscriptionExpiryDate: Date;
+  subscriptionCount: number;
   avgRating?: number;
-  reviews: { 
-    parcelId: Types.ObjectId; // Reference to the parcel
-    rating: number; // Rating out of 5
-    review: string; // Review text
-  }[];
+  reviews: Array<{
+    parcelId: Types.ObjectId;
+    rating: number;
+    review: string;
+  }>;
+  activity?: {
+    loginTime: string | Date;
+    logoutTime: string | Date;
+    timeSpent: number;
+  };
   startDate: Date;
   expiryDate: Date;
 }
@@ -178,6 +261,8 @@ const userSchema = new Schema<UserDocument>({
   freeDeliveries: { type: Number, default: 3 },
   TotaltripsCompleted: { type: Number, default: 0 },
   totalOrders: { type: Number, default: 0 },
+  totalDelivered: { type: Number, default: 0 },
+  
 
   SendOrders: [{
     parcelId: { type: mongoose.Schema.Types.ObjectId, ref: 'ParcelRequest' },

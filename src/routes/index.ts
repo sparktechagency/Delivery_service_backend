@@ -6,6 +6,7 @@ import adminRouter from '../app/modules/admin/admin.route';
 import NotificationRoute from '../app/modules/notification/notification.route';
 import subscription from '../app/modules/subscriptions/route';
 import PaymentRoutes from '../app/modules/payments/payment.routes';
+import UserActivityRoute from '../app/modules/user/user.activity.Routes';
 
 const router = express.Router();
 
@@ -15,9 +16,11 @@ const apiRoutes = [
   { path: '/delivery', route: deliveryRoutes },
   { path: '/user', route: userRoutesProfile },
   { path: '/admin', route: adminRouter },
-  { path: '/notification', route: NotificationRoute},
+  { path: '/admin', route: NotificationRoute},
   { path: '/admin/subscriptions', route: subscription},
-  { path: '/payments', route: PaymentRoutes }
+  { path: '/payments', route: PaymentRoutes },
+  { path: '/activity', route: UserActivityRoute }
+
   
 
 ];

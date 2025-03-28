@@ -7,6 +7,17 @@ export interface Location {
   address: string;
 }
 
+interface DeliveryTimes {
+  [DeliveryType.TRUCK]: { totalTime: number, count: number };
+  [DeliveryType.CAR]: { totalTime: number, count: number };
+  [DeliveryType.BICYCLE]: { totalTime: number, count: number };
+  [DeliveryType.BIKE]: { totalTime: number, count: number };
+  [DeliveryType.PERSON]: { totalTime: number, count: number };
+  [DeliveryType.Taxi]: { totalTime: number, count: number };
+  [DeliveryType.AirPlane]: { totalTime: number, count: number };
+}
+
+
 export interface IUser {
     id: string;
     role: UserRole;

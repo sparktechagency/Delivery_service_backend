@@ -8,168 +8,9 @@ import { DeliveryStatus, UserRole } from '../../../types/enums';
 import mongoose from 'mongoose';
 import { Receive } from 'twilio/lib/twiml/FaxResponse';
 import { User } from '../user/user.model';
+import { Subscription } from '../../models/subscription.model';
 
 
-
-
-// export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const { parcelId } = req.body;
-//     const delivererId = req.user?.id; // Delivery man ID from token
-
-//     if (!delivererId) throw new AppError('Unauthorized', 401);
-
-//     // Convert delivererId (string) to ObjectId
-//     const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
-
-//     const parcel = await ParcelRequest.findById(parcelId);
-//     if (!parcel) throw new AppError('Parcel not found', 404);
-
-//     if (parcel.assignedDelivererId) throw new AppError('Parcel already assigned to a deliverer', 400);
-
-//     // Check if delivererObjectId is already in the deliveryRequests array
-//     if (parcel.deliveryRequests.some((id) => id.equals(delivererObjectId))) {
-//       throw new AppError('You have already requested to deliver this parcel', 400);
-//     }
-
-//     // Push ObjectId instead of string
-//     parcel.deliveryRequests.push(delivererObjectId);
-//     await parcel.save();
-
-//     res.status(200).json({ status: 'success', message: 'Request sent to deliver the parcel' });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-
-
-// export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const { parcelId, delivererId } = req.body;
-//     const senderId = req.user?.id; // Parcel owner's ID
-
-//     if (!senderId) throw new AppError('Unauthorized', 401);
-
-//     const parcel = await ParcelRequest.findById(parcelId);
-//     if (!parcel) throw new AppError('Parcel not found', 404);
-
-//     if (parcel.senderId.toString() !== senderId) throw new AppError('You are not the owner of this parcel', 403);
-
-//     if (!parcel.deliveryRequests.includes(delivererId)) throw new AppError('Deliverer has not requested this parcel', 400);
-
-//     // Assign the delivery to the chosen deliverer
-//     parcel.assignedDelivererId = delivererId;
-//     parcel.status = DeliveryStatus.ACCEPTED;
-//     parcel.deliveryRequests = []; // Clear requests after assigning
-//     await parcel.save();
-
-//     res.status(200).json({ status: 'success', message: 'Deliverer assigned successfully', data: parcel });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// export const requestToDeliver = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { parcelId } = req.body;
-//     const userId = req.user?.id;
-
-//     if (!userId) throw new AppError('Unauthorized', 401);
-
-//     const parcel = await ParcelRequest.findById(parcelId);
-//     if (!parcel) throw new AppError('Parcel not found', 404);
-
-//     const userObjectId = new mongoose.Types.ObjectId(userId);
-    
-//     if (parcel.deliveryRequests.includes(userObjectId)) {
-//       throw new AppError('You have already requested to deliver this parcel', 400);
-//     }
-
-//     parcel.deliveryRequests.push(userObjectId);
-//     await parcel.save();
-
-//     res.status(200).json({ status: 'success', message: 'Request sent to deliver the parcel' });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-
-
-// export const acceptDeliveryRequest = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { parcelId, delivererId } = req.body;
-//     const userId = req.user?.id;
-
-//     if (!userId) throw new AppError('Unauthorized', 401);
-
-//     const parcel = await ParcelRequest.findById(parcelId);
-//     if (!parcel) throw new AppError('Parcel not found', 404);
-
-//     const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
-    
-//     if (!parcel.deliveryRequests.includes(delivererObjectId)) {
-//       throw new AppError('Deliverer has not requested this parcel', 400);
-//     }
-
-//     parcel.assignedDelivererId = delivererObjectId;
-//     parcel.status = DeliveryStatus.ACCEPTED;
-//     parcel.deliveryRequests = [];
-//     await parcel.save();
-
-//     res.status(200).json({ status: 'success', message: 'Deliverer assigned successfully' });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const { parcelIds } = req.body; 
-//     const userId = req.user?.id;
-
-//     if (!userId) throw new AppError("Unauthorized", 401);
-
-//     // Check if parcelIds is an array, if it's not, make it an array with a single parcelId
-//     const parcelIdsArray = Array.isArray(parcelIds) ? parcelIds : [parcelIds];
-
-//     // Loop through each parcelId
-//     for (let parcelId of parcelIdsArray) {
-//       // Find the parcel
-//       const parcel = await ParcelRequest.findById(parcelId);
-//       if (!parcel) throw new AppError("Parcel not found", 404);
-
-//       const user = await User.findById(userId);
-//       if (!user) throw new AppError("User not found", 404);
-
-//       const userObjectId = new mongoose.Types.ObjectId(userId);
-
-//       // Prevent duplicate requests from the same delivery man
-//       if (parcel.deliveryRequests.includes(userObjectId)) {
-//         throw new AppError(`You have already requested to deliver parcel ${parcelId}`, 400);
-//       }
-
-//       // ✅ Add request and update status to "REQUESTED"
-//       parcel.deliveryRequests.push(userObjectId);
-//       parcel.status = DeliveryStatus.REQUESTED;
-//       await parcel.save();
-
-//       // ✅ Automatically update the requester's role to `RECEIVER` if they are currently a `SENDER`
-//       if (user.role === UserRole.SENDER) {
-//         user.role = UserRole.recciver;
-//         await user.save();
-//       }
-//     }
-
-//     res.status(200).json({
-//       status: "success",
-//       message: "Request sent to deliver the parcel(s), and your role has been updated to RECEIVER",
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 
 export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -320,66 +161,6 @@ export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: N
 };
 
 
-// export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const { parcelId, delivererId } = req.body;
-//     const userId = req.user?.id;
-
-//     if (!userId) throw new AppError("Unauthorized", 401);
-
-//     const parcel = await ParcelRequest.findById(parcelId);
-//     if (!parcel) throw new AppError("Parcel not found", 404);
-
-//     // Ensure only the sender can assign a delivery man
-//     if (parcel.senderId.toString() !== userId) {
-//       throw new AppError("Only the sender can assign a delivery man", 403);
-//     }
-
-//     const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
-
-//     // Ensure the selected delivery man has requested the parcel
-//     if (!parcel.deliveryRequests.includes(delivererObjectId)) {
-//       throw new AppError("The selected delivery man has not requested this parcel", 400);
-//     }
-
-//     // Assign the delivery man and update status to "IN_TRANSIT"
-//     parcel.assignedDelivererId = delivererObjectId;
-//     parcel.status = DeliveryStatus.IN_TRANSIT;
-//     parcel.deliveryRequests = []; // Clear other requests
-//     await parcel.save();
-
-//     // Automatically update the assigned user's role to `RECEIVER` if they are currently `SENDER`
-//     const deliverer = await User.findById(delivererId);
-//     if (deliverer && deliverer.role === UserRole.SENDER) {
-//       deliverer.role = UserRole.recciver; // Correct role assignment
-//       await deliverer.save();
-
-//       // Add to the receiver's RecciveOrders
-//       deliverer.RecciveOrders.push({
-//         parcelId: parcel._id,
-//         pickupLocation: parcel.pickupLocation,
-//         deliveryLocation: parcel.deliveryLocation,
-//         price: parcel.price,
-//         title: parcel.title,
-//         description: parcel.description, // Ensure description exists in ParcelRequest model
-//         senderType: parcel.senderType,
-//         deliveryType: parcel.deliveryType,
-//         deliveryStartTime: parcel.deliveryStartTime, // Type is Date
-//         deliveryEndTime: parcel.deliveryEndTime, // Type is Date
-//       });
-//       await deliverer.save();
-//     }
-
-//     res.status(200).json({
-//       status: "success",
-//       message: "Delivery man assigned successfully",
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-
 export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId } = req.body;
@@ -442,6 +223,39 @@ export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next:
   }
 };
 
+// export const updateParcelStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const { parcelId, status } = req.body;
+//     const delivererId = req.user?.id; // Delivery man's ID from the token
+
+//     if (!delivererId) throw new AppError('Unauthorized', 401);
+
+//     // Validate status
+//     if (![DeliveryStatus.IN_TRANSIT, DeliveryStatus.DELIVERED].includes(status)) {
+//       throw new AppError('Invalid status', 400);
+//     }
+
+//     const parcel = await ParcelRequest.findById(parcelId);
+//     if (!parcel) throw new AppError('Parcel not found', 404);
+
+//     // Check if the deliverer is the assigned one
+//     if (!parcel.assignedDelivererId || !parcel.assignedDelivererId.equals(delivererId)) {
+//       throw new AppError('You are not assigned to this parcel', 403);
+//     }
+
+//     // Update parcel status
+//     parcel.status = status;
+//     await parcel.save();
+
+//     res.status(200).json({ status: 'success', message: `Parcel status updated to ${status}`, data: parcel });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+
+//Admin Assign Default all user freeDelivery
+
 export const updateParcelStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId, status } = req.body;
@@ -462,18 +276,53 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response, next: 
       throw new AppError('You are not assigned to this parcel', 403);
     }
 
+    // Find the user's current subscription
+    const userSubscription = await Subscription.findOne({ 
+      userId: delivererId, 
+      expiryDate: { $gt: new Date() } 
+    }).sort({ createdAt: -1 });
+
+    // Find the user
+    const user = await User.findById(delivererId);
+    if (!user) throw new AppError('User not found', 404);
+
+    // Check subscription limits
+    if (status === DeliveryStatus.DELIVERED) {
+      // If no active subscription, use default limits
+      if (!userSubscription) {
+        // Default Basic Plan Limit
+        if (user.totalDelivered >= 20) {
+          throw new AppError('Delivery limit reached. Upgrade your subscription.', 403);
+        }
+      } else {
+        // Check against subscription plan's delivery limit
+        if (user.totalDelivered >= userSubscription.deliveryLimit) {
+          throw new AppError('Subscription delivery limit reached. Upgrade your plan.', 403);
+        }
+      }
+
+      // Increment totalDelivered
+      user.totalDelivered = (user.totalDelivered || 0) + 1;
+      await user.save();
+    }
+
     // Update parcel status
     parcel.status = status;
     await parcel.save();
 
-    res.status(200).json({ status: 'success', message: `Parcel status updated to ${status}`, data: parcel });
+    res.status(200).json({ 
+      status: 'success', 
+      message: `Parcel status updated to ${status}`, 
+      data: parcel,
+      deliveryLimit: {
+        total: userSubscription ? userSubscription.deliveryLimit : 20,
+        current: user.totalDelivered
+      }
+    });
   } catch (error) {
     next(error);
   }
 };
-
-
-//Admin Assign Default all user freeDelivery
 
 export const updateGlobalFreeDeliveries = async (req: Request, res: Response) => {
   try {

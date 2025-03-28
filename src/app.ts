@@ -121,6 +121,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
+
 // Error handling
 app.use(errorHandler);
 

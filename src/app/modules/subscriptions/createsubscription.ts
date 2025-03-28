@@ -2,35 +2,50 @@ import { NextFunction, Request, Response } from "express";
 import { BaseSubscription, GlobalSubscription, UserSubscription } from "./subscription.model";
 import { User } from "../user/user.model";
 import { SubscriptionType } from "../../../types/enums";
+import { Subscription } from "../../models/subscription.model";
 
 
 
-// ✅ Admin Creates a Global Subscription Plan
+
+
 // export const createGlobalSubscriptionPlan = async (req: Request, res: Response) => {
 //   try {
-//     const { type, price, freeDeliveries, totalDeliveries, earnings } = req.body;
+//     const { type, price, freeDeliveries, totalDeliveries, earnings, version, description } = req.body;
 
-//     // Check if the global plan already exists
-//     const existingPlan = await GlobalSubscription.findOne({ type });
-//     if (existingPlan) {
-//       return res.status(400).json({ message: "This subscription plan template already exists" });
+//     // Log the request body to verify description is passed
+//     console.log("Request Body:", req.body);
+
+//     // Validate if version and description are provided
+//     if (!version) {
+//       return res.status(400).json({ message: "Subscription version is required." });
 //     }
-    
-//     // Create the global subscription plan
-//     const newSubscriptionPlan = await GlobalSubscription.create({
-//       type, // No need to convert type to lowercase anymore
+
+//     // Check if a plan with the same type and version already exists
+//     const existingPlan = await GlobalSubscription.findOne({ type, version });
+//     if (existingPlan) {
+//       return res.status(400).json({ message: `The subscription plan '${type}' with version '${version}' already exists` });
+//     }
+
+//     // Create the global subscription plan manually before saving to check if description is passed correctly
+//     const newSubscriptionPlan = new GlobalSubscription({
+//       type,
 //       price,
 //       freeDeliveries: freeDeliveries ?? 3,
 //       totalDeliveries: totalDeliveries ?? 0,
 //       earnings: earnings ?? 0,
-//       isTrial: false
+//       version,
+//       description:  description,
+//       isTrial: false,
 //     });
 
+//     console.log("Created Subscription Plan:", newSubscriptionPlan);  // Log before saving to verify description
+
+//     await newSubscriptionPlan.save(); // Save the plan
+
 //     res.status(201).json({
-//       message: "Global subscription plan template created successfully",
+//       message: `Global subscription plan '${type}' version '${version}' created successfully`,
 //       subscription: newSubscriptionPlan
 //     });
-    
 //   } catch (error) {
 //     console.error("Error creating global subscription plan:", error);
 //     res.status(500).json({ message: "Error creating global subscription plan", error });
@@ -39,7 +54,18 @@ import { SubscriptionType } from "../../../types/enums";
 
 export const createGlobalSubscriptionPlan = async (req: Request, res: Response) => {
   try {
-    const { type, price, freeDeliveries, totalDeliveries, earnings, version, description } = req.body;
+    const { 
+      type, 
+      price, 
+      freeDeliveries, 
+      totalDeliveries, 
+      totalOrders,  // New field added
+      earnings, 
+      version, 
+      description,
+      deliveryLimit
+
+    } = req.body;
 
     // Log the request body to verify description is passed
     console.log("Request Body:", req.body);
@@ -61,9 +87,11 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response) 
       price,
       freeDeliveries: freeDeliveries ?? 3,
       totalDeliveries: totalDeliveries ?? 0,
+      totalOrders: totalOrders ?? 0,  // Added with default of 0
       earnings: earnings ?? 0,
       version,
-      description:  description,
+      description: description,
+      deliveryLimit: deliveryLimit ?? 0,
       isTrial: false,
     });
 
@@ -73,15 +101,13 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response) 
 
     res.status(201).json({
       message: `Global subscription plan '${type}' version '${version}' created successfully`,
-      subscription: newSubscriptionPlan
+      data: newSubscriptionPlan
     });
   } catch (error) {
     console.error("Error creating global subscription plan:", error);
     res.status(500).json({ message: "Error creating global subscription plan", error });
   }
 };
-
-
 
 export const assignUserSubscription = async (req: Request, res: Response) => {
   try {
@@ -116,7 +142,7 @@ export const assignUserSubscription = async (req: Request, res: Response) => {
 
     res.status(200).json({
       message: "User subscription updated successfully",
-      user
+     data: user
     });
 
   } catch (error) {
@@ -173,50 +199,46 @@ export const assignUserSubscription = async (req: Request, res: Response) => {
 // };
 
 // ✅ Admin Can Update Global Subscription Plan Price and Description
-export const updateGlobalSubscriptionPriceAndDescription = async (req: Request, res: Response) => {
+export const updateSubscriptionById = async (req: Request, res: Response) => {
   try {
-    const { type, price, description } = req.body;
+    const { id } = req.params;  // Extract the subscription ID from the URL parameters
+    const { type, price, freeParcels, description, deliveryLimit, expiryDate } = req.body; // Extract the fields to update
 
-    // Validate if type, price, or description is provided
-    if (!type || price === undefined || !description) {
-      return res.status(400).json({ message: "Subscription type, price, and description are required" });
-    }
+    // Log the received ID and request body (optional for debugging)
+    console.log("Subscription ID to Update:", id);
+    console.log("Updated Request Body:", req.body);
 
-    // Validate subscription type (remove toLowerCase() if necessary)
-    if (!Object.values(SubscriptionType).includes(type)) {
-      return res.status(400).json({ 
-        message: `Invalid subscription type. Valid types are: ${Object.values(SubscriptionType).join(', ')}` 
+    // Find the subscription plan by its ID
+    const subscription = await Subscription.findById(id);
+
+    if (!subscription) {
+      return res.status(404).json({
+        message: `Subscription with ID '${id}' not found.`
       });
     }
 
-    // Update the global plan price and description
-    const globalPlan = await GlobalSubscription.findOneAndUpdate(
-      { type: type }, // Ensure type is used as is, no need for toLowerCase
-      { price, description }, // Update both price and description
-      { new: true } // Return the updated document
-    );
+    // Update the subscription fields with the provided data
+    subscription.type = type ?? subscription.type;
+    subscription.price = price ?? subscription.price;
+    subscription.freeParcels = freeParcels ?? subscription.freeParcels;
+    subscription.description = description ?? subscription.description;
+    subscription.deliveryLimit = deliveryLimit ?? subscription.deliveryLimit;
+    subscription.expiryDate = expiryDate ?? subscription.expiryDate;
 
-    if (!globalPlan) {
-      return res.status(404).json({ message: "Global subscription plan not found" });
-    }
+    // Save the updated subscription
+    await subscription.save();
 
-    // Optionally update all user subscriptions of this type
-    if (req.body.updateAllUsers) {
-      await UserSubscription.updateMany(
-        { type: type }, // Remove toLowerCase() here
-        { price, description } // Update both price and description for user subscriptions as well
-      );
-    }
-
-    res.status(200).json({ 
-      message: req.body.updateAllUsers 
-        ? "Global and user subscription prices and descriptions updated successfully" 
-        : "Global subscription price and description updated successfully",
-      globalPlan
+    // Respond with the updated subscription data
+    res.status(200).json({
+      message: `Subscription with ID '${id}' updated successfully.`,
+      data: subscription
     });
   } catch (error) {
-    console.error("Error updating subscription price and description:", error);
-    res.status(500).json({ message: "Error updating subscription price and description", error });
+    console.error("Error updating subscription:", error);
+    res.status(500).json({
+      message: "Error updating subscription",
+      error
+    });
   }
 };
 
@@ -228,12 +250,15 @@ export const getAllGlobalSubscriptions = async (req: Request, res: Response) => 
     const globalSubscriptions = await GlobalSubscription.find();
 
     if (globalSubscriptions.length === 0) {
-      return res.status(404).json({ message: "No global subscription plans found" });
+      return res.status(200).json({ 
+        message: "No global subscription plans found.",
+        data: globalSubscriptions
+       });
     }
 
     res.status(200).json({
       message: "Global subscription plans retrieved successfully",
-      subscriptions: globalSubscriptions
+      data: globalSubscriptions
     });
   } catch (error) {
     console.error("Error fetching global subscription plans:", error);
@@ -339,5 +364,38 @@ export const checkSubscription = async (req: Request, res: Response, next: NextF
   } catch (error) {
     console.error("Error checking subscription:", error);
     res.status(500).json({ message: "Error checking subscription", error });
+  }
+};
+
+export const deleteSubscriptionById = async (req: Request, res: Response) => {
+  try {
+    // Extract the subscription ID from the request parameters
+    const { id } = req.params;  // Assuming the subscription ID is passed as a URL parameter
+    
+    // Log the received ID (optional for debugging)
+    console.log("Subscription ID to Delete:", id);
+
+    // Check if the subscription with the given ID exists
+    const subscriptionToDelete = await Subscription.findById(id);
+
+    if (!subscriptionToDelete) {
+      return res.status(404).json({
+        message: `Subscription with ID '${id}' not found.`
+      });
+    }
+
+    // Delete the subscription from the database
+    await Subscription.deleteOne({ _id: id });
+
+    // Respond with a success message
+    res.status(200).json({
+      message: `Subscription with ID '${id}' deleted successfully.`
+    });
+  } catch (error) {
+    console.error("Error deleting subscription:", error);
+    res.status(500).json({
+      message: "Error deleting subscription",
+      error
+    });
   }
 };

@@ -11,5 +11,5 @@ NotificationRoute.post('/parcel/create/notify-radius', authenticate, sendRadiusN
 NotificationRoute.get('/', authenticate,viewNotifications);
 
 //admin notifications
-NotificationRoute.post('/admin/announcement', authenticate, authorize(UserRole.ADMIN),sendAnnouncement);
+NotificationRoute.post('/announcement', authenticate, authorize(UserRole.ADMIN),sendAnnouncement);
 export default NotificationRoute;
