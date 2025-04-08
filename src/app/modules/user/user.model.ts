@@ -227,11 +227,12 @@ interface UserDocument extends Document {
   review: string;
   adminFeedback?: string;
   isSubscribed?: boolean;
-  subscriptionType: SubscriptionType;
+  subscriptionType: string;
   subscriptionPrice: number;
   subscriptionStartDate: Date;
   subscriptionExpiryDate: Date;
   subscriptionCount: number;
+  isTrial: boolean;
   avgRating?: number;
   reviews: Array<{
     parcelId: Types.ObjectId;
@@ -256,6 +257,7 @@ const userSchema = new Schema<UserDocument>({
   instagram: { type: String },
   whatsapp: { type: String },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.SENDER },
+  isTrial: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
   senderType: { type: String, enum: Object.values(SenderType) },
   freeDeliveries: { type: Number, default: 3 },

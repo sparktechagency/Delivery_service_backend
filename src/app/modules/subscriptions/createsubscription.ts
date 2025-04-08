@@ -3,14 +3,23 @@ import { BaseSubscription, GlobalSubscription, UserSubscription } from "./subscr
 import { User } from "../user/user.model";
 import { SubscriptionType } from "../../../types/enums";
 import { Subscription } from "../../models/subscription.model";
-
-
-
+import { GlobalTrial } from "./trial.model";
 
 
 // export const createGlobalSubscriptionPlan = async (req: Request, res: Response) => {
 //   try {
-//     const { type, price, freeDeliveries, totalDeliveries, earnings, version, description } = req.body;
+//     const { 
+//       type, 
+//       price, 
+//       freeDeliveries, 
+//       totalDeliveries, 
+//       totalOrders,  // New field added
+//       earnings, 
+//       version, 
+//       description,
+//       deliveryLimit
+
+//     } = req.body;
 
 //     // Log the request body to verify description is passed
 //     console.log("Request Body:", req.body);
@@ -32,9 +41,11 @@ import { Subscription } from "../../models/subscription.model";
 //       price,
 //       freeDeliveries: freeDeliveries ?? 3,
 //       totalDeliveries: totalDeliveries ?? 0,
+//       totalOrders: totalOrders ?? 0,  // Added with default of 0
 //       earnings: earnings ?? 0,
 //       version,
-//       description:  description,
+//       description: description,
+//       deliveryLimit: deliveryLimit ?? 0,
 //       isTrial: false,
 //     });
 
@@ -44,7 +55,7 @@ import { Subscription } from "../../models/subscription.model";
 
 //     res.status(201).json({
 //       message: `Global subscription plan '${type}' version '${version}' created successfully`,
-//       subscription: newSubscriptionPlan
+//       data: newSubscriptionPlan
 //     });
 //   } catch (error) {
 //     console.error("Error creating global subscription plan:", error);
@@ -63,14 +74,10 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response) 
       earnings, 
       version, 
       description,
-      deliveryLimit
-
+      deliveryLimit,
+      trialPeriod, // New field for global trial period (in days)
     } = req.body;
 
-    // Log the request body to verify description is passed
-    console.log("Request Body:", req.body);
-
-    // Validate if version and description are provided
     if (!version) {
       return res.status(400).json({ message: "Subscription version is required." });
     }
@@ -81,7 +88,6 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response) 
       return res.status(400).json({ message: `The subscription plan '${type}' with version '${version}' already exists` });
     }
 
-    // Create the global subscription plan manually before saving to check if description is passed correctly
     const newSubscriptionPlan = new GlobalSubscription({
       type,
       price,
@@ -90,14 +96,14 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response) 
       totalOrders: totalOrders ?? 0,  // Added with default of 0
       earnings: earnings ?? 0,
       version,
-      description: description,
+      description,
       deliveryLimit: deliveryLimit ?? 0,
       isTrial: false,
+      trialPeriod: trialPeriod ?? 30, // Default to 30 days if not provided
+      trialActive: true, // Activate the global trial by default
     });
 
-    console.log("Created Subscription Plan:", newSubscriptionPlan);  // Log before saving to verify description
-
-    await newSubscriptionPlan.save(); // Save the plan
+    await newSubscriptionPlan.save();
 
     res.status(201).json({
       message: `Global subscription plan '${type}' version '${version}' created successfully`,
@@ -109,40 +115,91 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response) 
   }
 };
 
+
+// export const assignUserSubscription = async (req: Request, res: Response) => {
+//   try {
+//     const { userId, subscriptionType } = req.body; // Get userId and subscriptionType (e.g. "Enterprise")
+
+//     if (!userId || !subscriptionType) {
+//       return res.status(400).json({ message: "User ID and subscription type are required" });
+//     }
+
+//     // Find the user
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     // Get the selected subscription plan from GlobalSubscription
+//     const subscriptionPlan = await GlobalSubscription.findOne({ type: subscriptionType });
+//     if (!subscriptionPlan) {
+//       return res.status(404).json({ message: `Subscription plan '${subscriptionType}' not found` });
+//     }
+
+//     // Assign subscription details to the user
+//     user.subscriptionType = subscriptionPlan.type;
+//     user.subscriptionPrice = subscriptionPlan.price;
+//     user.subscriptionCount += 1; // Increment subscription count
+//     user.subscriptionStartDate = new Date(); // Set the current date as the start date
+//     user.subscriptionExpiryDate = new Date(new Date().setMonth(new Date().getMonth() + 1)); // Set expiry date (1 month)
+//     user.isSubscribed = true; // Mark user as subscribed
+//     user.freeDeliveries = subscriptionPlan.freeDeliveries; // Set the free deliveries from the global plan
+
+//     await user.save(); // Save the updated user
+
+//     res.status(200).json({
+//       message: "User subscription updated successfully",
+//      data: user
+//     });
+
+//   } catch (error) {
+//     console.error("Error assigning subscription to user:", error);
+//     res.status(500).json({ message: "Error assigning subscription", error });
+//   }
+// };
+
+
+
+
+// ✅ Admin Can Update Global Subscription Plan Price and Description
+
+
 export const assignUserSubscription = async (req: Request, res: Response) => {
   try {
-    const { userId, subscriptionType } = req.body; // Get userId and subscriptionType (e.g. "Enterprise")
+    const { userId, subscriptionType } = req.body; // Assuming userId and subscriptionType are provided
 
     if (!userId || !subscriptionType) {
       return res.status(400).json({ message: "User ID and subscription type are required" });
     }
 
-    // Find the user
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    // Find the global trial setting
+    const globalTrialSetting = await GlobalTrial.findOne();
+
+    if (!globalTrialSetting || !globalTrialSetting.trialActive) {
+      return res.status(400).json({
+        message: "Global trial is not active"
+      });
     }
 
-    // Get the selected subscription plan from GlobalSubscription
-    const subscriptionPlan = await GlobalSubscription.findOne({ type: subscriptionType });
-    if (!subscriptionPlan) {
-      return res.status(404).json({ message: `Subscription plan '${subscriptionType}' not found` });
-    }
+    // Create or update user subscription
+    const userSubscription = new UserSubscription({
+      userId,
+      subscriptionType,
+      subscriptionPrice: 25.99, // Example price; should be fetched from the plan details
+      subscriptionStartDate: new Date(),
+      subscriptionCount: 1, // Increment subscription count
+      isSubscribed: true,
+    });
 
-    // Assign subscription details to the user
-    user.subscriptionType = subscriptionPlan.type;
-    user.subscriptionPrice = subscriptionPlan.price;
-    user.subscriptionCount += 1; // Increment subscription count
-    user.subscriptionStartDate = new Date(); // Set the current date as the start date
-    user.subscriptionExpiryDate = new Date(new Date().setMonth(new Date().getMonth() + 1)); // Set expiry date (1 month)
-    user.isSubscribed = true; // Mark user as subscribed
-    user.freeDeliveries = subscriptionPlan.freeDeliveries; // Set the free deliveries from the global plan
+    // Apply the global trial period to the subscription
+    userSubscription.expiryDate = new Date(new Date().setDate(new Date().getDate() + globalTrialSetting.trialPeriod)); // Set expiry based on global trial period
+    userSubscription.isTrial = true; // Mark user as being in trial
 
-    await user.save(); // Save the updated user
+    await userSubscription.save();
 
     res.status(200).json({
       message: "User subscription updated successfully",
-     data: user
+      data: userSubscription
     });
 
   } catch (error) {
@@ -151,54 +208,83 @@ export const assignUserSubscription = async (req: Request, res: Response) => {
   }
 };
 
-// ✅ Admin can Update Global Subscription Plan Pricing
-// export const updateGlobalSubscriptionPrice = async (req: Request, res: Response) => {
-//   try {
-//     const { type, price } = req.body;
-    
-//     if (!type || price === undefined) {
-//       return res.status(400).json({ message: "Subscription type and price are required" });
-//     }
+export const setGlobalTrialPeriod = async (req: Request, res: Response) => {
+  try {
+    const { trialPeriod } = req.body; // Accept trialPeriod from admin input
 
-//     // Validate subscription type (remove toLowerCase())
-//     if (!Object.values(SubscriptionType).includes(type)) {
-//       return res.status(400).json({ 
-//         message: `Invalid subscription type. Valid types are: ${Object.values(SubscriptionType).join(', ')}` 
-//       });
-//     }
+    if (!trialPeriod || trialPeriod <= 0) {
+      return res.status(400).json({ message: "Trial period must be a positive number" });
+    }
 
-//     // Update the global plan
-//     const globalPlan = await GlobalSubscription.findOneAndUpdate(
-//       { type: type }, // Remove toLowerCase here
-//       { price },
-//       { new: true }
-//     );
+    // Update the global trial setting
+    let globalTrialSetting = await GlobalTrial.findOne(); // There should only be one global trial setting
 
-//     if (!globalPlan) {
-//       return res.status(404).json({ message: "Global subscription plan not found" });
-//     }
+    if (!globalTrialSetting) {
+      // If the setting does not exist, create it
+      globalTrialSetting = new GlobalTrial({
+        trialPeriod,
+        trialActive: true,
+      });
+    } else {
+      globalTrialSetting.trialPeriod = trialPeriod;
+      globalTrialSetting.trialActive = true; // Activate the trial globally
+    }
 
-//     // Optionally update all user subscriptions of this type
-//     if (req.body.updateAllUsers) {
-//       await UserSubscription.updateMany(
-//         { type: type }, // Remove toLowerCase here
-//         { price }
-//       );
-//     }
+    await globalTrialSetting.save();
 
-//     res.status(200).json({ 
-//       message: req.body.updateAllUsers 
-//         ? "Global and user subscription prices updated successfully" 
-//         : "Global subscription price updated successfully",
-//       globalPlan
-//     });
-//   } catch (error) {
-//     console.error("Error updating subscription price:", error);
-//     res.status(500).json({ message: "Error updating subscription price", error });
-//   }
-// };
+    res.status(200).json({
+      message: `Global trial period set to ${trialPeriod} days`,
+      data: globalTrialSetting,
+    });
+  } catch (error) {
+    console.error("Error setting global trial period:", error);
+    res.status(500).json({ message: "Error setting global trial period", error });
+  }
+};
 
-// ✅ Admin Can Update Global Subscription Plan Price and Description
+export const getGlobalTrialDetailsForAdmin = async (req: Request, res: Response) => {
+  try {
+    // Fetch the global trial setting
+    const globalTrialSetting = await GlobalTrial.findOne();
+
+    if (!globalTrialSetting) {
+      return res.status(404).json({ message: "Global trial setting not found" });
+    }
+
+    // Calculate the trial end date by adding the trial period to the trial start date
+    const currentDate = new Date();
+    const trialStartDate = globalTrialSetting.trialStartDate;
+    const trialPeriod = globalTrialSetting.trialPeriod;
+
+    const trialEndDate = new Date(trialStartDate);
+    trialEndDate.setDate(trialStartDate.getDate() + trialPeriod); // Add the trial period to the start date
+
+    // If the trial period has expired
+    if (currentDate >= trialEndDate) {
+      return res.status(200).json({
+        message: "Global trial period has ended",
+        trialStartDate: trialStartDate,
+        trialEndDate: trialEndDate,
+        remainingDays: 0
+      });
+    }
+
+    // Calculate the remaining days in the trial
+    const remainingTime = trialEndDate.getTime() - currentDate.getTime();
+    const remainingDays = Math.ceil(remainingTime / (1000 * 3600 * 24)); // Convert milliseconds to days
+
+    res.status(200).json({
+      message: "Global trial period remaining",
+      trialStartDate: trialStartDate, // Show the trial start date
+      trialEndDate: trialEndDate, // Show the trial end date
+      remainingDays: remainingDays // Show remaining days in the trial period
+    });
+  } catch (error) {
+    console.error("Error calculating global trial details:", error);
+    res.status(500).json({ message: "Error calculating global trial details", error });
+  }
+};
+
 export const updateSubscriptionById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;  // Extract the subscription ID from the URL parameters

@@ -6,6 +6,7 @@ import multer from 'multer';  // Import multer for handling file uploads
 import fs from 'fs';
 import path from 'path';
 import upload from "../../../multer/multer"; // Import your multer middleware
+import { UserSubscription } from "../subscriptions/subscription.model";
 
 
 
@@ -109,6 +110,50 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
     });
   } catch (error) {
     next(error);
+  }
+};
+
+export const getRemainingSubscriptionTrialDays = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params; // Get userId from the URL parameters
+
+    // Fetch user subscription details
+    const userSubscription = await UserSubscription.findOne({ userId });
+
+    if (!userSubscription) {
+      return res.status(404).json({ message: "User subscription not found" });
+    }
+
+    // Check if the user is in the trial period
+    if (!userSubscription.isTrial) {
+      return res.status(400).json({ message: "User is not in a trial period" });
+    }
+
+    // Calculate remaining trial days
+    const currentDate = new Date();
+    const expiryDate = userSubscription.expiryDate;
+
+    // If the trial period has expired
+    if (currentDate >= expiryDate) {
+      return res.status(200).json({
+        message: "Trial period has ended",
+        trialPeriod: userSubscription.expiryDate ? userSubscription.expiryDate : 0,
+        remainingDays: 0
+      });
+    }
+
+    // Calculate the remaining days in the trial
+    const remainingTime = expiryDate.getTime() - currentDate.getTime();
+    const remainingDays = Math.ceil(remainingTime / (1000 * 3600 * 24)); // Convert milliseconds to days
+
+    res.status(200).json({
+      message: "Trial period remaining",
+      trialPeriod: userSubscription.expiryDate ? userSubscription.expiryDate : 0,
+      remainingDays: remainingDays
+    });
+  } catch (error) {
+    console.error("Error calculating remaining trial days:", error);
+    res.status(500).json({ message: "Error calculating remaining trial days", error });
   }
 };
 

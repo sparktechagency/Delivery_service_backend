@@ -1,5 +1,4 @@
 
-// controllers/parcel.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { ParcelRequest } from './ParcelRequest.model';
 import { User } from '../user/user.model';
@@ -585,51 +584,6 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
   }
 };
 
-export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    // Extract DeliveryType, pickupLocation, and deliveryLocation from query params
-    const { deliveryType, pickupLocation, deliveryLocation } = req.query;
-
-    // Ensure locations are trimmed and case-insensitive
-    let query: any = { status: DeliveryStatus.PENDING };
-
-    // Apply filters to query
-    if (deliveryType) {
-      query.deliveryType = deliveryType;
-    }
-
-    if (pickupLocation) {
-      query.pickupLocation = { $regex: new RegExp(`^${pickupLocation}$`, 'i') }; // Case-insensitive match
-    }
-
-    if (deliveryLocation) {
-      query.deliveryLocation = { $regex: new RegExp(`^${deliveryLocation}$`, 'i') }; // Case-insensitive match
-    }
-
-    // Fetch filtered parcels from the database
-    const parcels = await ParcelRequest.find(query)
-      .select('title senderId pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
-      .populate("senderId", "fullName email mobileNumber role")
-      .lean();
-
-    if (parcels.length === 0) {
-      // Handle case when no parcels are found
-      return res.status(200).json({
-        status: "success",
-        message: "No parcels match the filter criteria",
-        data: [],
-      });
-    }
-
-    res.status(200).json({
-      status: "success",
-      data: parcels,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 // export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     // Extract DeliveryType, pickupLocation, and deliveryLocation from query params
@@ -674,4 +628,100 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
 //     next(error);
 //   }
 // };
+
+export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Extract DeliveryType, pickupLocation, and deliveryLocation from query params
+    const { deliveryType, pickupLocation, deliveryLocation } = req.query;
+    
+    // Parse radius as a number, with a default of 10 (in km)
+    let radius = parseFloat(req.query.radius as string);
+    if (isNaN(radius) || radius <= 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid radius value. Radius must be a positive number.',
+      });
+    }
+    radius = radius || 10; // If radius is not provided or invalid, default to 10km
+
+    let query: any = { status: DeliveryStatus.PENDING };
+
+    // Apply deliveryType filter if provided
+    if (deliveryType) {
+      query.deliveryType = deliveryType;
+    }
+
+    // Apply exact location match filters (using regex)
+    if (pickupLocation) {
+      query.pickupLocation = { $regex: new RegExp(`^${pickupLocation}$`, 'i') }; // Case-insensitive match
+    }
+
+    if (deliveryLocation) {
+      query.deliveryLocation = { $regex: new RegExp(`^${deliveryLocation}$`, 'i') }; // Case-insensitive match
+    }
+
+    // Fetch parcels that exactly match the filter criteria (pickup and delivery locations)
+    const exactParcels = await ParcelRequest.find(query)
+      .select('title senderId pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
+      .populate('senderId', 'fullName email mobileNumber role')
+      .lean();
+
+    // Geospatial Query for nearby parcels (if latitude/longitude of pickup or delivery location is provided)
+    let nearbyQuery: any = { status: DeliveryStatus.PENDING };
+
+    // Default location (e.g., Mirpur DOHS)
+    const nearbyLocation = { lat: 23.8103, lng: 90.4125 };
+
+    if (pickupLocation || deliveryLocation) {
+      nearbyQuery.pickupLocation = {
+        $nearSphere: {
+          $geometry: { type: 'Point', coordinates: [nearbyLocation.lng, nearbyLocation.lat] },
+          $maxDistance: radius * 1000, // Convert radius to meters
+        },
+      };
+
+      nearbyQuery.deliveryLocation = {
+        $nearSphere: {
+          $geometry: { type: 'Point', coordinates: [nearbyLocation.lng, nearbyLocation.lat] },
+          $maxDistance: radius * 1000,
+        },
+      };
+    }
+
+    // Fetch nearby parcels (within radius)
+    const nearbyParcels = await ParcelRequest.find(nearbyQuery)
+      .select('title senderId pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
+      .populate('senderId', 'fullName email mobileNumber role')
+      .lean();
+
+    // Check if no parcels are found
+    if (exactParcels.length === 0 && nearbyParcels.length === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No parcels found matching the criteria.',
+      });
+    }
+
+    // Combine results
+    const result = {
+      exactParcels,
+      nearbyParcels,
+    };
+
+    // Respond with the results
+    res.status(200).json({
+      status: 'success',
+      data: result,
+    });
+
+  } catch (error) {
+    console.error('Error fetching parcels:', error); // Log error for debugging
+
+    // Send a generic internal server error response with specific message
+    res.status(500).json({
+      status: 'error',
+      message: 'Internal server error',
+    });
+  }
+};
 
