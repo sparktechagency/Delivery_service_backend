@@ -1,8 +1,11 @@
-import { NextFunction, Response } from "express";
+import { NextFunction, Response, Request } from "express";
 import mongoose from "mongoose";
 import { AppError } from "../../middlewares/error";
 import { DeliveryStatus } from "../../../types";
 import { AuthRequest } from "../../middlewares/auth";
+
+// Extend the Request interface to include the user property
+
 import { User } from "../user/user.model";
 import { Notification } from "./notification.model"; 
 
@@ -113,6 +116,45 @@ import { Notification } from "./notification.model";
         data: announcements,  // Return the fetched announcements
       });
     } catch (error) {
+      next(error);
+    }
+  };
+
+  //push Notification
+  export const getNotifications = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id; // Assuming the user ID is available from authentication middleware
+  
+      if (!userId) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Unauthorized. User ID is missing.',
+        });
+      }
+  
+      // Fetch all notifications for the authenticated user
+      const notifications = await Notification.find({ userId })
+        .sort({ createdAt: -1 })  // Sort by creation date, newest first
+        .exec();
+  
+      if (!notifications || notifications.length === 0) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'No notifications found.',
+        });
+      }
+  
+      // Return the notifications
+      res.status(200).json({
+        status: 'success',
+        data: notifications,
+      });
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Internal Server Error.',
+      });
       next(error);
     }
   };

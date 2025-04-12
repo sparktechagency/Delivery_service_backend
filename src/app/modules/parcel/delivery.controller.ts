@@ -378,4 +378,3 @@ export const assignFreeDeliveriesToUser = async (req: Request, res: Response) =>
     res.status(500).json({ message: "Error assigning free deliveries", error });
   }
 };
-

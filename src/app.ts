@@ -74,6 +74,7 @@ import adminRouter from './app/modules/admin/admin.route';
 import apiRoutes from './routes/index';
 import path from 'path';
 import stripeWebhook from './app/modules/payments/webhhok';
+import { User } from './app/modules/user/user.model';
 
 const app = express();
 
@@ -120,7 +121,20 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
+app.post('/api/save-fcm-token', async (req, res) => {
+  try {
+    const { token } = req.body;
+    const userId = req.user?.id;  // Get the current authenticated user ID
 
+    // Update the user's FCM token in the database
+    await User.updateOne({ _id: userId }, { $set: { fcmToken: token } });
+
+    res.status(200).json({ message: 'FCM token saved successfully' });
+  } catch (error) {
+    console.error('Error saving FCM token:', error);
+    res.status(500).json({ message: 'Failed to save FCM token' });
+  }
+});
 
 // Error handling
 app.use(errorHandler);

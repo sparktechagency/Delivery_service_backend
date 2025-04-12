@@ -16,12 +16,12 @@ export enum UserRole {
   }
   
   export enum DeliveryStatus {
-    PENDING = 'pending',
-    REQUESTED = 'requested',
-    ACCEPTED = 'accepted',
-    CANCELLED = "cancelled",
-    IN_TRANSIT = 'in_transit',
-    DELIVERED = 'delivered'
+    PENDING = 'PENDING',
+    REQUESTED = 'REQUESTED',
+    ACCEPTED = 'ACCEPTED',
+    CANCELLED = "CANCELLED",
+    IN_TRANSIT = 'IN_TRANSIT',
+    DELIVERED = 'DELIVERED'
   }
   
   

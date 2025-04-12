@@ -115,7 +115,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
 
 export const getRemainingSubscriptionTrialDays = async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params; // Get userId from the URL parameters
+    const { userId } = req.params;
 
     // Fetch user subscription details
     const userSubscription = await UserSubscription.findOne({ userId });
@@ -144,7 +144,7 @@ export const getRemainingSubscriptionTrialDays = async (req: Request, res: Respo
 
     // Calculate the remaining days in the trial
     const remainingTime = expiryDate.getTime() - currentDate.getTime();
-    const remainingDays = Math.ceil(remainingTime / (1000 * 3600 * 24)); // Convert milliseconds to days
+    const remainingDays = Math.ceil(remainingTime / (1000 * 3600 * 24)); 
 
     res.status(200).json({
       message: "Trial period remaining",

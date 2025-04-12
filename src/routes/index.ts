@@ -16,7 +16,7 @@ const apiRoutes = [
   { path: '/delivery', route: deliveryRoutes },
   { path: '/user', route: userRoutesProfile },
   { path: '/admin', route: adminRouter },
-  { path: '/admin', route: NotificationRoute},
+  { path: '/notification', route: NotificationRoute},
   { path: '/admin/subscriptions', route: subscription},
   { path: '/payments', route: PaymentRoutes },
   { path: '/activity', route: UserActivityRoute }

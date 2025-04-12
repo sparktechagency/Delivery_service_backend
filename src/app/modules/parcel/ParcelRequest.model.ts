@@ -1,10 +1,11 @@
+
+
 // import mongoose, { Schema, Document, Types } from 'mongoose';
-// import { User } from '../user/user.model';  // Import the User model
 // import { DeliveryStatus, DeliveryType, SenderType } from '../../../types/enums';
 
 // const parcelRequestSchema = new Schema({
 //   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-//   receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false }, 
+//   receiverId: { type: mongoose.Types.ObjectId, ref: 'User', required: false },
 //   description: { type: String, required: false, default: "" },
 //   pickupLocation: { type: String, required: true },
 //   deliveryLocation: { type: String, required: true },
@@ -26,6 +27,24 @@
 // });
 
 // export const ParcelRequest = mongoose.model('ParcelRequest', parcelRequestSchema);
+// export type ParcelRequestDocument = Document & {
+//   senderId: Types.ObjectId;
+//   receiverId: Types.ObjectId;
+//   description: string;
+//   pickupLocation: string;
+//   deliveryLocation: string;
+//   title: string;
+//   deliveryStartTime: Date;
+//   deliveryEndTime: Date;
+//   deliveryType: string;
+//   senderType: string;
+//   price: number;
+//   status: string;
+//   assignedDelivererId: Types.ObjectId;
+//   deliveryRequests: Types.ObjectId[];
+//   createdAt: Date;
+//   updatedAt: Date;
+// };
 
 
 import mongoose, { Schema, Document, Types } from 'mongoose';
@@ -35,8 +54,25 @@ const parcelRequestSchema = new Schema({
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   receiverId: { type: mongoose.Types.ObjectId, ref: 'User', required: false },
   description: { type: String, required: false, default: "" },
-  pickupLocation: { type: String, required: true },
-  deliveryLocation: { type: String, required: true },
+  
+  // Updated pickupLocation to store coordinates in GeoJSON format
+  pickupLocation: {
+    type: { type: String, default: 'Point' }, // GeoJSON type
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  },
+
+  // Updated deliveryLocation to store coordinates in GeoJSON format
+  deliveryLocation: {
+    type: { type: String, default: 'Point' }, // GeoJSON type
+    coordinates: {
+      type: [Number], // Array of [longitude, latitude]
+      required: true,
+    },
+  },
+
   title: { type: String, required: true },
   deliveryStartTime: { type: Date, required: true },
   deliveryEndTime: { type: Date, required: true },
@@ -54,13 +90,17 @@ const parcelRequestSchema = new Schema({
   deliveryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Delivery' }
 });
 
+// Create geospatial indexes for pickupLocation and deliveryLocation
+parcelRequestSchema.index({ pickupLocation: '2dsphere' });
+parcelRequestSchema.index({ deliveryLocation: '2dsphere' });
+
 export const ParcelRequest = mongoose.model('ParcelRequest', parcelRequestSchema);
 export type ParcelRequestDocument = Document & {
   senderId: Types.ObjectId;
   receiverId: Types.ObjectId;
   description: string;
-  pickupLocation: string;
-  deliveryLocation: string;
+  pickupLocation: { type: string; coordinates: [number, number] };
+  deliveryLocation: { type: string; coordinates: [number, number] };
   title: string;
   deliveryStartTime: Date;
   deliveryEndTime: Date;

@@ -667,9 +667,8 @@ export const getParcelDetails = async (req: Request, res: Response, next: NextFu
 
     // If no parcels are found
     if (parcels.length === 0) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'No parcels found'
+      return res.status(200).json({
+        data: [],
       });
     }
 

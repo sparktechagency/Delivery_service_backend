@@ -177,6 +177,7 @@ interface UserDocument extends Document {
   profileImage: string;
   passwordHash?: string;
   facebook: string;
+  fcmToken: string;
   instagram: string;
   whatsapp: string;
   role: UserRole;
@@ -257,6 +258,7 @@ const userSchema = new Schema<UserDocument>({
   instagram: { type: String },
   whatsapp: { type: String },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.SENDER },
+  fcmToken: { type: String, unique: true, sparse: true },
   isTrial: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
   senderType: { type: String, enum: Object.values(SenderType) },
@@ -299,6 +301,7 @@ const userSchema = new Schema<UserDocument>({
   subscriptionStartDate: { type: Date, default: Date.now },
   subscriptionExpiryDate: { type: Date, default: () => new Date(new Date().setMonth(new Date().getMonth() + 1)) },
   subscriptionCount: { type: Number, default: 0 },
+  
   reviews: [{
     parcelId: { type: mongoose.Schema.Types.ObjectId, ref: 'ParcelRequest' },
     rating: { type: Number, min: 1, max: 5 },

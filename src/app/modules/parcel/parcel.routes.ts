@@ -8,10 +8,10 @@ import { assignDeliveryMan, cancelAssignedDeliveryMan, removeDeliveryRequest } f
 const parcelRouter = express.Router();
 // parcelRouter.post('/create', authenticate, createParcelRequest);
 
-parcelRouter.post("/create",authenticate, upload.array('images', 5), createParcelRequest);// ✅ Allow up to 5 images
+parcelRouter.post("/create",authenticate, upload.array('images', 5), createParcelRequest);
 parcelRouter.get('/available', authenticate, getAvailableParcels);
 parcelRouter.get("/user-parcels", authenticate, getUserParcels);
-parcelRouter.get('/availableByRadius', authenticate,getParcelsByRadius );
+parcelRouter.post('/availableByRadius', authenticate,getParcelsByRadius );
 parcelRouter.get('/requests/:parcelId', getParcelWithDeliveryRequests);
 parcelRouter.get('/get-user-reviews', authenticate, getUserReviews);
 parcelRouter.put("/assign", authenticate, assignDeliveryMan);

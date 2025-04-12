@@ -70,12 +70,12 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response) 
       price, 
       freeDeliveries, 
       totalDeliveries, 
-      totalOrders,  // New field added
+      totalOrders,
       earnings, 
       version, 
       description,
       deliveryLimit,
-      trialPeriod, // New field for global trial period (in days)
+      trialPeriod, 
     } = req.body;
 
     if (!version) {
@@ -354,7 +354,7 @@ export const getAllGlobalSubscriptions = async (req: Request, res: Response) => 
 
 
 
-// // ✅ Admin can Update Default Earnings for All Users or Specific User
+// ✅ Admin can Update Default Earnings for All Users or Specific User
 export const updateEarnings = async (req: Request, res: Response) => {
   try {
     const { userId, type, earnings } = req.body;
