@@ -842,10 +842,8 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
       });
     }
 
-    // Log the incoming request for debugging
     console.log(`Searching for parcels within ${radius} km of lat: ${lat}, lon: ${lng}`);
 
-    // Convert radius from km to meters
     const maxDistance = parseFloat(radius as string) * 1000;
 
     // Build geospatial query for parcels near pickupLocation
@@ -872,13 +870,13 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
 
     // Fetch nearby parcels based on pickupLocation query
     const nearbyPickupParcels = await ParcelRequest.find(nearbyPickupQuery)
-      .select('title price senderId pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
+      .select('title price senderId description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
       .populate('senderId', 'fullName email mobileNumber role')
       .lean();
 
     // Fetch nearby parcels based on deliveryLocation query
     const nearbyDeliveryParcels = await ParcelRequest.find(nearbyDeliveryQuery)
-      .select('title price senderId pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
+      .select('title price senderId description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
       .populate('senderId', 'fullName email mobileNumber role')
       .lean();
 

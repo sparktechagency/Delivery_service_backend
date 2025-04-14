@@ -64,11 +64,10 @@ const parcelRequestSchema = new Schema({
     },
   },
 
-  // Updated deliveryLocation to store coordinates in GeoJSON format
   deliveryLocation: {
-    type: { type: String, default: 'Point' }, // GeoJSON type
+    type: { type: String, default: 'Point' }, 
     coordinates: {
-      type: [Number], // Array of [longitude, latitude]
+      type: [Number], 
       required: true,
     },
   },
@@ -90,7 +89,6 @@ const parcelRequestSchema = new Schema({
   deliveryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Delivery' }
 });
 
-// Create geospatial indexes for pickupLocation and deliveryLocation
 parcelRequestSchema.index({ pickupLocation: '2dsphere' });
 parcelRequestSchema.index({ deliveryLocation: '2dsphere' });
 
