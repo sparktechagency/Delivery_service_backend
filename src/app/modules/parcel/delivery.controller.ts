@@ -14,8 +14,8 @@ import { Subscription } from '../../models/subscription.model';
 
 export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { parcelIds } = req.body;  // Array of parcelIds that the delivery man wants to request
-    const userId = req.user?.id;     // Get the authenticated user (delivery man)
+    const { parcelIds } = req.body;  
+    const userId = req.user?.id;    
 
     if (!userId) {
       throw new AppError("Unauthorized", 401);
@@ -195,6 +195,53 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
   }
 };
 
+export const cancelDeliveryRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { parcelId, delivererId } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) throw new AppError("Unauthorized", 401);
+
+
+    const parcel = await ParcelRequest.findById(parcelId);
+    if (!parcel) throw new AppError("Parcel not found", 404);
+    if (parcel.senderId.toString() !== userId) {
+      throw new AppError("Only the sender can cancel the delivery man", 403);
+    }
+
+    const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
+
+    const deliveryRequestIndex = parcel.deliveryRequests.findIndex(
+      (request) => request._id.toString() === delivererObjectId.toString()
+    );
+
+    if (deliveryRequestIndex === -1) {
+
+      throw new AppError("The selected delivery man has not requested this parcel", 400);
+    }
+
+
+    parcel.deliveryRequests.splice(deliveryRequestIndex, 1);
+
+    parcel.assignedDelivererId = null;
+    parcel.status = DeliveryStatus.PENDING;
+    await parcel.save();
+
+
+    const deliverer = await User.findById(delivererId);
+    if (deliverer && deliverer.role === UserRole.recciver) {
+      deliverer.role = UserRole.SENDER; 
+      await deliverer.save();
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "Delivery man canceled successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 
 export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -223,6 +270,7 @@ export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next:
   }
 };
 
+
 // export const updateParcelStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
 //   try {
 //     const { parcelId, status } = req.body;
@@ -243,18 +291,53 @@ export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next:
 //       throw new AppError('You are not assigned to this parcel', 403);
 //     }
 
+//     // Find the user's current subscription
+//     const userSubscription = await Subscription.findOne({ 
+//       userId: delivererId, 
+//       expiryDate: { $gt: new Date() } 
+//     }).sort({ createdAt: -1 });
+
+//     // Find the user
+//     const user = await User.findById(delivererId);
+//     if (!user) throw new AppError('User not found', 404);
+
+//     // Check subscription limits
+//     if (status === DeliveryStatus.DELIVERED) {
+//       // If no active subscription, use default limits
+//       if (!userSubscription) {
+//         // Default Basic Plan Limit
+//         if (user.totalDelivered >= 20) {
+//           throw new AppError('Delivery limit reached. Upgrade your subscription.', 403);
+//         }
+//       } else {
+//         // Check against subscription plan's delivery limit
+//         if (user.totalDelivered >= userSubscription.deliveryLimit) {
+//           throw new AppError('Subscription delivery limit reached. Upgrade your plan.', 403);
+//         }
+//       }
+
+//       // Increment totalDelivered
+//       user.totalDelivered = (user.totalDelivered || 0) + 1;
+//       await user.save();
+//     }
+
 //     // Update parcel status
 //     parcel.status = status;
 //     await parcel.save();
 
-//     res.status(200).json({ status: 'success', message: `Parcel status updated to ${status}`, data: parcel });
+//     res.status(200).json({ 
+//       status: 'success', 
+//       message: `Parcel status updated to ${status}`, 
+//       data: parcel,
+//       deliveryLimit: {
+//         total: userSubscription ? userSubscription.deliveryLimit : 20,
+//         current: user.totalDelivered
+//       }
+//     });
 //   } catch (error) {
 //     next(error);
 //   }
 // };
-
-
-//Admin Assign Default all user freeDelivery
 
 export const updateParcelStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -276,53 +359,44 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response, next: 
       throw new AppError('You are not assigned to this parcel', 403);
     }
 
-    // Find the user's current subscription
-    const userSubscription = await Subscription.findOne({ 
-      userId: delivererId, 
-      expiryDate: { $gt: new Date() } 
-    }).sort({ createdAt: -1 });
-
-    // Find the user
-    const user = await User.findById(delivererId);
+    // Find the user who owns the parcel (sender)
+    const user = await User.findById(parcel.senderId);
     if (!user) throw new AppError('User not found', 404);
 
-    // Check subscription limits
+    // Check subscription limits and update the delivery count if delivered
+    // if (status === DeliveryStatus.DELIVERED) {
+    //   // Increment the totalDelivered count for the user (sender)
+    //   user.totalDelivered = (user.totalDelivered || 0) + 1;
+    //   user.totalEarning = (user.totalEarning || 0) + parcel.price;
+    //   user.monthlyEarnings = (user.monthlyEarnings || 0) + parcel.price;
+    //   user.totalSentParcels = (user.totalSentParcels || 0) + 1; // Increment total sent parcels
+    //   await user.save();
+    // }
     if (status === DeliveryStatus.DELIVERED) {
-      // If no active subscription, use default limits
-      if (!userSubscription) {
-        // Default Basic Plan Limit
-        if (user.totalDelivered >= 20) {
-          throw new AppError('Delivery limit reached. Upgrade your subscription.', 403);
-        }
-      } else {
-        // Check against subscription plan's delivery limit
-        if (user.totalDelivered >= userSubscription.deliveryLimit) {
-          throw new AppError('Subscription delivery limit reached. Upgrade your plan.', 403);
-        }
-      }
-
-      // Increment totalDelivered
+      // Increment the totalDelivered count for the user (if sender or deliverer)
       user.totalDelivered = (user.totalDelivered || 0) + 1;
+      user.totalEarning = (user.totalEarning || 0) + parcel.price;
+      user.monthlyEarnings = (user.monthlyEarnings || 0) + parcel.price;
+      user.totalSentParcels = (user.totalSentParcels || 0) + 1; // Increment total sent parcels
       await user.save();
     }
+   
 
-    // Update parcel status
+    // Update parcel status to delivered or in transit
     parcel.status = status;
     await parcel.save();
 
-    res.status(200).json({ 
-      status: 'success', 
-      message: `Parcel status updated to ${status}`, 
+    res.status(200).json({
+      status: 'success',
+      message: `Parcel status updated to ${status}`,
       data: parcel,
-      deliveryLimit: {
-        total: userSubscription ? userSubscription.deliveryLimit : 20,
-        current: user.totalDelivered
-      }
     });
   } catch (error) {
     next(error);
   }
 };
+
+
 
 export const updateGlobalFreeDeliveries = async (req: Request, res: Response) => {
   try {
@@ -376,5 +450,81 @@ export const assignFreeDeliveriesToUser = async (req: Request, res: Response) =>
   } catch (error) {
     console.error("Error assigning free deliveries to user(s):", error);
     res.status(500).json({ message: "Error assigning free deliveries", error });
+  }
+};
+
+export const postReviewForUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { parcelId, rating, review, targetUserId } = req.body;
+
+    if (!parcelId || !rating || !review || !targetUserId) {
+      throw new AppError("Parcel ID, rating, review, and target user ID are required", 400);
+    }
+
+    // Validate rating and review
+    if (rating < 1 || rating > 5) {
+      throw new AppError("Rating must be between 1 and 5", 400);
+    }
+
+    if (review.trim().length > 500) {
+      throw new AppError("Review text cannot exceed 500 characters", 400);
+    }
+
+    // Find the parcel by ID
+    const parcel = await ParcelRequest.findById(parcelId);
+    if (!parcel) {
+      throw new AppError("Parcel not found", 404);
+    }
+
+    // Ensure that the parcel status is DELIVERED
+    if (parcel.status !== DeliveryStatus.DELIVERED) {
+      throw new AppError("Parcel must be delivered before submitting a review", 400);
+    }
+
+    // Find the target user (sender or receiver)
+    const targetUser = await User.findById(targetUserId);
+    if (!targetUser) {
+      throw new AppError("Target user not found", 404);
+    }
+
+    // Add the rating and review to the target user's profile
+    targetUser.reviews.push({
+      parcelId: parcel._id,
+      rating,
+      review
+    });
+
+    await targetUser.save();
+
+    // Respond with success message
+    res.status(200).json({
+      status: "success",
+      message: `Review and rating submitted for user with ID ${targetUserId} successfully`
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const getReviewsForUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId } = req.params; // User ID whose reviews are being fetched
+
+    // Find the user by userId
+    const user = await User.findById(userId).populate('reviews.parcelId'); // Populate parcel details if needed
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    // Send the reviews associated with this user
+    res.status(200).json({
+      status: "success",
+      message: "Reviews fetched successfully",
+      data: user.reviews, // All reviews associated with the user
+    });
+  } catch (error) {
+    next(error);
   }
 };

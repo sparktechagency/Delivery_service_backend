@@ -1,7 +1,7 @@
 // delivery.routes.ts
 import express from 'express';
 import { authenticate } from '../../middlewares/auth';
-import { requestToDeliver, acceptDeliveryOffer, updateParcelStatus } from './delivery.controller';
+import { requestToDeliver, acceptDeliveryOffer, updateParcelStatus, postReviewForUser, getReviewsForUser, cancelDeliveryRequest } from './delivery.controller';
 
 const deliveryRouter = express.Router();
 
@@ -9,13 +9,12 @@ const deliveryRouter = express.Router();
 deliveryRouter.post('/request-delivery', authenticate, requestToDeliver);
 
 
-// POST request to accept a delivery offer
 deliveryRouter.post('/accept', authenticate, acceptDeliveryOffer);
-// router.put("/assign", authenticate, assignDeliveryMan);
 deliveryRouter.post('/update-status', authenticate, updateParcelStatus);
+deliveryRouter.post('/review', postReviewForUser);
+deliveryRouter.post('/cancel-request',authenticate, cancelDeliveryRequest);
+deliveryRouter.get('/review/:userId',getReviewsForUser );
+
 
 
 export default deliveryRouter;
-// router.post('/parcel', createParcelRequest);
-// router.post('/parcel/accept-delivery', acceptDeliveryRequest);
-// router.post('/parcel/notify-radius', sendRadiusNotification);

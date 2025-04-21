@@ -172,8 +172,9 @@ import { ParcelRequest, ParcelRequestDocument } from '../parcel/ParcelRequest.mo
 interface UserDocument extends Document {
   _id: Types.ObjectId;
   fullName: string;
-  mobileNumber?: string;
+  country: string;
   email?: string;
+  mobileNumber?: string;
   profileImage: string;
   passwordHash?: string;
   facebook: string;
@@ -250,8 +251,9 @@ interface UserDocument extends Document {
 }
 const userSchema = new Schema<UserDocument>({
   fullName: { type: String, required: true },
-  mobileNumber: { type: String, unique: true, sparse: true },
+  country: { type: String, required: false },
   email: { type: String, unique: true, sparse: true },
+  mobileNumber: { type: String, unique: true, sparse: true },
   profileImage: { type: String, default: "" },
   passwordHash: String,
   facebook: { type: String },

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import 'dotenv/config'; // Ensure environment variables are loaded
 import nodemailer from 'nodemailer';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';  // Correct import for AWS SDK v3
 import { sendOTP } from "../../../util/awsSNS";
@@ -20,20 +21,20 @@ import { UserActivity } from './user.activity.model';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { fullName, mobileNumber } = req.body;
+    const { fullName, mobileNumber, country } = req.body;
 
     if (!mobileNumber) {
       throw new AppError("Mobile number is required", 400);
     }
 
-    const formattedNumber = formatPhoneNumber(mobileNumber); // Format globally
+    const formattedNumber = formatPhoneNumber(mobileNumber);
 
     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
     if (existingUser) {
       throw new AppError("Mobile number already registered", 400);
     }
 
-    const user = await User.create({ fullName, mobileNumber: formattedNumber });
+    const user = await User.create({ fullName,country, mobileNumber: formattedNumber });
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     await OTPVerification.create({
@@ -55,9 +56,6 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-/**
- * Verify OTP
- */
 export const verifyOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { mobileNumber, otpCode } = req.body;
@@ -124,10 +122,6 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   }
 };
 
-
-/**
- * Verify OTP & Authenticate User
- */
 export const verifyLoginOTPNumber = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { mobileNumber, otpCode } = req.body;
@@ -187,7 +181,7 @@ const transporter = nodemailer.createTransport({
 
 export const registerWithEmail = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { fullName, email } = req.body;
+    const { fullName, country,email } = req.body;
 
     if (!email) {
       throw new AppError('Email is required', 400);
@@ -198,22 +192,22 @@ export const registerWithEmail = async (req: Request, res: Response, next: NextF
       throw new AppError('Email already registered', 400);
     }
 
-    const user = await User.create({ fullName, email, isVerified: false });
+    const user = await User.create({ fullName,country, email, isVerified: false });
 
-    // ✅ Delete any existing OTPs before generating a new one
+
     await OTPVerification.deleteMany({ email });
 
-    // ✅ Generate OTP (Plain Text)
+
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     console.log("🔹 Generated OTP (Plain):", otpCode);
 
-    // ✅ Store OTP as plain text (No hashing)
+
     const otpVerification = await OTPVerification.create({
       userId: user._id,
       email,
-      otpCode,  // ✅ Store plain OTP
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10-minute expiry
+      otpCode, 
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
     // ✅ Send the **plain OTP** via email
@@ -437,3 +431,102 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
 };
 
 
+// export const googleLoginOrRegister = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { googleId, fullName, email, profileImage } = req.body; // Assuming these are coming from Google OAuth
+
+//     if (!googleId || !email || !fullName) {
+//       throw new AppError('Missing Google credentials', 400);
+//     }
+
+//     // Check if the user already exists in the database
+//     let user = await User.findOne({ email });
+
+//     if (!user) {
+//       // If user does not exist, create a new user
+//       user = await User.create({
+//         fullName,
+//         email,
+//         googleId,        // Store the Google ID for reference
+//         profileImage: profileImage || '', // Store the profile image if available
+//         isVerified: true, // Automatically mark as verified, as no OTP is required for Google login
+//         isRestricted: false, // By default, set the user as not restricted
+//         role: 'receiver',  // Assuming default role is 'receiver'; you can change based on your use case
+//       });
+
+//       // Send the response after user creation
+//       return res.status(201).json({
+//         status: 'success',
+//         message: 'User registered successfully with Google.',
+//         data: user,
+//       });
+//     }
+
+//     // If user exists, log them in automatically
+//     res.status(200).json({
+//       status: 'success',
+//       message: 'User logged in successfully with Google.',
+//       data: user, // Return user data, including profile information
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here'; 
+
+export const googleLoginOrRegister = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { googleId, fullName, email, profileImage } = req.body;
+
+    if (!googleId || !email || !fullName) {
+      throw new AppError('Missing Google credentials', 400);
+    }
+    let user = await User.findOne({ email });
+
+    if (!user) {
+
+      user = await User.create({
+        fullName,
+        email,
+        googleId,      
+        profileImage: profileImage || '', 
+        isVerified: true,
+        isRestricted: false, 
+        role: 'receiver', 
+      });
+
+
+      const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '1h' });
+
+      return res.status(201).json({
+        status: 'success',
+        message: 'User registered successfully with Google.',
+        data: {
+          user,
+          token,
+        },
+      });
+    }
+
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '1h' });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'User logged in successfully with Google.',
+      data: {
+        user,
+        token,
+      },
+    });
+  } catch (error) {
+    console.error('Error during Google login or registration:', error); 
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({ status: 'error', message: error.message });
+    }
+    return res.status(500).json({
+      status: 'error',
+      message: 'Internal Server Error. Please try again later.',
+    });
+  }
+};

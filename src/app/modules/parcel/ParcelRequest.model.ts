@@ -80,7 +80,7 @@ const parcelRequestSchema = new Schema({
   price: { type: Number, required: true },
   name: { type: String },
   phoneNumber: { type: String },
-  images: [String],
+  images:{ type: [String], required: false },
   status: { type: String, enum: Object.values(DeliveryStatus), default: DeliveryStatus.PENDING },
   deliveryRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   assignedDelivererId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -105,6 +105,7 @@ export type ParcelRequestDocument = Document & {
   deliveryType: string;
   senderType: string;
   price: number;
+  images: string[];
   status: string;
   assignedDelivererId: Types.ObjectId;
   deliveryRequests: Types.ObjectId[];
