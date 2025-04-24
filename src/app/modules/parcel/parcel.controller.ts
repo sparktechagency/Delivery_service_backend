@@ -176,7 +176,23 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     });
 
     const users = await User.find({ isVerified: true, fcmToken: { $exists: true } });
-
+    await User.findByIdAndUpdate(req.user?.id, {
+      $push: {
+        SendOrders: {
+          parcelId: parcel._id,
+          pickupLocation: pickupLocation,
+          deliveryLocation: deliveryLocation,
+          price: price,
+          title: title,
+          description: description,
+          senderType: senderType,
+          deliveryType: deliveryType,
+          deliveryStartTime: deliveryStartTime,
+          deliveryEndTime: deliveryEndTime,
+        }
+      },
+      $inc: { totalSentParcels: 1, totalOrders: 1 }
+    });
 
     const messages = users
       .map(user => user.fcmToken)
@@ -205,6 +221,8 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       type: 'parcel_update',  
       title: 'New Parcel Request',
       description: description || '',  
+      price: price || '',
+      requestId: parcel._id,
       userId: req.user?.id, 
     });
 
@@ -408,34 +426,30 @@ export const getParcelsByRadius = async (req: Request, res: Response, next: Next
   try {
     const { latitude, longitude, radius, status } = req.body;
 
-    // Validate inputs
     if (isNaN(latitude) || isNaN(longitude) || isNaN(radius)) {
       throw new AppError('Latitude, longitude, and radius must be valid numbers', 400);
     }
 
     console.log(`Searching for parcels within ${radius} km of lat: ${latitude}, lon: ${longitude}`);
 
-    // Convert radius from km to radians (1 km = 1/6371 of a circle)
     const radiusInRadians = radius / 6371;
 
-    // Prepare geospatial query filter
     const filter: any = {
       'pickupLocation.coordinates': {
         $geoWithin: {
-          $centerSphere: [[longitude, latitude], radiusInRadians],  // radius in radians
+          $centerSphere: [[longitude, latitude], radiusInRadians], 
         },
       },
     };
 
-    // Optional: Add status filter if provided
+
     if (status && Object.values(DeliveryStatus).includes(status)) {
-      filter.status = status;  // Only include parcels with the specified status
+      filter.status = status;  
     }
 
-    // Query the database using the geospatial filter
+
     const parcels = await ParcelRequest.find(filter);
 
-    // Check if parcels were found
     if (parcels.length === 0) {
       console.log('No parcels found within the specified radius.');
     } else {
@@ -605,7 +619,28 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
         throw new AppError("Review text cannot exceed 500 characters", 400);
       }
 
- // Find the sender and receiver users
+      //new
+      if (status === DeliveryStatus.DELIVERED) {
+        // Update the sender's stats
+        await User.findByIdAndUpdate(parcel.senderId, {
+          $inc: {
+            totalDelivered: 1,
+            totalAmountSpent: parcel.price
+          }
+        });
+        
+        // Update the deliverer's stats
+        const delivererId = parcel.assignedDelivererId;
+        await User.findByIdAndUpdate(delivererId, {
+          $inc: {
+            TotaltripsCompleted: 1,
+            totalEarning: parcel.price,
+            monthlyEarnings: parcel.price
+          }
+        });
+      }
+    parcel.status = status;
+    await parcel.save();
     const sender = await User.findById(parcel.senderId);
     const receiver = await User.findById(parcel.receiverId);
 

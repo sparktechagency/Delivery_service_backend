@@ -30,7 +30,7 @@ const subscriptionSchema = new mongoose.Schema({
   type: { 
     type: String, 
     required: true, 
-    // Removed the enum to allow flexibility for subscription types
+
   },
   freeParcels: { type: Number, default: 3 },
   description: { type: String, required: false },
@@ -39,15 +39,14 @@ const subscriptionSchema = new mongoose.Schema({
   expiryDate: { type: Date },
   trialPeriod: { 
     type: Number, 
-    default: 0, // trial period in days (0 means no trial)
+    default: 0,
   },
-  subscriptionStartDate: { type: Date, default: Date.now }, // Start date of the subscription
-  subscriptionEndDate: { type: Date }, // End date of the subscription
+  subscriptionStartDate: { type: Date, default: Date.now }, 
+  subscriptionEndDate: { type: Date }, 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
 
-// Check if the Subscription model is already defined in mongoose.models
 const Subscription = mongoose.models.Subscription || mongoose.model('Subscription', subscriptionSchema);
 
 export { Subscription };

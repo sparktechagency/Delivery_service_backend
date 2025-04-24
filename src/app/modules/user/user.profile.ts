@@ -7,48 +7,40 @@ import fs from 'fs';
 import path from 'path';
 import upload from "../../../multer/multer"; // Import your multer middleware
 import { UserSubscription } from "../subscriptions/subscription.model";
+import { error } from "console";
 
 
 
 export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
-  // Use multer to handle the image upload
   upload.single('profileImage')(req, res, async (err: any) =>  {
     try {
-      // If there's an error during the file upload
       if (err) {
-        console.error("❌ Multer Error:", err);  // Log the error
+        console.error("❌ Multer Error:", err); 
         throw new AppError("Error uploading file", 400);
       }
 
-      const userId = req.user?.id; // Get logged-in user ID
-      const { name, email, facebook, instagram, whatsapp } = req.body; // Extract form data fields
+      const userId = req.user?.id; 
+      const { name, email, facebook, instagram, whatsapp } = req.body; 
 
-      const image = req.file; // The uploaded file (image)
+      const image = req.file; 
 
-      if (!userId) throw new AppError("Unauthorized", 401); // Check if user is logged in
+      if (!userId) throw new AppError("Unauthorized", 401);
 
-      // Find the user by ID
       const user = await User.findById(userId);
       if (!user) throw new AppError("User not found", 404);
 
-      // Update the user's fields with the provided data
       user.fullName = name || user.fullName;
       user.email = email || user.email;
       user.facebook = facebook || user.facebook;
       user.instagram = instagram || user.instagram;
       user.whatsapp = whatsapp || user.whatsapp;
 
-      // Handle profile image upload if a new image is provided
       if (image) {
-        // Save the file path in the user's profileImage field directly from multer
         user.profileImage = `/uploads/profiles/${image.filename}`;
         console.log("✅ Profile Image Saved:", user.profileImage);
       }
 
-      // Save the updated user profile
       await user.save();
-
-      // Fetch and return the updated user profile, excluding password
       const updatedUser = await User.findById(userId).select('-passwordHash');
 
       res.status(200).json({
@@ -58,7 +50,7 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       });
     } catch (error) {
       console.error("❌ Error Updating Profile:", error);
-      next(error); // Pass error to the error-handling middleware
+      next(error); 
     }
   });
 };
@@ -116,20 +108,23 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
       throw new AppError("User not found", 404);
     }
     
-    // Calculate earnings-related data
     const earningsData = {
+      // totalEarnings: user.totalEarning || 0,
+      // monthlyEarnings: user.monthlyEarnings || 0,
+      // totalAmountSpent: user.totalAmountSpent || 0,
+      // totalSentParcels: user.totalSentParcels || 0,
+      // totalReceivedParcels: user.totalReceivedParcels || 0,
       totalEarnings: user.totalEarning || 0,
       monthlyEarnings: user.monthlyEarnings || 0,
       totalAmountSpent: user.totalAmountSpent || 0,
       totalSentParcels: user.totalSentParcels || 0,
       totalReceivedParcels: user.totalReceivedParcels || 0,
+      tripsCompleted: user.TotaltripsCompleted || 0
     };
-    
-    // Calculate the total rating based on reviews (if reviews exist)
+
     const totalRatings = user.reviews.reduce((acc, review) => acc + review.rating, 0);
     const averageRating = user.reviews.length > 0 ? totalRatings / user.reviews.length : 0;
     
-    // Return the profile with earnings, average rating, and explicitly include mobile number
     res.status(200).json({
       status: "success",
       message: "User profile fetched successfully",
@@ -147,7 +142,26 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
     next(error);
   }
 };
-
+// delete user
+export const deleteProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("Unauthorized", 401);
+    }
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+    res.status(200).json({
+      status: "success",
+      message: "User deleted successfully", 
+    })
+      next(error);
+  } catch (error) {
+    next(error);
+  } 
+};
 
 export const getRemainingSubscriptionTrialDays = async (req: Request, res: Response) => {
   try {

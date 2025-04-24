@@ -245,7 +245,7 @@ export const getUserActivityReport = async (req: Request, res: Response) => {
             date: { $first: "$activityDate" },
           },
         },
-        { $sort: { "date": -1 } },  // Sort by date, descending
+        { $sort: { "date": -1 } },  
       ]);
   
       res.status(200).json({

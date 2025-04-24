@@ -298,13 +298,36 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store OTP as plain text (No hashing)
-    await OTPVerification.create({
-      userId: user._id,
-      email,
-      otpCode,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // OTP expiry time (10 minutes)
-    });
+    //! OTP Expired
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    let otp = await OTPVerification.findOne({ userId: user._id, email });
+  
+    // // Store OTP as plain text (No hashing)
+    // await OTPVerification.create({
+    //   userId: user._id,
+    //   email,
+    //   otpCode,
+    //   expiresAt: new Date(Date.now() + 10 * 60 * 1000), // OTP expiry time (10 minutes)
+    // });
+
+
+
+    if (otp) {
+      // If OTP exists, update the OTP code and expiry time
+      otp.otpCode = otpCode; // Update OTP code
+      otp.expiresAt = otpExpiry; // Update expiry time
+
+      // Save the updated OTP record
+      await otp.save(); // Save the updated OTP to the database
+    } else {
+      // If no OTP exists, create a new OTP record
+      await OTPVerification.create({
+        userId: user._id,
+        email,
+        otpCode,
+        expiresAt: otpExpiry, // Set expiry time for OTP
+      });
+    }
 
     // Send OTP via email
     await transporter.sendMail({
@@ -382,7 +405,6 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
 export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, otpCode } = req.body;
-
     if (!email || !otpCode) {
       throw new AppError('Email and OTP code are required', 400);
     }

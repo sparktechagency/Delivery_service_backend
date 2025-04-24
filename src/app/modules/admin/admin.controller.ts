@@ -24,13 +24,12 @@ import mongoose from 'mongoose';
 import { AuthRequest } from '../../middlewares/auth';
 import upload from '../../../multer/multer';
 import { ParcelRequest } from '../parcel/ParcelRequest.model';
-// import upload from '../../../multer/multer';
+
 
 export const createAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { fullName, email, password, dob, permanentAddress, postalCode, username } = req.body;
 
-    // Ensure all required fields are provided
     if (!email || !password || !username) {
       throw new AppError('Email, password, and username are required', 400);
     }
@@ -49,7 +48,7 @@ export const createAdmin = async (req: Request, res: Response, next: NextFunctio
       permanentAddress,
       postalCode,
       username,
-      role: UserRole.ADMIN,  // Always set role as ADMIN for new admin
+      role: UserRole.ADMIN,  
       isActive: true
     });
 
@@ -68,7 +67,6 @@ export const createAdmin = async (req: Request, res: Response, next: NextFunctio
     try {
       const { email, password } = req.body;
   
-      // Ensure email and password are provided
       if (!email || !password) {
         throw new AppError('Email and password are required', 400);
       }
@@ -83,7 +81,7 @@ export const createAdmin = async (req: Request, res: Response, next: NextFunctio
         throw new AppError('Invalid credentials', 401);
       }
   
-      // Generate JWT token
+      
       const token = jwt.sign(
         { id: admin._id, role: admin.role },
         process.env.JWT_SECRET!,
@@ -110,14 +108,11 @@ export const createAdmin = async (req: Request, res: Response, next: NextFunctio
       const admin = await Admin.findById(adminId);
       if (!admin) throw new AppError('Admin not found', 404);
   
-      // Check if current password is correct
       const isMatch = await bcrypt.compare(currentPassword, admin.passwordHash);
       if (!isMatch) throw new AppError('Incorrect current password', 400);
-  
-      // Check if new passwords match
+
       if (newPassword !== confirmPassword) throw new AppError('New passwords do not match', 400);
   
-      // Hash and update password
       admin.passwordHash = await bcrypt.hash(newPassword, 10);
       await admin.save();
   

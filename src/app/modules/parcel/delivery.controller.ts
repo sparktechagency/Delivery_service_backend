@@ -141,9 +141,29 @@ export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: N
     // ✅ Assign the delivery man and update status to "IN_TRANSIT"
     parcel.assignedDelivererId = delivererObjectId;
     parcel.status = DeliveryStatus.IN_TRANSIT;
-    parcel.deliveryRequests = []; // Clear other requests
+    parcel.deliveryRequests = [];
     await parcel.save();
 
+    await User.findByIdAndUpdate(delivererId, {
+      $push: {
+        RecciveOrders: {
+          parcelId: parcel._id,
+          pickupLocation: parcel.pickupLocation?.coordinates ? 
+            `${parcel.pickupLocation.coordinates[1]},${parcel.pickupLocation.coordinates[0]}` : "",
+          deliveryLocation: parcel.deliveryLocation?.coordinates ? 
+            `${parcel.deliveryLocation.coordinates[1]},${parcel.deliveryLocation.coordinates[0]}` : "",
+          price: parcel.price,
+          title: parcel.title,
+          description: parcel.description,
+          senderType: parcel.senderType,
+          deliveryType: parcel.deliveryType,
+          deliveryStartTime: parcel.deliveryStartTime,
+          deliveryEndTime: parcel.deliveryEndTime,
+        }
+      },
+      $inc: { totalReceivedParcels: 1 }
+    });
+    
     // ✅ Automatically update the assigned user's role to `RECEIVER` if they are currently `SENDER`
     const deliverer = await User.findById(delivererId);
     if (deliverer && deliverer.role === UserRole.SENDER) {

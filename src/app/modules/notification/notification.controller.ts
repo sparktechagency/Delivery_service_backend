@@ -4,7 +4,6 @@ import { AppError } from "../../middlewares/error";
 import { DeliveryStatus } from "../../../types";
 import { AuthRequest } from "../../middlewares/auth";
 
-// Extend the Request interface to include the user property
 
 import { User } from "../user/user.model";
 import { Notification } from "./notification.model"; 
@@ -26,7 +25,6 @@ import { Notification } from "./notification.model";
         'location.longitude': { $gte: lon - rad, $lte: lon + rad }
       });
   
-      // Implement notification logic
       users.forEach(user => {
         console.log(`Sending notification to ${user.fullName}: ${message}`);
       });
@@ -39,26 +37,22 @@ import { Notification } from "./notification.model";
 
   export const viewNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user?.id;  // Get the user ID from the request (from auth middleware)
+      const userId = req.user?.id;  
       
-      if (!userId) throw new AppError('Unauthorized', 401);  // If no user ID, return unauthorized error
+      if (!userId) throw new AppError('Unauthorized', 401);  
   
-      // Fetch all notifications for the user
       const userNotifications = await Notification.find({ userId }).sort({ createdAt: -1 });
-  
-      // Fetch the global announcement (if it exists)
       const announcement = await Notification.findOne({ type: 'announcement' });
   
-      // Include the global announcement with the user's notifications
       const notifications = userNotifications || [];
   
       if (announcement) {
-        notifications.push(announcement);  // Add the global announcement to the list
+        notifications.push(announcement); 
       }
   
       res.status(200).json({
         status: 'success',
-        data: notifications,  // Return the user's notifications and global announcement
+        data: notifications,  
       });
     } catch (error) {
       next(error);
@@ -73,39 +67,35 @@ import { Notification } from "./notification.model";
         throw new AppError('Title and description are required', 400);
       }
   
-      // Create a new announcement (multiple announcements allowed)
       const newAnnouncement = new Notification({
         message: `New Announcement: ${title}`,
         type: 'announcement',
         title: title,
         description: description,
-        isRead: false,  // Initially, users will see it as unread
+        isRead: false,  
       });
   
-      // Save the new announcement
       await newAnnouncement.save();
   
       res.status(200).json({
         status: 'success',
         message: 'Announcement created and saved globally',
-        data: newAnnouncement, // Return the newly created announcement
+        data: newAnnouncement,
       });
     } catch (error) {
       next(error);
     }
   };
 
-  //all announcements admin
+
   export const getAllAnnouncements = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      // Ensure the user is an admin
       if (req.user?.role !== 'admin') {
         throw new AppError('Unauthorized, admin access required', 403);
       }
   
-      // Fetch all notifications of type 'announcement'
       const announcements = await Notification.find({ type: 'announcement' })
-        .sort({ createdAt: -1 });  // Sort by most recent
+        .sort({ createdAt: -1 }); 
   
       if (!announcements.length) {
         throw new AppError('No announcements found', 404);
@@ -113,17 +103,16 @@ import { Notification } from "./notification.model";
   
       res.status(200).json({
         status: 'success',
-        data: announcements,  // Return the fetched announcements
+        data: announcements,  
       });
     } catch (error) {
       next(error);
     }
   };
 
-  //push Notification
   export const getNotifications = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user?.id; // Assuming the user ID is available from authentication middleware
+      const userId = req.user?.id;
   
       if (!userId) {
         return res.status(401).json({
@@ -132,9 +121,8 @@ import { Notification } from "./notification.model";
         });
       }
   
-      // Fetch all notifications for the authenticated user
       const notifications = await Notification.find({ userId })
-        .sort({ createdAt: -1 })  // Sort by creation date, newest first
+        .sort({ createdAt: -1 })  
         .exec();
   
       if (!notifications || notifications.length === 0) {
@@ -144,7 +132,6 @@ import { Notification } from "./notification.model";
         });
       }
   
-      // Return the notifications
       res.status(200).json({
         status: 'success',
         data: notifications,
