@@ -12,7 +12,7 @@ import { getAllAnnouncements } from '../notification/notification.controller';
 import { trackUserActivity } from '../user/user.activity.controller';
 
 const fileFilter = (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Add your file filtering logic here
+
   cb(null, true);
 };
 

@@ -1,130 +1,110 @@
+import { Request } from 'express';
+import fs from 'fs';
+import { StatusCodes } from 'http-status-codes';
+import multer, { FileFilterCallback } from 'multer';
+import path from 'path';
+import ApiError from '../errors/ApiError';
 
-
-// import multer from "multer";
-// import path from "path";
-// import fs from "fs";
-
-// // Define Upload Path - using absolute path for clarity
-// const uploadPath = path.resolve(__dirname, "../../../uploads/profiles/");
-// console.log("📁 UPLOAD PATH:", uploadPath);
-
-// // Ensure the directory exists before uploading
-// try {
-//   fs.mkdirSync(uploadPath, { recursive: true });
-//   console.log("✅ Upload directory exists or was created");
-// } catch (err) {
-//   console.error("❌ Error creating upload directory:", err);
-// }
-
-// // Multer Storage Configuration
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, uploadPath);
-//   },
-//   filename: (req, file, cb) => {
-//     // Generate unique filename with original extension
-//     const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-//     console.log("🔄 Setting filename to:", uniqueFilename);
-//     cb(null, uniqueFilename);
-//   },
-// });
-
-// // File filter for images only
-// const fileFilter = (req: any, file: any, cb: any) => {
-//   // Ensure the uploaded file is an image
-//   if (!file.mimetype.startsWith("image/")) {
-//     return cb(new Error("Only image files are allowed!"), false);
-//   }
-//   cb(null, true);
-// };
-
-// // Multer Upload Middleware
-// const upload = multer({
-//   storage,
-//   fileFilter,
-//   limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
-// });
-
-// export default upload;
-
-
-import multer from "multer";
-import path from "path";
-import fs from "fs";
-
-// Get the absolute root path of the project
-const rootDir = path.resolve(__dirname, '../../../');
-const parcelUploadPath = path.join(rootDir, 'uploads/parcels');
-const profileUploadPath = path.join(rootDir, 'uploads/profiles');
-
-console.log("📁 PROJECT ROOT PATH:", rootDir);
-console.log("📁 PARCEL UPLOAD PATH:", parcelUploadPath);
-
-// Ensure the directory exists with proper permissions
-try {
-  // Use recursive true to create parent directories if they don't exist
-  if (!fs.existsSync(parcelUploadPath || profileUploadPath)) {
-    fs.mkdirSync(parcelUploadPath, { recursive: true, mode: 0o775 });
-    console.log("✅ Created parcel upload directory:", parcelUploadPath);
-    console.log("✅ Created parcel upload directory:", profileUploadPath);
-  } else {
-    // If directory exists, ensure it has write permissions
-    fs.chmodSync(parcelUploadPath, 0o775);
-    console.log("✅ Parcel upload directory exists with proper permissions");
+const fileUploadHandler = () => {
+  //create upload folder
+  const baseUploadDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(baseUploadDir)) {
+    fs.mkdirSync(baseUploadDir);
   }
-} catch (err) {
-  console.error("❌ Error with parcel upload directory:", err);
-}
 
-// Multer Storage Configuration for parcel images
-const parcelStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Double-check directory exists before attempting to save
-    if (!fs.existsSync(parcelUploadPath)) {
-      return cb(new Error(`Upload directory does not exist: ${parcelUploadPath}`), "");
+  //folder create for different file
+  const createDir = (dirPath: string) => {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath);
     }
-    
-    // Test write permissions by creating a test file
-    try {
-      const testPath = path.join(parcelUploadPath, '.test-write-access');
-      fs.writeFileSync(testPath, 'test');
-      fs.unlinkSync(testPath); // Delete the test file
-      console.log("✅ Write access confirmed to upload directory");
-    } catch (error) {
-      console.error("❌ No write access to upload directory:", error);
-      return cb(new Error("No write permission to upload directory"), "");
-    }
-    
-    cb(null, parcelUploadPath);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename with original extension
-    const uniqueFilename = `parcel-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-    console.log("🔄 Setting parcel image filename to:", uniqueFilename);
-    console.log("🔄 Full file path will be:", path.join(parcelUploadPath, uniqueFilename));
-    cb(null, uniqueFilename);
-  },
-});
+  };
 
-// File filter for images only
-const fileFilter = (req: any, file: any, cb: any) => {
-  console.log("📄 Received file:", file.originalname, "mimetype:", file.mimetype);
-  
-  // Ensure the uploaded file is an image
-  if (!file.mimetype.startsWith("image/")) {
-    console.log("❌ Rejected non-image file:", file.originalname);
-    return cb(new Error("Only image files are allowed!"), false);
-  }
-  
-  console.log("✅ Accepted image file:", file.originalname);
-  cb(null, true);
+  //create filename
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      let uploadDir;
+      switch (file.fieldname) {
+        case 'image':
+          uploadDir = path.join(baseUploadDir, 'image');
+          break;
+        case 'media':
+          uploadDir = path.join(baseUploadDir, 'media');
+          break;
+        case 'documents':
+          uploadDir = path.join(baseUploadDir, 'documents');
+          break;
+        default:
+          throw new ApiError(StatusCodes.BAD_REQUEST, 'File is not supported');
+      }
+      createDir(uploadDir);
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      const fileExt = path.extname(file.originalname);
+      const fileName =
+        file.originalname
+          .replace(fileExt, '')
+          .toLowerCase()
+          .split(' ')
+          .join('-') +
+        '-' +
+        Date.now();
+      cb(null, fileName + fileExt);
+    },
+  });
+
+  //file filter
+  const filterFilter = (req: Request, file: any, cb: FileFilterCallback) => {
+    if (file.fieldname === 'image') {
+      if (
+        file.mimetype === 'image/jpeg' ||
+        file.mimetype === 'image/png' ||
+        file.mimetype === 'image/jpg'
+      ) {
+        cb(null, true);
+      } else {
+        cb(
+          new ApiError(
+            StatusCodes.BAD_REQUEST,
+            'Only .jpeg, .png, .jpg file supported'
+          )
+        );
+      }
+    } else if (file.fieldname === 'media') {
+      if (file.mimetype === 'video/mp4' || file.mimetype === 'audio/mpeg') {
+        cb(null, true);
+      } else {
+        cb(
+          new ApiError(
+            StatusCodes.BAD_REQUEST,
+            'Only .mp4, .mp3, file supported'
+          )
+        );
+      }
+    } else if (file.fieldname === 'documents') {
+      if (file.mimetype === 'application/pdf' || file.mimetype === 'text/csv') {
+        cb(null, true); // Allow both PDFs and CSV files
+      } else {
+        cb(new ApiError(StatusCodes.BAD_REQUEST, 'Only pdf or csv files supported'));
+      }
+    }
+     else {
+      cb(new ApiError(StatusCodes.BAD_REQUEST, 'This file is not supported'));
+    }
+  };
+
+  const upload = multer({
+    storage: storage,
+    limits: {
+      fileSize: 10 * 1024 * 1024, 
+    },
+    fileFilter: filterFilter,
+  }).fields([
+    { name: 'image', maxCount: 3 },
+    { name: 'media', maxCount: 3 },
+    { name: 'documents', maxCount: 3 },
+  ]);
+  return upload;
 };
 
-// Multer Upload Middleware for parcel images
-const parcelUpload = multer({
-  storage: parcelStorage,
-  fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
-
-export default parcelUpload;
+export default fileUploadHandler;

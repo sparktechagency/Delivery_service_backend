@@ -28,12 +28,11 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
  * @throws Error if the phone number is invalid
  */
 export const formatPhoneNumber = (number: string): string => {
-  // Attempt to parse the phone number (assume international format if starts with '+')
   const phoneNumber = parsePhoneNumberFromString(number);
 
   if (!phoneNumber || !phoneNumber.isValid()) {
     throw new Error('Invalid phone number. Please enter a valid number.');
   }
 
-  return phoneNumber.format('E.164'); // Returns +14155552671 (example)
+  return phoneNumber.format('E.164'); 
 };

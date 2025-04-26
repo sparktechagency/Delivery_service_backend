@@ -75,30 +75,23 @@ import apiRoutes from './routes/index';
 import path from 'path';
 import stripeWebhook from './app/modules/payments/webhhok';
 import { User } from './app/modules/user/user.model';
+import fs from 'fs';
 
 const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Get the absolute root path of the project
-const rootDir = path.resolve(__dirname, '../../');
-console.log("📁 EXPRESS ROOT PATH:", rootDir);
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// Serve static files directly from the root directory
-// This ensures no path confusion between development and production environments
-app.use("/uploads", express.static(path.join(rootDir, "uploads")));
-console.log("📁 STATIC FILES PATH:", path.join(rootDir, "uploads"));
-
-
-// Connect to MongoDB
 connectDB();
 
-// Webhook needs raw body, so it must come before JSON parser
 app.post(
   "/api/payments/webhook",
   express.raw({ type: "application/json" }),
   stripeWebhook
 );
 
-// Configure CORS - combine into a single configuration
 app.use(cors({
   origin: [
     "http://10.0.70.213:4000", 
@@ -109,7 +102,6 @@ app.use(cors({
   credentials: true
 }));
 
-// JSON parser for all routes except webhook
 app.use((req, res, next) => {
   if (req.originalUrl === "/api/payments/webhook") {
     next();
@@ -124,9 +116,8 @@ app.use('/api', apiRoutes);
 app.post('/api/save-fcm-token', async (req, res) => {
   try {
     const { token } = req.body;
-    const userId = req.user?.id;  // Get the current authenticated user ID
+    const userId = req.user?.id; 
 
-    // Update the user's FCM token in the database
     await User.updateOne({ _id: userId }, { $set: { fcmToken: token } });
 
     res.status(200).json({ message: 'FCM token saved successfully' });
@@ -135,6 +126,7 @@ app.post('/api/save-fcm-token', async (req, res) => {
     res.status(500).json({ message: 'Failed to save FCM token' });
   }
 });
+
 
 // Error handling
 app.use(errorHandler);

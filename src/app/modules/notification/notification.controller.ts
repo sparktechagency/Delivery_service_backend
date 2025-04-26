@@ -3,8 +3,6 @@ import mongoose from "mongoose";
 import { AppError } from "../../middlewares/error";
 import { DeliveryStatus } from "../../../types";
 import { AuthRequest } from "../../middlewares/auth";
-
-
 import { User } from "../user/user.model";
 import { Notification } from "./notification.model"; 
 

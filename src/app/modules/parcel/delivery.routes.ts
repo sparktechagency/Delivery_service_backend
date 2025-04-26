@@ -1,7 +1,7 @@
 // delivery.routes.ts
 import express from 'express';
 import { authenticate } from '../../middlewares/auth';
-import { requestToDeliver, acceptDeliveryOffer, updateParcelStatus, postReviewForUser, getReviewsForUser, cancelDeliveryRequest } from './delivery.controller';
+import { requestToDeliver, acceptDeliveryOffer, updateParcelStatus, postReviewForUser, getReviewsForUser, cancelDeliveryRequest, cancelAssignedDeliveryMan, cancelParcelDelivery } from './delivery.controller';
 
 const deliveryRouter = express.Router();
 
@@ -14,6 +14,7 @@ deliveryRouter.post('/update-status', authenticate, updateParcelStatus);
 deliveryRouter.post('/review', postReviewForUser);
 deliveryRouter.post('/cancel-request',authenticate, cancelDeliveryRequest);
 deliveryRouter.get('/review/:userId',getReviewsForUser );
+deliveryRouter.post('/DevCancelparcel',authenticate,cancelParcelDelivery);
 
 
 

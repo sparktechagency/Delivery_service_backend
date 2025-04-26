@@ -1,4 +1,3 @@
-// Admin Model
 import mongoose from 'mongoose';
 import { UserRole } from '../../../types/enums';
 

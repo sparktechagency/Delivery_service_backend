@@ -225,63 +225,59 @@ export const generateTokens = (userId: string, role: UserRole) => {
 
 
 
-export const updateProfileMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    console.log("📄 Received Body:", req.body);  // Log form data
-    console.log("📂 Received File:", req.file);  // Log file data
+// export const updateProfileMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     console.log("📄 Received Body:", req.body);  // Log form data
+//     console.log("📂 Received File:", req.file);  // Log file data
 
-    const userId = req.user?.id;  // Get the logged-in user ID
-    const { name, email, facebook, instagram, whatsapp } = req.body;  // Extract form data fields
+//     const userId = req.user?.id;  
+//     const { name, email, facebook, instagram, whatsapp } = req.body;  // Extract form data fields
 
-    if (!userId) {
-      return res.status(401).json({
-        status: "error",
-        message: "Unauthorized"
-      });
-    }
+//     if (!userId) {
+//       return res.status(401).json({
+//         status: "error",
+//         message: "Unauthorized"
+//       });
+//     }
 
-    // Find the user by ID
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        status: "error",
-        message: "User not found"
-      });
-    }
+//     // Find the user by ID
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "User not found"
+//       });
+//     }
 
-    // Update the user's fields
-    if (name) user.fullName = name;
-    if (email) user.email = email;
-    if (facebook) user.facebook = facebook;
-    if (instagram) user.instagram = instagram;
-    if (whatsapp) user.whatsapp = whatsapp;
+//     // Update the user's fields
+//     if (name) user.fullName = name;
+//     if (email) user.email = email;
+//     if (facebook) user.facebook = facebook;
+//     if (instagram) user.instagram = instagram;
+//     if (whatsapp) user.whatsapp = whatsapp;
 
-    // Handle profile image if it is uploaded
-    if (req.file) {
-      // Multer will save the file, just use the path from req.file
-      user.profileImage = `/uploads/profiles/${req.file.filename}`;
-      console.log("✅ Profile Image Path Saved:", user.profileImage);
-    }
+//     if (req.file) {
+//       user.profileImage = `/uploads/profiles/${req.file.filename}`;
+     
+//     }
 
-    // Save the updated user profile
-    await user.save();
+//     await user.save();
 
-    // Fetch and return the updated user profile, excluding the password hash
-    const updatedUser = await User.findById(userId).select('-passwordHash');
+//     const updatedUser = await User.findById(userId).select('-passwordHash');
 
-    res.status(200).json({
-      status: "success",
-      message: "Profile updated successfully",
-      data: updatedUser,
-    });
-  } catch (error: any) {
-    console.error("❌ Error Updating Profile:", error);
-    res.status(500).json({
-      status: "error",
-      message: error.message || "An error occurred while updating profile"
-    });
-  }
-};
+//     res.status(200).json({
+//       status: "success",
+//       message: "Profile updated successfully",
+//       data: updatedUser,
+//     });
+//   } catch (error: any) {
+//     console.error("❌ Error Updating Profile:", error);
+//     res.status(500).json({
+//       status: "error",
+//       message: error.message || "An error occurred while updating profile"
+//     });
+//   }
+// };
 
 // export const checkUserSubscription = async (req: AuthRequest, res: Response, next: NextFunction) => {
 //   try {

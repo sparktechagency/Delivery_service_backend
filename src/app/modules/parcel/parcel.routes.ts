@@ -2,13 +2,13 @@
 import express from 'express';
 import { authenticate } from '../../middlewares/auth';
 import { createParcelRequest, getAvailableParcels, getFilteredParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels, getUserReviews, updateParcelStatus } from './parcel.controller';
-import upload from '../../../multer/multer';
 import { assignDeliveryMan, cancelAssignedDeliveryMan, removeDeliveryRequest } from './delivery.controller';
-
+import fileUploadHandler from '../../../multer/multer';
+const upload = fileUploadHandler();
 const parcelRouter = express.Router();
 // parcelRouter.post('/create', authenticate, createParcelRequest);
 
-parcelRouter.post("/create",authenticate, upload.array('images', 5), createParcelRequest);
+parcelRouter.post("/create", authenticate, upload, createParcelRequest);
 parcelRouter.get('/available', authenticate, getAvailableParcels);
 parcelRouter.get("/user-parcels", authenticate, getUserParcels);
 parcelRouter.post('/availableByRadius', authenticate,getParcelsByRadius );
@@ -25,4 +25,3 @@ parcelRouter.get('/filtered', getFilteredParcels);
 
 export default parcelRouter;
 
-// router.post('/parcel', createParcelRequest);

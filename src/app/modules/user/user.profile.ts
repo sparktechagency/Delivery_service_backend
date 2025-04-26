@@ -5,55 +5,51 @@ import { User } from "./user.model";
 import multer from 'multer';  // Import multer for handling file uploads
 import fs from 'fs';
 import path from 'path';
-import upload from "../../../multer/multer"; // Import your multer middleware
+// import upload from "../../../multer/multer"; // Import your multer middleware
 import { UserSubscription } from "../subscriptions/subscription.model";
 import { error } from "console";
+import fileUploadHandler from '../../../multer/multer'; 
+import { IUser } from "../../../types/interfaces";
+import ApiError from "../../../errors/ApiError";
+import { StatusCodes } from "http-status-codes";
 
 
+// export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+//   const userId = req.user?.id; 
+//   const { name, email, facebook, instagram, whatsapp } = req.body; 
+//   const image = req.file; 
 
-export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
-  upload.single('profileImage')(req, res, async (err: any) =>  {
-    try {
-      if (err) {
-        console.error("❌ Multer Error:", err); 
-        throw new AppError("Error uploading file", 400);
-      }
+//   if (!userId) throw new AppError("Unauthorized", 401);
 
-      const userId = req.user?.id; 
-      const { name, email, facebook, instagram, whatsapp } = req.body; 
+//   try {
+//     const user = await User.findById(userId);
+//     if (!user) throw new AppError("User not found", 404);
 
-      const image = req.file; 
+//     user.fullName = name || user.fullName;
+//     user.email = email || user.email;
+//     user.facebook = facebook || user.facebook;
+//     user.instagram = instagram || user.instagram;
+//     user.whatsapp = whatsapp || user.whatsapp;
 
-      if (!userId) throw new AppError("Unauthorized", 401);
+//     if (image) {
+//       user.profileImage = `/uploads/profiles/${image.filename}`;
+//     }
 
-      const user = await User.findById(userId);
-      if (!user) throw new AppError("User not found", 404);
+//     await user.save();
+//     const updatedUser = await User.findById(userId).select('-passwordHash');
 
-      user.fullName = name || user.fullName;
-      user.email = email || user.email;
-      user.facebook = facebook || user.facebook;
-      user.instagram = instagram || user.instagram;
-      user.whatsapp = whatsapp || user.whatsapp;
+//     res.status(200).json({
+//       status: "success",
+//       message: "Profile updated successfully",
+//       data: updatedUser,
+//     });
+//   } catch (error) {
+//     console.error("❌ Error Updating Profile:", error);
+//     next(error); 
+//   }
+// };
 
-      if (image) {
-        user.profileImage = `/uploads/profiles/${image.filename}`;
-        console.log("✅ Profile Image Saved:", user.profileImage);
-      }
 
-      await user.save();
-      const updatedUser = await User.findById(userId).select('-passwordHash');
-
-      res.status(200).json({
-        status: "success",
-        message: "Profile updated successfully",
-        data: updatedUser,
-      });
-    } catch (error) {
-      console.error("❌ Error Updating Profile:", error);
-      next(error); 
-    }
-  });
-};
 
 
 
@@ -88,6 +84,76 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
 //     next(error);
 //   }
 // };
+
+
+const upload = fileUploadHandler();
+
+export const updateProfile = async (req: Request, res: Response) => {
+  upload(req, res, async (err: any) => {
+    if (err) {
+      return res.status(400).json({ message: err.message });
+    }
+
+    try {
+      const { fullName,facebook,instagram,whatsapp, mobileNumber } = req.body;
+      const user = req.user; 
+
+      const updatedUserData: any = {};
+
+      if (fullName) {
+        updatedUserData.fullName = fullName;
+      }
+
+      if (facebook) {
+        updatedUserData.facebook = facebook;
+      }
+      if (instagram) {
+        updatedUserData.instagram = instagram;
+      }
+
+      if (whatsapp) {
+        updatedUserData.whatsapp = whatsapp;
+      }
+      if (mobileNumber) {
+        updatedUserData.mobileNumber = mobileNumber;
+      }
+
+      if (req.files && (req.files as { [fieldname: string]: Express.Multer.File[] })['image']) {
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        const imagePath = '/uploads/image/' + files['image'][0].filename;  
+        updatedUserData.image = imagePath;
+      }
+
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: user?.id },
+        { $set: updatedUserData },
+        { new: true }
+      );
+
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const userProfile = {
+        id: updatedUser._id,
+        fullName: updatedUser.fullName,
+        facebook: updatedUser.facebook,
+        instagram: updatedUser.instagram,
+        whatsapp: updatedUser.whatsapp,
+        mobileNumber: updatedUser.mobileNumber,
+        Image: updatedUser.image || 'https://i.ibb.co/z5YHLV9/profile.png', 
+  
+      };
+
+      res.status(200).json({ message: 'Profile updated successfully', user: userProfile });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      res.status(500).json({ message: 'Error updating profile', error });
+    }
+  });
+};
+
 export const getProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
@@ -129,9 +195,15 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
       status: "success",
       message: "User profile fetched successfully",
       data: {
+
         user: {
           ...user.toObject(),
           mobileNumber: user.mobileNumber || "missing mobile number", 
+          facebook: user.facebook || "missing facebook link", 
+          instagram: user.instagram || "missing instagram link",
+          whatsapp: user.whatsapp || "missing whatsapp number",
+          email : user.email || "missing email",
+
         },
         earnings: earningsData,
         averageRating: averageRating.toFixed(2),

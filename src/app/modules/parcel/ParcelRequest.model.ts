@@ -96,7 +96,7 @@ export const ParcelRequest = mongoose.model('ParcelRequest', parcelRequestSchema
 export type ParcelRequestDocument = Document & {
   senderId: Types.ObjectId;
   receiverId: Types.ObjectId;
-  description: string;
+  description: { type: string; required: false; default: string; };
   pickupLocation: { type: string; coordinates: [number, number] };
   deliveryLocation: { type: string; coordinates: [number, number] };
   title: string;

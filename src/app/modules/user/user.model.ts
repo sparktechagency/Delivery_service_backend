@@ -223,13 +223,13 @@ import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 import { SenderType, SubscriptionType, UserRole } from '../../../types/enums';
 import { ParcelRequest, ParcelRequestDocument } from '../parcel/ParcelRequest.model'; 
 
-interface UserDocument extends Document {
+export interface UserDocument extends Document {
   _id: Types.ObjectId;
   fullName: string;
   country: string;
   email?: string;
   mobileNumber?: string;
-  profileImage: string;
+  image: string;
   passwordHash?: string;
   facebook: string;
   fcmToken: string;
@@ -307,7 +307,7 @@ const userSchema = new Schema<UserDocument>({
   country: { type: String, required: false },
   email: { type: String, unique: true, sparse: true },
   mobileNumber: { type: String, unique: true, sparse: true },
-  profileImage: { type: String, default: "" },
+  image: { type: String, default: "" },
   passwordHash: String,
   facebook: { type: String },
   instagram: { type: String },
@@ -372,3 +372,4 @@ const userSchema = new Schema<UserDocument>({
 }, { timestamps: true });
 
 export const User: Model<UserDocument> = mongoose.model<UserDocument>('User', userSchema);
+export default User;

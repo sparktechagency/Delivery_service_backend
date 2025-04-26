@@ -14,7 +14,6 @@ interface EnvVars {
 }
 
 
-// Validate and cast environment variables
 const requiredEnvVars: EnvVars = {
   MONGODB_URI: process.env.MONGODB_URI || '',
   TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID || '',

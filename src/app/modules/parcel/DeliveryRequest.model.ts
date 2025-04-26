@@ -81,7 +81,7 @@ const deliveryRequestSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   status: { type: String, enum: Object.values(DeliveryStatus), default: DeliveryStatus.PENDING },
   images: [String],
-  deliveryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Delivery' } // Reference to Delivery
+  deliveryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Delivery' } 
 }, { timestamps: true });
 
 export const DeliveryRequest = mongoose.model('DeliveryRequest', deliveryRequestSchema);

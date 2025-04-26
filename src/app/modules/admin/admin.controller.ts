@@ -1,6 +1,7 @@
 // admin.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { DeliveryType } from '../../../types/enums';
+import moment from 'moment';  
 interface AdminRequest extends Request {
   admin?: {
     id: string;
@@ -125,13 +126,10 @@ export const createAdmin = async (req: Request, res: Response, next: NextFunctio
 
 export const updateAdminProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Debugging the incoming request data
-    console.log("📄 Received Body:", req.body);
-    console.log("📂 Received File:", req.file);
 
     const adminId = req.params.id;
     const { name, email, dob, permanentAddress, postalCode, username } = req.body;
-    const image = req.file; // Uploaded file will be available here
+    const image = req.file; 
 
     const userId = req.user?.id;
     if (!userId) {
@@ -141,7 +139,7 @@ export const updateAdminProfile = async (req: Request, res: Response, next: Next
       });
     }
 
-    // Find the user (must be an admin)
+
     const user = await Admin.findById(userId);
     if (!user || user.role !== 'admin') {
       return res.status(403).json({
@@ -150,7 +148,6 @@ export const updateAdminProfile = async (req: Request, res: Response, next: Next
       });
     }
 
-    // Find the admin to update
     const admin = await Admin.findById(adminId);
     if (!admin) {
       return res.status(404).json({
@@ -227,13 +224,11 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
 
       const { userId, isRestricted } = req.body;
 
-      // Check MongoDB connection
       if (mongoose.connection.readyState !== 1) {
           console.error("❌ MongoDB is not connected");
           return res.status(500).json({ status: "error", message: "Database connection error" });
       }
 
-      // Validate userId format
       if (!mongoose.Types.ObjectId.isValid(userId)) {
           console.error("❌ Invalid User ID:", userId);
           return res.status(400).json({ status: "error", message: "Invalid user ID" });
@@ -259,7 +254,7 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
   }
 };
   
-  export const reviewAdminUpdates = async (req: Request, res: Response, next: NextFunction) => {
+export const reviewAdminUpdates = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { userId, feedback } = req.body;
       const user = await User.findById(userId);
@@ -277,9 +272,8 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
 
   
 
-  export const getOrders = async (req: Request, res: Response, next: NextFunction) => {
+export const getOrders = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Check MongoDB connection
       if (mongoose.connection.readyState !== 1) {
         console.error("❌ MongoDB not connected");
         return res.status(500).json({ status: "error", message: "Database connection error" });
@@ -288,20 +282,17 @@ export const updateUserStatus = async (req: Request, res: Response, next: NextFu
       const { orderId, status } = req.query;
       const filter: any = {};
   
-      // Validate and set orderId filter
       if (orderId) {
         if (!mongoose.Types.ObjectId.isValid(orderId as string)) {
           return res.status(400).json({ status: "error", message: "Invalid order ID" });
         }
-        filter.orderId = orderId; // Use orderId instead of _id
+        filter.orderId = orderId;
       }
   
-      // Validate and set status filter
       if (status) filter.status = status;
   
       console.log("🔵 Order Query Filters:", filter);
   
-      // Fetch orders
       const orders = await Order.find(filter).populate("deliveryPerson");
   
       res.json({ status: "success", data: orders });
@@ -405,67 +396,57 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
 
     console.log("🔍 Fetching users with pagination, rating, earnings, and sorting...");
 
-    // Build filter criteria
     let filter: any = {};
 
-    // Filter by highest or lowest rating
     if (filterType === "rating") {
       // If filterType is 'rating', we will just sort by highest or lowest rating
       // No need to check for specific rating values, just use the default behavior (highest or lowest)
     }
 
-    // Filter by highest or lowest earnings
     if (filterType === "earning") {
       // Same logic as for rating, just filter by highest or lowest earning
     }
 
-    // Handle sorting logic
     let sortCriteria: any = {};
     if (sortBy === "rating") {
-      sortCriteria["avgRating"] = sortOrder === "desc" ? -1 : 1;  // Sort by avgRating (desc/asc)
+      sortCriteria["avgRating"] = sortOrder === "desc" ? -1 : 1; 
     } else if (sortBy === "earning") {
-      sortCriteria["totalEarning"] = sortOrder === "desc" ? -1 : 1;  // Sort by totalEarning (desc/asc)
+      sortCriteria["totalEarning"] = sortOrder === "desc" ? -1 : 1; 
     } else {
-      // Default sorting by highest rating if no sortBy is provided
-      sortCriteria["avgRating"] = -1;  // Default sorting by highest rating
+      sortCriteria["avgRating"] = -1;  
     }
 
     console.log('Filter Criteria:', filter);
     console.log('Sort Criteria:', sortCriteria);
 
-    // Fetch users with pagination, filter, and sorting
     const users = await User.find(filter)
       .skip(skip)
       .limit(limit)
       .select('fullName email mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt reviews')
       .lean();
 
-    // Calculate the average rating for each user
     users.forEach((user) => {
       if (user.reviews && user.reviews.length > 0) {
         const totalRating = user.reviews.reduce((sum, review) => sum + review.rating, 0);
         const avgRating = totalRating / user.reviews.length;
-        user.avgRating = parseFloat(avgRating.toFixed(2));  // Convert to a number with two decimals
+        user.avgRating = parseFloat(avgRating.toFixed(2)); 
       } else {
-        user.avgRating = 0;  // No rating available
+        user.avgRating = 0;
       }
     });
 
-    // Sort users based on the specified sort criteria
     const sortedUsers = users.sort((a: any, b: any) => {
       if (sortBy === 'rating') {
         return sortOrder === 'desc' ? b.avgRating - a.avgRating : a.avgRating - b.avgRating;
       } else if (sortBy === 'earning') {
         return sortOrder === 'desc' ? b.totalEarning - a.totalEarning : a.totalEarning - b.totalEarning;
       }
-      return 0;  // Default: no sorting if sortBy is not specified
+      return 0; 
     });
 
-    // Get the total count of users for pagination purposes
     const totalUsers = await User.countDocuments(filter);
     const totalPages = Math.ceil(totalUsers / limit);
 
-    // Respond with the data and pagination info
     res.json({
       status: 'success',
       data: {
@@ -484,15 +465,13 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
 
 export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userIdToDelete = req.params.userId; // Assuming the userId is passed as a URL parameter
+    const userIdToDelete = req.params.userId;
 
-    // Check if the user to be deleted exists in the database
     const userToDelete = await User.findById(userIdToDelete);
     if (!userToDelete) {
       throw new AppError('User not found', 404);
     }
 
-    // Proceed with deleting the user
     await User.findByIdAndDelete(userIdToDelete);
 
     return res.status(200).json({
@@ -503,9 +482,9 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
-  export const getUserData = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserData = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user?.id;  // Get logged-in user ID from `req.user`
+      const userId = req.user?.id;  
   
       if (!userId) {
         return res.status(401).json({
@@ -514,8 +493,7 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
         });
       }
   
-      // Find the user by ID
-      const user = await User.findById(userId).select('-passwordHash'); // Exclude the password field
+      const user = await User.findById(userId).select('-passwordHash');
   
       if (!user) {
         throw new AppError('User not found', 404);
@@ -527,7 +505,7 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
       });
     } catch (error) {
       console.error("❌ Error Fetching User Data:", error);
-      next(error); // Pass error to the global error handler
+      next(error); 
     }
   };
   
@@ -634,40 +612,34 @@ export const getParcelDetails = async (req: Request, res: Response, next: NextFu
   try {
     const { status, page = 1, limit = 10 } = req.query;
 
-    // Convert page and limit to numbers
     const pageNumber = parseInt(page as string, 10) || 1;
     const limitNumber = parseInt(limit as string, 10) || 10;
     const skip = (pageNumber - 1) * limitNumber;
 
-    // Build the filter object
     let filter: any = {};
     if (status) {
       filter.status = status.toString();
     }
 
-    // Fetch filtered parcels with pagination and populate all the required details
     const parcels = await ParcelRequest.find(filter)
-      .populate('senderId', 'fullName email role profileImage mobileNumber') // Populate sender details including image
-      .populate('receiverId', 'fullName email role profileImage mobileNumber') // Populate receiver details including image
-      .populate('deliveryRequests', 'fullName email role profileImage mobileNumber') // Populate delivery requests details with image
-      .populate('assignedDelivererId', 'fullName email role profileImage mobileNumber') // Populate deliverer details with image
-      .select('pickupLocation deliveryLocation status deliveryType price senderId receiverId assignedDelivererId deliveryRequests images') // Select necessary fields
+      .populate('senderId', 'fullName email role profileImage mobileNumber')
+      .populate('receiverId', 'fullName email role profileImage mobileNumber') 
+      .populate('deliveryRequests', 'fullName email role profileImage mobileNumber') 
+      .populate('assignedDelivererId', 'fullName email role profileImage mobileNumber') 
+      .select('pickupLocation deliveryLocation status deliveryType price senderId receiverId assignedDelivererId deliveryRequests images') 
       .skip(skip)
       .limit(limitNumber)
       .lean();
 
-    // Count total parcels for pagination metadata
     const totalParcels = await ParcelRequest.countDocuments(filter);
     const totalPages = Math.ceil(totalParcels / limitNumber);
 
-    // If no parcels are found
     if (parcels.length === 0) {
       return res.status(200).json({
         data: [],
       });
     }
 
-    // Return paginated parcel details
     res.status(200).json({
       status: 'success',
       message: 'Parcel details fetched successfully',
@@ -680,10 +652,10 @@ export const getParcelDetails = async (req: Request, res: Response, next: NextFu
       }
     });
   } catch (error) {
-    next(error); // Pass error to global error handler
+    next(error);
   }
 };
-import moment from 'moment';  // We can use moment.js for easier date manipulation
+
 
 interface DeliveryTimes {
   [DeliveryType.TRUCK]: { totalTime: number, count: number };
@@ -699,15 +671,12 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
   try {
     const { status, page = 1, limit = 10, day, month, year } = req.query;
 
-    // Convert page and limit to numbers
     const pageNumber = parseInt(page as string, 10) || 1;
     const limitNumber = parseInt(limit as string, 10) || 10;
     const skip = (pageNumber - 1) * limitNumber;
 
-    // Build the filter object based on status
     let filter: any = {};
 
-    // Date filters based on day, month, and year
     if (year || month || day) {
       let startDate = moment();
       let endDate = moment();
@@ -717,7 +686,7 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
         endDate = endDate.year(parseInt(year as string, 10)).endOf('year');
       }
       if (month) {
-        startDate = startDate.month(parseInt(month as string, 10) - 1).startOf('month');  // Adjust month (0-based index)
+        startDate = startDate.month(parseInt(month as string, 10) - 1).startOf('month');  
         endDate = endDate.month(parseInt(month as string, 10) - 1).endOf('month');
       }
       if (day) {
@@ -729,10 +698,9 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
     }
 
     if (status) {
-      // Ensure status matches exactly with the enum values (case-insensitive check)
       const statusUpperCase = status.toString().toUpperCase();
       if (Object.values(DeliveryStatus).includes(statusUpperCase as DeliveryStatus)) {
-        filter.status = statusUpperCase; // Convert to uppercase to match database
+        filter.status = statusUpperCase; 
       } else {
         return res.status(400).json({
           status: 'error',
@@ -741,7 +709,6 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
       }
     }
 
-    // Initialize an object to track total time and count per delivery type
     let deliveryTimes: DeliveryTimes = {
       [DeliveryType.TRUCK]: { totalTime: 0, count: 0 },
       [DeliveryType.CAR]: { totalTime: 0, count: 0 },
@@ -752,13 +719,11 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
       [DeliveryType.AirPlane]: { totalTime: 0, count: 0 }
     };
 
-    // Fetch filtered parcels with pagination
     const parcels = await ParcelRequest.find(filter)
       .skip(skip)
       .limit(limitNumber)
       .lean();
 
-    // If no parcels are found
     if (parcels.length === 0) {
       return res.status(404).json({
         status: 'error',
@@ -766,22 +731,19 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
       });
     }
 
-    // Calculate delivery time for each parcel and aggregate by DeliveryType
     let totalDeliveryTime = 0;
     let totalParcelsCount = parcels.length;
-    let users: Set<string> = new Set();  // Track unique users
+    let users: Set<string> = new Set();
 
     parcels.forEach((parcel: any) => {
       if (parcel.deliveryStartTime && parcel.deliveryEndTime) {
-        const deliveryTime = (new Date(parcel.deliveryEndTime).getTime() - new Date(parcel.deliveryStartTime).getTime()) / 1000 / 60; // Delivery time in minutes
+        const deliveryTime = (new Date(parcel.deliveryEndTime).getTime() - new Date(parcel.deliveryStartTime).getTime()) / 1000 / 60;
         totalDeliveryTime += deliveryTime;
 
-        // Track unique users based on senderId
         if (parcel.senderId) {
           users.add(parcel.senderId.toString());
         }
 
-        // Aggregate the delivery time by delivery type
         if (parcel.deliveryType && deliveryTimes[parcel.deliveryType as keyof DeliveryTimes]) {
           deliveryTimes[parcel.deliveryType as keyof DeliveryTimes].totalTime += deliveryTime;
           deliveryTimes[parcel.deliveryType as keyof DeliveryTimes].count += 1;
@@ -789,15 +751,12 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
       }
     });
 
-    // Calculate average delivery time (in minutes)
     const averageDeliveryTimeInMinutes = totalDeliveryTime / totalParcelsCount;
 
-    // Convert total average delivery time to hours, minutes, and days
     const hours = Math.floor(averageDeliveryTimeInMinutes / 60);
     const minutes = Math.floor(averageDeliveryTimeInMinutes % 60);
-    const days = Math.floor(averageDeliveryTimeInMinutes / (24 * 60)); // Rough estimate in days
+    const days = Math.floor(averageDeliveryTimeInMinutes / (24 * 60));
 
-    // Calculate average delivery time for each delivery type
     const averageDeliveryTimes = Object.keys(deliveryTimes).map((deliveryType: string) => {
       const type = deliveryTimes[deliveryType as keyof typeof deliveryTimes];
       return {
@@ -807,24 +766,21 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
       };
     });
 
-    // Average order per user calculation
     const averageOrdersPerUser = totalParcelsCount / users.size;
 
-    // Count total parcels for pagination metadata
     const totalParcels = await ParcelRequest.countDocuments(filter);
     const totalPages = Math.ceil(totalParcels / limitNumber);
 
-    // Return the response
     res.status(200).json({
       status: 'success',
       data: {
-        averageOrdersPerUser: averageOrdersPerUser, // Average number of orders per user
+        averageOrdersPerUser: averageOrdersPerUser,
         totalAverageDeliveryTime: {
           days,
           hours,
           minutes
         },
-        averageDeliveryTimes, // Average delivery time per delivery type
+        averageDeliveryTimes, 
       },
       pagination: {
         totalParcels,
@@ -834,7 +790,7 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
       }
     });
   } catch (error) {
-    next(error); // Pass error to global error handler
+    next(error); 
   }
 };
 
@@ -842,33 +798,30 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
 
 export const getParcelDetailsById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { parcelId } = req.params;  // Extract parcelId from the URL parameters
+    const { parcelId } = req.params;  
 
-    // Log the received parcelId (optional for debugging)
     console.log("Fetching details for parcel ID:", parcelId);
 
-    // Fetch the parcel by parcelId and populate the sender, receiver, and assigned deliverer details
     const parcel = await ParcelRequest.findById(parcelId)
       .populate({
-        path: 'senderId',  // Populate sender details
-        select: 'fullName email mobileNumber profileImage role',  // Select specific fields from User model
+        path: 'senderId', 
+        select: 'fullName email mobileNumber profileImage role', 
       })
       .populate({
-        path: 'receiverId',  // Populate receiver details
-        select: 'fullName email mobileNumber profileImage role',  // Select specific fields from User model
+        path: 'receiverId',  
+        select: 'fullName email mobileNumber profileImage role',  
       })
       .populate({
-        path: 'assignedDelivererId',  // Populate assigned deliverer details
-        select: 'fullName email mobileNumber profileImage role',  // Select specific fields from User model
+        path: 'assignedDelivererId',  
+        select: 'fullName email mobileNumber profileImage role', 
       })
       .populate({
-        path: 'deliveryRequests',  // Populate users who requested the delivery
-        select: 'fullName email mobileNumber profileImage role',  // Select specific fields from User model
+        path: 'deliveryRequests',  
+        select: 'fullName email mobileNumber profileImage role', 
       })
       .select('pickupLocation deliveryLocation title description price status deliveryType deliveryStartTime deliveryEndTime images senderId receiverId assignedDelivererId deliveryRequests')  // Select necessary parcel fields
       .lean();
 
-    // If the parcel is not found
     if (!parcel) {
       return res.status(404).json({
         status: 'error',
@@ -876,7 +829,6 @@ export const getParcelDetailsById = async (req: Request, res: Response, next: Ne
       });
     }
 
-    // Return the parcel details along with sender, receiver, and deliverer information
     res.status(200).json({
       status: 'success',
       message: 'Parcel details fetched successfully.',

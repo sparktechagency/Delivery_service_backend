@@ -6,11 +6,13 @@ import { AppError } from '../../middlewares/error';
 import { DeliveryStatus, DeliveryType, SenderType, UserRole } from '../../../types/enums';
 import { AuthRequest } from '../../middlewares/auth';
 import mongoose from 'mongoose';
-import upload from "../../../multer/multer"; // ✅ Import multer configuration
+import upload from "../../../multer/multer"; 
 import moment from 'moment';
 import axios from 'axios';
-import admin from '../../../config/firebase'; // ✅ Import Firebase admin SDK
+import admin from '../../../config/firebase'; 
 import { Notification } from '../notification/notification.model';
+import  path from 'path';
+import fs from 'fs';
 
 // export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
@@ -125,6 +127,125 @@ const getCoordinates = async (location: string) => {
 };
 
 
+// export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const {
+//       pickupLocation,
+//       deliveryLocation,
+//       deliveryStartTime,
+//       deliveryEndTime,
+//       senderType,
+//       deliveryType,
+//       price,
+//       name,
+//       phoneNumber,
+//       title,
+//       description,
+//       // images
+//     } = req.body;
+
+//     let images: string[] = [];
+//     if (req.files && Array.isArray(req.files)) {
+//       images = req.files.map((file: Express.Multer.File) => `/uploads/parcels/${file.filename}`);
+//     } else {
+//       console.log("⚠️ No files received in request");
+//     }
+
+//     const pickupCoordinates = await getCoordinates(pickupLocation);
+//     const deliveryCoordinates = await getCoordinates(deliveryLocation);
+
+//     const parcel = await ParcelRequest.create({
+//       senderId: req.user?.id,
+//       pickupLocation: {
+//         type: 'Point',
+//         coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude] 
+//       },
+//       deliveryLocation: {
+//         type: 'Point',
+//         coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude] 
+//       },
+//       deliveryStartTime,
+//       deliveryEndTime,
+//       senderType,
+//       deliveryType,
+//       price,
+//       title,
+//       description,
+//       images: images || [],
+//       name,
+//       phoneNumber,
+//       status: 'PENDING',
+//     });
+
+//     const users = await User.find({ isVerified: true, fcmToken: { $exists: true } });
+//     await User.findByIdAndUpdate(req.user?.id, {
+//       $push: {
+//         SendOrders: {
+//           parcelId: parcel._id,
+//           pickupLocation: pickupLocation,
+//           deliveryLocation: deliveryLocation,
+//           price: price,
+//           title: title,
+//           description: description,
+//           senderType: senderType,
+//           deliveryType: deliveryType,
+//           deliveryStartTime: deliveryStartTime,
+//           deliveryEndTime: deliveryEndTime,
+//         }
+//       },
+//       $inc: { totalSentParcels: 1, totalOrders: 1 }
+//     });
+
+//     const messages = users
+//       .map(user => user.fcmToken)
+//       .filter(token => token)
+//       .map(token => ({
+//         notification: {
+//           title: 'New Parcel Request',
+//           body: `A new parcel request has been created with the title "${title}".`,
+//         },
+//         token, 
+//       }));
+
+//     try {
+//       if (messages.length > 0) {
+//         const responses = await Promise.all(
+//           messages.map(message => admin.messaging().send(message))
+//         );
+//         console.log('Push notifications sent successfully:', responses);
+//       }
+//     } catch (error) {
+//       console.error('Error sending push notifications:', error);
+//     }
+
+//     const notification = new Notification({
+//       message: `A new parcel request titled "${title}" has been created.`,
+//       type: 'parcel_update',  
+//       title: 'New Parcel Request',
+//       description: description || '',  
+//       price: price || '',
+//       requestId: parcel._id,
+//       userId: req.user?.id, 
+//     });
+
+//     await notification.save();
+
+
+//     const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber image');
+
+//     res.status(201).json({
+//       status: 'success',
+//       data: fullParcel,
+//     });
+//   } catch (error) {
+//     console.error('Error creating parcel:', error);
+//     res.status(500).json({
+//       status: 'error',
+//       message: 'Failed to create parcel request',
+//     });
+//     next(error);
+//   }
+// };
 export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -139,14 +260,22 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       phoneNumber,
       title,
       description,
-      // images
     } = req.body;
 
+    // Create parcels upload directory if it doesn't exist
+    const parcelsDir = path.join(process.cwd(), 'uploads', 'parcels');
+    if (!fs.existsSync(parcelsDir)) {
+      fs.mkdirSync(parcelsDir, { recursive: true });
+    }
     let images: string[] = [];
-    if (req.files && Array.isArray(req.files)) {
-      images = req.files.map((file: Express.Multer.File) => `/uploads/parcels/${file.filename}`);
-    } else {
-      console.log("⚠️ No files received in request");
+    if (req.files && typeof req.files === 'object') {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      if (files.image && Array.isArray(files.image)) {
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        if (files.image) {
+          images = files.image.map((file: Express.Multer.File) => `/uploads/image/${file.filename}`);
+        }
+      }
     }
 
     const pickupCoordinates = await getCoordinates(pickupLocation);
@@ -169,7 +298,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       price,
       title,
       description,
-      images: images || [],
+      images: images,
       name,
       phoneNumber,
       status: 'PENDING',
@@ -228,8 +357,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 
     await notification.save();
 
-
-    const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber image');
+    const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage');
 
     res.status(201).json({
       status: 'success',
@@ -244,115 +372,6 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     next(error);
   }
 };
-
-// export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const {
-//       pickupLocation,
-//       deliveryLocation,
-//       deliveryStartTime,
-//       deliveryEndTime,
-//       senderType,
-//       deliveryType,
-//       price,
-//       name,
-//       phoneNumber,
-//       title,
-//       description,
-//     } = req.body;
-
-//     let images: string[] = [];
-//     if (req.files && Array.isArray(req.files)) {
-//       images = req.files.map((file: Express.Multer.File) => `/uploads/parcels/${file.filename}`);
-//     } else {
-//       console.log("⚠️ No files received in request");
-//     }
-
-//     const pickupCoordinates = await getCoordinates(pickupLocation);
-//     const deliveryCoordinates = await getCoordinates(deliveryLocation);
-
-//     // Create the new parcel request
-//     const parcel = await ParcelRequest.create({
-//       senderId: req.user?.id,
-//       pickupLocation: {
-//         type: 'Point',
-//         coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude]
-//       },
-//       deliveryLocation: {
-//         type: 'Point',
-//         coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude]
-//       },
-//       deliveryStartTime,
-//       deliveryEndTime,
-//       senderType,
-//       deliveryType,
-//       price,
-//       title,
-//       description,
-//       images: images || [],
-//       name,
-//       phoneNumber,
-//       status: 'PENDING',
-//     });
-
-//     if (req.user?.id) {
-//       const updatedUser = await User.findByIdAndUpdate(
-//         req.user.id,
-//         { $inc: { totalSentParcels: 1 } }, 
-//         { new: true } 
-//       );
-//       console.log('Updated User:', updatedUser); 
-//     }
-
-//     // Send notifications as before
-//     const users = await User.find({ isVerified: true, fcmToken: { $exists: true } });
-//     const messages = users
-//       .map(user => user.fcmToken)
-//       .filter(token => token)
-//       .map(token => ({
-//         notification: {
-//           title: 'New Parcel Request',
-//           body: `A new parcel request has been created with the title "${title}".`,
-//         },
-//         token,
-//       }));
-
-//     try {
-//       if (messages.length > 0) {
-//         const responses = await Promise.all(
-//           messages.map(message => admin.messaging().send(message))
-//         );
-//         console.log('Push notifications sent successfully:', responses);
-//       }
-//     } catch (error) {
-//       console.error('Error sending push notifications:', error);
-//     }
-
-//     const notification = new Notification({
-//       message: `A new parcel request titled "${title}" has been created.`,
-//       type: 'parcel_update',
-//       title: 'New Parcel Request',
-//       description: description || '',
-//       userId: req.user?.id,
-//     });
-
-//     await notification.save();
-
-//     const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber image');
-
-//     res.status(201).json({
-//       status: 'success',
-//       data: fullParcel,
-//     });
-//   } catch (error) {
-//     console.error('Error creating parcel:', error);
-//     res.status(500).json({
-//       status: 'error',
-//       message: 'Failed to create parcel request',
-//     });
-//     next(error);
-//   }
-// };
 
 export const getAvailableParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -383,7 +402,6 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
 
     let parcels;
 
-    // Check if the user is a receiver or sender to fetch parcels accordingly
     if (req.user && req.user.role === UserRole.recciver) {
       parcels = await ParcelRequest.find({
         assignedDelivererId: userId, 
@@ -396,13 +414,12 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
       parcels = await ParcelRequest.find({
         senderId: userId, 
       })
-        .populate("senderId", "fullName email mobileNumber role")
+        .populate("senderId", "fullName email mobileNumber role image")
         .populate("assignedDelivererId", "fullName email mobileNumber role")
-        .populate("deliveryRequests", "fullName email mobileNumber role")
+        .populate("deliveryRequests", "fullName email mobileNumber image role")
         .lean();
     }
 
-    // Limit the number of deliveryRequests to the latest 5
     if (parcels && parcels.length > 0) {
       parcels = parcels.map(parcel => {
         // Slice the deliveryRequests array to the first 5 requests only
@@ -589,8 +606,7 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
 
     // Validate status
     const validStatuses = [
-      DeliveryStatus.REQUESTED,
-      DeliveryStatus.ACCEPTED,
+      DeliveryStatus.WAITING,
       DeliveryStatus.IN_TRANSIT,
       DeliveryStatus.DELIVERED
     ];
@@ -599,18 +615,15 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
       throw new AppError(`Invalid status. Allowed values: ${validStatuses.join(", ")}`, 400);
     }
 
-    // Find the parcel
     const parcel = await ParcelRequest.findById(parcelId);
     if (!parcel) {
       throw new AppError("Parcel not found", 404);
     }
 
-    // Check if user is authorized to update status
     const userId = req.user?.id;
     if (!userId) throw new AppError("Unauthorized", 401);
 
     if (status === DeliveryStatus.DELIVERED) {
-      // Handle rating and review only when the parcel is delivered
       if (rating && (rating < 1 || rating > 5)) {
         throw new AppError("Rating must be between 1 and 5", 400);
       }
@@ -621,7 +634,6 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
 
       //new
       if (status === DeliveryStatus.DELIVERED) {
-        // Update the sender's stats
         await User.findByIdAndUpdate(parcel.senderId, {
           $inc: {
             totalDelivered: 1,
@@ -629,7 +641,6 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
           }
         });
         
-        // Update the deliverer's stats
         const delivererId = parcel.assignedDelivererId;
         await User.findByIdAndUpdate(delivererId, {
           $inc: {
@@ -670,13 +681,10 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
         await receiver.save();
       }
 
-      // Set the parcel status to 'DELIVERED'
       parcel.status = DeliveryStatus.DELIVERED;
 
-      // Increment the receiver's received parcels count
       receiver.totalReceivedParcels += 1;
 
-      // Check if the parcel was delivered today
       const today = moment().startOf('day');
       const deliveredDate = moment(parcel.updatedAt);
 
@@ -705,23 +713,19 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
 
 export const getUserReviews = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Get userId from the request (logged-in user's ID)
     const userId = req.user?.id;
     
     if (!userId) {
       throw new AppError("Unauthorized", 401);
     }
 
-    // Find the user
     const user = await User.findById(userId);
     if (!user) {
       throw new AppError("User not found", 404);
     }
 
-    // Fetch the reviews from the user profile
     const reviews = user.reviews;
 
-    // If no reviews, return an appropriate message
     if (reviews.length === 0) {
       return res.status(200).json({
         status: "success",
@@ -849,11 +853,9 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
   try {
     const { latitude, longitude, radius = 15 } = req.query;
 
-    // Parse latitude and longitude from query parameters
     const lat = parseFloat(latitude as string);
     const lng = parseFloat(longitude as string);
 
-    // Check if latitude is invalid
     if (isNaN(lat)) {
       return res.status(400).json({
         status: 'error',
@@ -861,7 +863,6 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
       });
     }
 
-    // Check if longitude is invalid
     if (isNaN(lng)) {
       return res.status(400).json({
         status: 'error',
@@ -873,29 +874,27 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
 
     const maxDistance = parseFloat(radius as string) * 1000;
 
-    // Build geospatial query for parcels near pickupLocation
     const nearbyPickupQuery: any = {
       status: DeliveryStatus.PENDING,
       pickupLocation: {
         $nearSphere: {
-          $geometry: { type: 'Point', coordinates: [lng, lat] }, // GeoJSON format
-          $maxDistance: maxDistance, // Max distance in meters
+          $geometry: { type: 'Point', coordinates: [lng, lat] }, 
+          $maxDistance: maxDistance, 
         },
       },
     };
 
-    // Build geospatial query for parcels near deliveryLocation
     const nearbyDeliveryQuery: any = {
       status: DeliveryStatus.PENDING,
       deliveryLocation: {
         $nearSphere: {
-          $geometry: { type: 'Point', coordinates: [lng, lat] }, // GeoJSON format
-          $maxDistance: maxDistance, // Max distance in meters
+          $geometry: { type: 'Point', coordinates: [lng, lat] },
+          $maxDistance: maxDistance, 
         },
       },
     };
 
-    // Fetch nearby parcels based on pickupLocation query
+
     const nearbyPickupParcels = await ParcelRequest.find(nearbyPickupQuery)
       .select('title price senderId description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
       .populate('senderId', 'fullName email mobileNumber role')
@@ -908,7 +907,6 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
 
     const allNearbyParcels = [...nearbyPickupParcels, ...nearbyDeliveryParcels];
 
-    // If no parcels found, return an error message
     if (allNearbyParcels.length === 0) {
       return res.status(404).json({
         status: 'error',
@@ -916,7 +914,6 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
       });
     }
 
-    // Return the nearby parcels found
     res.status(200).json({
       status: 'success',
       data: allNearbyParcels,

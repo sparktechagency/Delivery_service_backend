@@ -78,28 +78,23 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
 
     if (!userId) throw new AppError("Unauthorized", 401);
 
-    // Find the parcel
     const parcel = await ParcelRequest.findById(parcelId);
     if (!parcel) throw new AppError("Parcel not found", 404);
 
-    // Ensure the sender is the one who owns the parcel
     if (parcel.senderId.toString() !== userId) {
       throw new AppError("Only the sender can remove delivery requests", 403);
     }
-
-    // Ensure the deliverer exists in the delivery requests
     const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
     if (!parcel.deliveryRequests.includes(delivererObjectId)) {
       throw new AppError("This delivery man has not requested the parcel", 400);
     }
 
-    // Remove the delivery request
+
     parcel.deliveryRequests = parcel.deliveryRequests.filter(
       (requesterId) => requesterId.toString() !== delivererObjectId.toString()
     );
 
-    // If no delivery requests are left, change status back to PENDING
-    if (parcel.deliveryRequests.length === 0 && parcel.status === DeliveryStatus.REQUESTED) {
+    if (parcel.deliveryRequests.length === 0 && parcel.status === DeliveryStatus.WAITING) {
       parcel.status = DeliveryStatus.PENDING;
     }
 
@@ -188,7 +183,6 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
 
     if (!userId) throw new AppError("Unauthorized", 401);
 
-    // Find the parcel
     const parcel = await ParcelRequest.findById(parcelId);
     if (!parcel) throw new AppError("Parcel not found", 404);
 
@@ -199,16 +193,49 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
 
     // Revert parcel status to `PENDING` and clear assigned delivery man
     parcel.status = DeliveryStatus.PENDING;
-    parcel.assignedDelivererId = null; // Remove the assigned delivery man
+    parcel.assignedDelivererId = null; 
     await parcel.save();
 
-    // ✅ Make the parcel available for anyone to request again (reset deliveryRequests)
+  
     parcel.deliveryRequests = [];
     await parcel.save();
 
     res.status(200).json({
       status: "success",
       message: "Delivery man assignment canceled and parcel status reset to PENDING",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { parcelId } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) throw new AppError("Unauthorized", 401);
+
+    const parcel = await ParcelRequest.findById(parcelId);
+    if (!parcel) throw new AppError("Parcel not found", 404);
+
+    // Ensure only the sender can cancel the delivery man
+    if (!parcel.deliveryId || parcel.deliveryId.toString() !== userId) {
+      throw new AppError("Only the DeliveryMan can cancel the assigned Parcel", 403);
+    }
+
+    // Revert parcel status to `PENDING` and clear assigned delivery man
+    parcel.status = DeliveryStatus.PENDING;
+    parcel.assignedDelivererId = null; 
+    await parcel.save();
+
+  
+    parcel.deliveryRequests = [];
+    await parcel.save();
+
+    res.status(200).json({
+      status: "success",
+      message: "Delivery man canceled parcel and status reset to PENDING",
     });
   } catch (error) {
     next(error);
@@ -267,7 +294,7 @@ export const cancelDeliveryRequest = async (req: AuthRequest, res: Response, nex
 export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId, delivererId } = req.body;
-    const senderId = req.user?.id; // Parcel owner's ID
+    const senderId = req.user?.id; 
 
     if (!senderId) throw new AppError('Unauthorized', 401);
 
@@ -280,8 +307,8 @@ export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next:
 
     // Assign the delivery to the chosen deliverer
     parcel.assignedDelivererId = delivererId;
-    parcel.status = DeliveryStatus.ACCEPTED; // Change status to 'accepted'
-    parcel.deliveryRequests = []; // Clear requests after assigning
+    parcel.status = DeliveryStatus.IN_TRANSIT; // Change status to 'accepted'
+    parcel.deliveryRequests = [];
     await parcel.save();
 
     res.status(200).json({ status: 'success', message: 'Deliverer assigned successfully', data: parcel });
@@ -362,7 +389,7 @@ export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next:
 export const updateParcelStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId, status } = req.body;
-    const delivererId = req.user?.id; // Delivery man's ID from the token
+    const delivererId = req.user?.id;
 
     if (!delivererId) throw new AppError('Unauthorized', 401);
 
@@ -383,26 +410,14 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response, next: 
     const user = await User.findById(parcel.senderId);
     if (!user) throw new AppError('User not found', 404);
 
-    // Check subscription limits and update the delivery count if delivered
-    // if (status === DeliveryStatus.DELIVERED) {
-    //   // Increment the totalDelivered count for the user (sender)
-    //   user.totalDelivered = (user.totalDelivered || 0) + 1;
-    //   user.totalEarning = (user.totalEarning || 0) + parcel.price;
-    //   user.monthlyEarnings = (user.monthlyEarnings || 0) + parcel.price;
-    //   user.totalSentParcels = (user.totalSentParcels || 0) + 1; // Increment total sent parcels
-    //   await user.save();
-    // }
     if (status === DeliveryStatus.DELIVERED) {
-      // Increment the totalDelivered count for the user (if sender or deliverer)
       user.totalDelivered = (user.totalDelivered || 0) + 1;
       user.totalEarning = (user.totalEarning || 0) + parcel.price;
       user.monthlyEarnings = (user.monthlyEarnings || 0) + parcel.price;
-      user.totalSentParcels = (user.totalSentParcels || 0) + 1; // Increment total sent parcels
+      user.totalSentParcels = (user.totalSentParcels || 0) + 1; 
       await user.save();
     }
    
-
-    // Update parcel status to delivered or in transit
     parcel.status = status;
     await parcel.save();
 
