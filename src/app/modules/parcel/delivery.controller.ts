@@ -9,9 +9,68 @@ import mongoose from 'mongoose';
 import { Receive } from 'twilio/lib/twiml/FaxResponse';
 import { User } from '../user/user.model';
 import { Subscription } from '../../models/subscription.model';
+import { Notification } from '../notification/notification.model';
+import admin from "firebase-admin";
 
 
+// export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const { parcelIds } = req.body;  
+//     const userId = req.user?.id;    
 
+//     if (!userId) {
+//       throw new AppError("Unauthorized", 401);
+//     }
+
+//     // Convert the parcelIds array into an array of ObjectIds
+//     const parcelObjectIds = parcelIds.map((id: string) => new mongoose.Types.ObjectId(id));
+//     console.log("Converted parcelIds to ObjectIds:", parcelObjectIds);
+
+//     // Convert userId to ObjectId
+//     const userObjectId = new mongoose.Types.ObjectId(userId);
+//     console.log("Converted userId to ObjectId:", userObjectId);
+
+//     // Find the parcels by the provided ObjectIds
+//     const parcels = await ParcelRequest.find({
+//       _id: { $in: parcelObjectIds }, // Find parcels with ids in the parcelIds array
+//       status: DeliveryStatus.PENDING, // Make sure the parcels are available (PENDING status)
+//     });
+
+//     if (parcels.length === 0) {
+//       throw new AppError("No available parcels found", 404);
+//     }
+
+//     // Find the delivery man (user)
+//     const user = await User.findById(userObjectId);  // Convert userId to ObjectId
+//     if (!user) {
+//       throw new AppError("User not found", 404);
+//     }
+
+//     // Loop through each parcel and check for duplicate requests
+//     for (let parcel of parcels) {
+//       // Prevent the same delivery man from requesting the same parcel multiple times
+//       if (parcel.deliveryRequests.includes(userObjectId)) {
+//         throw new AppError(`You have already requested to deliver parcel ${parcel._id}`, 400);
+//       }
+
+//       // Add the delivery man's request to the deliveryRequests array
+//       parcel.deliveryRequests.push(userObjectId);
+
+//       // Update the parcel status to "REQUESTED"
+//       parcel.status = DeliveryStatus.REQUESTED;
+
+//       // Save the updated parcel
+//       await parcel.save();
+//     }
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "Your request to deliver the parcel(s) has been submitted successfully.",
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelIds } = req.body;  
@@ -21,51 +80,78 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
       throw new AppError("Unauthorized", 401);
     }
 
-    // Convert the parcelIds array into an array of ObjectIds
     const parcelObjectIds = parcelIds.map((id: string) => new mongoose.Types.ObjectId(id));
-    console.log("Converted parcelIds to ObjectIds:", parcelObjectIds);
-
-    // Convert userId to ObjectId
     const userObjectId = new mongoose.Types.ObjectId(userId);
-    console.log("Converted userId to ObjectId:", userObjectId);
 
-    // Find the parcels by the provided ObjectIds
     const parcels = await ParcelRequest.find({
-      _id: { $in: parcelObjectIds }, // Find parcels with ids in the parcelIds array
-      status: DeliveryStatus.PENDING, // Make sure the parcels are available (PENDING status)
+      _id: { $in: parcelObjectIds },
+      status: DeliveryStatus.PENDING,
     });
+   
+    //check if parcel are same user to request then show your the owner this parcel not able to request
+    for (let parcel of parcels) {
+      if (parcel.senderId.toString() === userObjectId.toString()) {
+        throw new AppError(`You can't request to deliver your own parcel ${parcel._id}`, 400);
+      }
+    }
 
     if (parcels.length === 0) {
       throw new AppError("No available parcels found", 404);
     }
 
-    // Find the delivery man (user)
-    const user = await User.findById(userObjectId);  // Convert userId to ObjectId
+    const user = await User.findById(userObjectId);
     if (!user) {
       throw new AppError("User not found", 404);
     }
 
-    // Loop through each parcel and check for duplicate requests
     for (let parcel of parcels) {
-      // Prevent the same delivery man from requesting the same parcel multiple times
       if (parcel.deliveryRequests.includes(userObjectId)) {
         throw new AppError(`You have already requested to deliver parcel ${parcel._id}`, 400);
       }
 
-      // Add the delivery man's request to the deliveryRequests array
       parcel.deliveryRequests.push(userObjectId);
-
-      // Update the parcel status to "REQUESTED"
       parcel.status = DeliveryStatus.REQUESTED;
-
-      // Save the updated parcel
       await parcel.save();
+
+      // 🚀 Start Notification Logic here
+      const senderUser = await User.findById(parcel.senderId);
+
+      if (senderUser?.fcmToken) {
+        const senderMessage = {
+          notification: {
+            title: 'New Delivery Request',
+            body: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
+          },
+          token: senderUser.fcmToken,
+        };
+
+        try {
+          await admin.messaging().send(senderMessage);
+          console.log('Push notification sent to sender.');
+        } catch (err) {
+          console.error('Error sending push notification to sender:', err);
+        }
+      }
+
+      const notification = new Notification({
+        message: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
+        type: 'parcel_update',
+        title: 'New Delivery Request',
+        description: parcel.description || '',
+        price: parcel.price || '',
+        requestId: parcel._id,
+        userId: senderUser?._id,
+      });
+
+      await notification.save();
+      // 🚀 End Notification Logic
     }
 
     res.status(200).json({
       status: "success",
       message: "Your request to deliver the parcel(s) has been submitted successfully.",
     });
+
   } catch (error) {
     next(error);
   }
@@ -94,7 +180,7 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
       (requesterId) => requesterId.toString() !== delivererObjectId.toString()
     );
 
-    if (parcel.deliveryRequests.length === 0 && parcel.status === DeliveryStatus.WAITING) {
+    if (parcel.deliveryRequests.length === 0 && parcel.status === DeliveryStatus.REQUESTED) {
       parcel.status = DeliveryStatus.PENDING;
     }
 
@@ -111,6 +197,70 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
 
 
 
+// export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const { parcelId, delivererId } = req.body;
+//     const userId = req.user?.id;
+
+//     if (!userId) throw new AppError("Unauthorized", 401);
+
+//     const parcel = await ParcelRequest.findById(parcelId);
+//     if (!parcel) throw new AppError("Parcel not found", 404);
+
+//     // Ensure only the sender can assign a delivery man
+//     if (parcel.senderId.toString() !== userId) {
+//       throw new AppError("Only the sender can assign a delivery man", 403);
+//     }
+
+//     const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
+
+//     // Ensure the selected delivery man has requested the parcel
+//     if (!parcel.deliveryRequests.includes(delivererObjectId)) {
+//       throw new AppError("The selected delivery man has not requested this parcel", 400);
+//     }
+
+//     // ✅ Assign the delivery man and update status to "IN_TRANSIT"
+//     parcel.assignedDelivererId = delivererObjectId;
+//     parcel.status = DeliveryStatus.IN_TRANSIT;
+//     parcel.deliveryRequests = [];
+//     await parcel.save();
+
+//     await User.findByIdAndUpdate(delivererId, {
+//       $push: {
+//         RecciveOrders: {
+//           parcelId: parcel._id,
+//           pickupLocation: parcel.pickupLocation?.coordinates ? 
+//             `${parcel.pickupLocation.coordinates[1]},${parcel.pickupLocation.coordinates[0]}` : "",
+//           deliveryLocation: parcel.deliveryLocation?.coordinates ? 
+//             `${parcel.deliveryLocation.coordinates[1]},${parcel.deliveryLocation.coordinates[0]}` : "",
+//           price: parcel.price,
+//           title: parcel.title,
+//           description: parcel.description,
+//           senderType: parcel.senderType,
+//           deliveryType: parcel.deliveryType,
+//           deliveryStartTime: parcel.deliveryStartTime,
+//           deliveryEndTime: parcel.deliveryEndTime,
+//         }
+//       },
+//       $inc: { totalReceivedParcels: 1 }
+//     });
+    
+//     // ✅ Automatically update the assigned user's role to `RECEIVER` if they are currently `SENDER`
+//     const deliverer = await User.findById(delivererId);
+//     if (deliverer && deliverer.role === UserRole.SENDER) {
+//       deliverer.role = UserRole.recciver;
+//       await deliverer.save();
+//     }
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "Delivery man assigned successfully",
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId, delivererId } = req.body;
@@ -121,19 +271,21 @@ export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: N
     const parcel = await ParcelRequest.findById(parcelId);
     if (!parcel) throw new AppError("Parcel not found", 404);
 
-    // Ensure only the sender can assign a delivery man
     if (parcel.senderId.toString() !== userId) {
       throw new AppError("Only the sender can assign a delivery man", 403);
     }
 
-    const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
+const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
 
-    // Ensure the selected delivery man has requested the parcel
-    if (!parcel.deliveryRequests.includes(delivererObjectId)) {
-      throw new AppError("The selected delivery man has not requested this parcel", 400);
-    }
+// Check if any of the ObjectIds in deliveryRequests match the deliverer's ID
+const hasRequested = parcel.deliveryRequests.some(requestId => 
+  requestId.toString() === delivererObjectId.toString()
+);
 
-    // ✅ Assign the delivery man and update status to "IN_TRANSIT"
+if (!hasRequested) {
+  throw new AppError("The selected delivery man has not requested this parcel", 400);
+}
+
     parcel.assignedDelivererId = delivererObjectId;
     parcel.status = DeliveryStatus.IN_TRANSIT;
     parcel.deliveryRequests = [];
@@ -158,13 +310,47 @@ export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: N
       },
       $inc: { totalReceivedParcels: 1 }
     });
-    
-    // ✅ Automatically update the assigned user's role to `RECEIVER` if they are currently `SENDER`
+
     const deliverer = await User.findById(delivererId);
+
     if (deliverer && deliverer.role === UserRole.SENDER) {
       deliverer.role = UserRole.recciver;
       await deliverer.save();
     }
+
+    // 🚀 Start Notification Logic here
+    if (deliverer?.fcmToken) {
+      const delivererMessage = {
+        notification: {
+          title: 'Parcel Assigned',
+          body: `You have been assigned to deliver the parcel titled "${parcel.title}".`,
+
+        },
+        token: deliverer.fcmToken,
+      };
+
+      try {
+        await admin.messaging().send(delivererMessage);
+        console.log('Push notification sent to assigned deliverer.');
+      } catch (err) {
+        console.error('Error sending push notification to deliverer:', err);
+      }
+    }
+
+    const notification = new Notification({
+      message: `You have been assigned to deliver the parcel titled "${parcel.title}".`,
+      type: 'parcel_assignment',
+      title: 'Parcel Assigned',
+      description: parcel.description || '',
+      price: parcel.price || '',
+      requestId: parcel._id,
+      userId: deliverer?._id,
+      SenderName: (await User.findById(parcel.senderId))?.fullName || 'Unknown Sender',
+      role: deliverer?.role,
+    });
+
+    await notification.save();
+    // 🚀 End Notification Logic
 
     res.status(200).json({
       status: "success",
@@ -174,7 +360,6 @@ export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: N
     next(error);
   }
 };
-
 
 export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

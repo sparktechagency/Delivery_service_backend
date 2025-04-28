@@ -41,6 +41,14 @@ import { Notification } from "./notification.model";
   
       const userNotifications = await Notification.find({ userId }).sort({ createdAt: -1 });
       const announcement = await Notification.findOne({ type: 'announcement' });
+      const user = await User.findById(userId).select('fullName');
+  
+      if (!user) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'User not found',
+        });
+      }
   
       const notifications = userNotifications || [];
   

@@ -72,6 +72,7 @@ const locationSchema = new mongoose.Schema({
 
 const deliveryRequestSchema = new mongoose.Schema({
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  SenderName: { type:  mongoose.Schema.Types.ObjectId, ref: 'User', required: true  },
   title: { type: String, required: true },
   description: String,
   pickupLocation: { type: locationSchema, required: true },

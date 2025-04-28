@@ -17,10 +17,10 @@ export enum UserRole {
   
   export enum DeliveryStatus {
     PENDING = 'PENDING',
-    REQUESTED = 'WAITING',
+    REQUESTED = 'REQUESTED',
     IN_TRANSIT = 'IN_TRANSIT',
     DELIVERED = 'DELIVERED',
-    WAITING = "WAITING"
+    // WAITING = "WAITING"
   }
   
   

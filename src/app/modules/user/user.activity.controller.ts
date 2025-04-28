@@ -115,8 +115,8 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
         status: {
           $in: [
             DeliveryStatus.PENDING, 
-            DeliveryStatus.REQUESTED, 
-            DeliveryStatus.ACCEPTED, 
+            DeliveryStatus.WAITING, 
+            // DeliveryStatus.ACCEPTED, 
             DeliveryStatus.IN_TRANSIT
           ]
         }
@@ -134,7 +134,7 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
         fullName: user.fullName,
         email: user.email,
         mobileNumber: user.mobileNumber,
-        profileImage: user.profileImage,
+        Image: user.image,
         role: user.role,
         freeDeliveries: user.freeDeliveries,
         totalOrders: user.totalOrders,
