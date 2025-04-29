@@ -20,6 +20,7 @@ export enum UserRole {
     REQUESTED = 'REQUESTED',
     IN_TRANSIT = 'IN_TRANSIT',
     DELIVERED = 'DELIVERED',
+    WAITING = "WAITING",
     // WAITING = "WAITING"
   }
   

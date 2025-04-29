@@ -121,6 +121,7 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
           notification: {
             title: 'New Delivery Request',
             body: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
+            mobileNumber: user.mobileNumber || 'Unknown Number',
           },
           token: senderUser.fcmToken,
         };
@@ -138,9 +139,13 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
         type: 'parcel_update',
         title: 'New Delivery Request',
         description: parcel.description || '',
+        parcelTitle: parcel.title || '',
         price: parcel.price || '',
         requestId: parcel._id,
         userId: senderUser?._id,
+        SenderName: user.fullName || 'Unknown User',
+        mobileNumber: user.mobileNumber || 'Unknown Number',
+        
       });
 
       await notification.save();

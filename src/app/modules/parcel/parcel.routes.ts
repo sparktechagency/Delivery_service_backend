@@ -1,7 +1,7 @@
 // routes/parcel.routes.ts
 import express from 'express';
 import { authenticate } from '../../middlewares/auth';
-import { createParcelRequest, getAvailableParcels, getFilteredParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels, getUserReviews, updateParcelStatus } from './parcel.controller';
+import { createParcelRequest, deleteParcelRequest, getAvailableParcels, getFilteredParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels, getUserReviews, updateParcelStatus } from './parcel.controller';
 import { assignDeliveryMan, cancelAssignedDeliveryMan, removeDeliveryRequest } from './delivery.controller';
 import fileUploadHandler from '../../../multer/multer';
 const upload = fileUploadHandler();
@@ -18,6 +18,7 @@ parcelRouter.put("/assign", authenticate, assignDeliveryMan);
 parcelRouter.put("/cancel-assignment", authenticate, cancelAssignedDeliveryMan);
 parcelRouter.put('/remove-request',authenticate, removeDeliveryRequest )
 parcelRouter.post('/delivery',authenticate, updateParcelStatus )
+parcelRouter.delete('/delete/:parcelId', authenticate,deleteParcelRequest )
 
 
 //DeliverParcel
