@@ -339,7 +339,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       .filter(token => token)
       .map(token => ({
         notification: {
-          title: 'New Parcel Created',
+          title: 'New Parcel Send',
           body: `A new parcel request has been created with the Name "${title}".`,
         },
         data: {  // Use data field for custom properties
@@ -366,8 +366,8 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     const notificationPromises = otherUsers.map(user => {
       return new Notification({
         message: `A new parcel request titled "${title}" has been created.`,
-        type: 'parcel_update',
-        title: 'New Parcel Request',
+        type: 'Sender',
+        title: 'New Parcel Created To Deliver',
         PhoneNumber: phoneNumber || '', // Notice the capitalized "PhoneNumber" to match schema
         description: description || '',
         price: price || '',

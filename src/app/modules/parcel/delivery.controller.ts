@@ -119,9 +119,11 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
       if (senderUser?.fcmToken) {
         const senderMessage = {
           notification: {
-            title: 'New Delivery Request',
+            title: 'Delivery Request',
             body: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
             mobileNumber: user.mobileNumber || 'Unknown Number',
+            image:user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+            AvgRating: user.avgRating || 0,
           },
           token: senderUser.fcmToken,
         };
@@ -136,15 +138,17 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
 
       const notification = new Notification({
         message: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
-        type: 'parcel_update',
-        title: 'New Delivery Request',
+        type: 'Recciver',
+        title: `"${user.fullName} Send The Delivery Request"`,
         description: parcel.description || '',
         parcelTitle: parcel.title || '',
         price: parcel.price || '',
         requestId: parcel._id,
         userId: senderUser?._id,
-        SenderName: user.fullName || 'Unknown User',
-        mobileNumber: user.mobileNumber || 'Unknown Number',
+        image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+        AvgRating: user.avgRating || 0,
+        SenderName: user.fullName || '',
+        mobileNumber: user.mobileNumber || ' ',
         
       });
 
