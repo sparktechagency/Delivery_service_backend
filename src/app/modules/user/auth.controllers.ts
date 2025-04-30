@@ -147,7 +147,7 @@ export const verifyLoginOTPNumber = async (req: Request, res: Response, next: Ne
       throw new AppError('User not found', 404);
     }
 
-    const token = jwt.sign({ id: user._id.toString(), role: user.role }, process.env.JWT_SECRET!, { expiresIn: '24h' });
+    const token = jwt.sign({ id: user._id.toString(), role: user.role }, process.env.JWT_SECRET!, { expiresIn: '20d' });
 
     await OTPVerification.deleteOne({ _id: verification._id });
 
@@ -268,9 +268,23 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
     // ✅ Delete OTP record after successful verification
     await OTPVerification.deleteOne({ _id: verification._id });
 
+    const user = await User.findOne({ email });
+    if (!user) {
+      throw new AppError('This email Are Not exist', 404);
+    }
+    const payload: JWTPayload = {
+      id: user._id.toString(),
+      role: user.role as UserRole,
+    };
+
+    // ✅ Generate JWT token after successful OTP verification
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+
     res.json({ 
+      token,
       status: 'success', 
       message: 'Email verified successfully'
+      
     });
   } catch (error) {
     console.error('Verification Error:', error);
@@ -430,7 +444,7 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
     };
 
     // ✅ Generate JWT token after successful OTP verification
-    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '24h' });
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
 
     // ✅ Delete OTP record after successful verification
     await OTPVerification.deleteOne({ _id: verification._id });
@@ -519,7 +533,7 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
       });
 
 
-      const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '1h' });
+      const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '20d' });
 
       return res.status(201).json({
         status: 'success',
@@ -531,7 +545,7 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
       });
     }
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '20d' });
 
     return res.status(200).json({
       status: 'success',

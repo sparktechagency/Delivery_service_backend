@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async (values: any) => {
   try {
     const info = await transporter.sendMail({
-      from: `"Parcel Delivery App" <${process.env.SMTP_USER}>`,  // Ensure the correct format here
+      from: `"Parcel Delivery App" <${process.env.SMTP_USER}>`,  
       to: values.to,
       subject: values.subject,
       html: values.html,
