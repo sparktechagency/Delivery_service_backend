@@ -219,6 +219,8 @@
 // }, { timestamps: true });
 
 // export const User: Model<UserDocument> = mongoose.model<UserDocument>('User', userSchema);
+
+
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 import { SenderType, SubscriptionType, UserRole } from '../../../types/enums';
 import { ParcelRequest, ParcelRequestDocument } from '../parcel/ParcelRequest.model'; 
@@ -288,12 +290,12 @@ export interface UserDocument extends Document {
   subscriptionExpiryDate: Date;
   subscriptionCount: number;
   isTrial: boolean;
-  avgRating?: number;
   reviews: Array<{
     parcelId: Types.ObjectId;
     rating: number;
     review: string;
   }>;
+  avgRating: number;
   activity?: {
     loginTime: string | Date;
     logoutTime: string | Date;
@@ -361,12 +363,12 @@ const userSchema = new Schema<UserDocument>({
   subscriptionStartDate: { type: Date, default: Date.now },
   subscriptionExpiryDate: { type: Date, default: () => new Date(new Date().setMonth(new Date().getMonth() + 1)) },
   subscriptionCount: { type: Number, default: 0 },
-  
   reviews: [{
     parcelId: { type: mongoose.Schema.Types.ObjectId, ref: 'ParcelRequest' },
     rating: { type: Number, min: 1, max: 5 },
     review: { type: String },
   }],
+  avgRating: { type: Number, default: 0 },
   startDate: { type: Date, default: Date.now },
   expiryDate: { type: Date, default: () => new Date(new Date().setMonth(new Date().getMonth() + 1)) }
 }, { timestamps: true });

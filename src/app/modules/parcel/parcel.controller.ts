@@ -14,6 +14,8 @@ import { Notification } from '../notification/notification.model';
 import  path from 'path';
 import fs from 'fs';
 import { PhoneNumber } from 'libphonenumber-js';
+import { UserDocument } from '../user/user.model'; 
+import { ParcelRequestDocument } from './ParcelRequest.model'; 
 
 // export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
@@ -654,8 +656,6 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
 };
 
 
-
-
 // export const getUserParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
 //   try {
 //     const userId = req.user?.id; 
@@ -667,17 +667,21 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
 //       parcels = await ParcelRequest.find({
 //         assignedDelivererId: userId, 
 //       })
-//         .populate("senderId", "fullName email mobileNumber role")
-//         .populate("assignedDelivererId", "fullName email mobileNumber role")
-//         .populate("deliveryRequests", "fullName email mobileNumber role")
+//         .populate("senderId", "fullName email mobileNumber image avgRating role")
+//         .populate("assignedDelivererId", "fullName email mobileNumber image avgRating role")
+//         .populate("deliveryRequests", "fullName email mobileNumber image avgRating role")
+
+//         .sort({ createdAt: -1 }) 
 //         .lean();
 //     } else {
 //       parcels = await ParcelRequest.find({
 //         senderId: userId, 
 //       })
-//         .populate("senderId", "fullName email mobileNumber role image")
-//         .populate("assignedDelivererId", "fullName email mobileNumber role")
-//         .populate("deliveryRequests", "fullName email mobileNumber image role")
+//       //this are assined DeliveryMan
+//         .populate("senderId", "fullName email mobileNumber reviews avgRating image role")
+//         .populate("assignedDelivererId", "fullName email mobileNumber image reviews avgRating role")
+//         .populate("deliveryRequests", "fullName email mobileNumber image reviews avgRating role")
+//         .sort({ createdAt: -1 })  
 //         .lean();
 //     }
 
@@ -699,10 +703,13 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
 //     next(error);  
 //   }
 // };
+
 export const getUserParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user?.id; 
-    if (!userId) throw new AppError("Unauthorized", 401); 
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("Unauthorized", 401);
+    }
 
     let parcels;
 
@@ -710,19 +717,37 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
       parcels = await ParcelRequest.find({
         assignedDelivererId: userId, 
       })
-        .populate("senderId", "fullName email mobileNumber role")
-        .populate("assignedDelivererId", "fullName email mobileNumber role")
-        .populate("deliveryRequests", "fullName email mobileNumber role")
-        .sort({ createdAt: -1 })  // Sort by creation date, newest first
+        .populate({
+          path: 'senderId',
+          select: 'fullName email mobileNumber image avgRating role',
+        })
+        .populate({
+          path: 'assignedDelivererId',
+          select: 'fullName email mobileNumber image avgRating role',
+        })
+        .populate({
+          path: 'deliveryRequests',
+          select: 'fullName email mobileNumber image avgRating role reviews', // Populate reviews
+        })
+        .sort({ createdAt: -1 }) 
         .lean();
     } else {
       parcels = await ParcelRequest.find({
         senderId: userId, 
       })
-        .populate("senderId", "fullName email mobileNumber role image")
-        .populate("assignedDelivererId", "fullName email mobileNumber role")
-        .populate("deliveryRequests", "fullName email mobileNumber image role")
-        .sort({ createdAt: -1 })  // Sort by creation date, newest first
+        .populate({
+          path: 'senderId',
+          select: 'fullName email mobileNumber image reviews avgRating role',
+        })
+        .populate({
+          path: 'assignedDelivererId',
+          select: 'fullName email mobileNumber image reviews avgRating role',
+        })
+        .populate({
+          path: 'deliveryRequests',
+          select: 'fullName email mobileNumber image reviews avgRating role',
+        })
+        .sort({ createdAt: -1 })  
         .lean();
     }
 
@@ -732,6 +757,21 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
         if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
           parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
         }
+
+        // Calculate total reviews and average rating for each deliveryRequest
+        parcel.deliveryRequests = parcel.deliveryRequests.map((deliveryRequest: any) => {
+          const totalReviews = deliveryRequest.reviews.length;
+          const avgRating = totalReviews > 0
+            ? deliveryRequest.reviews.reduce((sum: any, review: { rating: any; }) => sum + review.rating, 0) / totalReviews
+            : 0; // Default to 0 if no reviews exist
+
+          // Add calculated values to the deliveryRequest object
+          deliveryRequest.totalReviews = totalReviews;
+          deliveryRequest.avgRating = avgRating;
+
+          return deliveryRequest;
+        });
+
         return parcel;
       });
     }
@@ -744,6 +784,7 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
     next(error);  
   }
 };
+
 
 export const getParcelsByRadius = async (req: Request, res: Response, next: NextFunction) => {
   try {
