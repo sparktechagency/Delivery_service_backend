@@ -11,8 +11,8 @@ export enum UserRole {
     BICYCLE = 'bicycle',
     BIKE = 'bike',
     PERSON = 'person',
-    Taxi = 'taxi',
-    AirPlane = "AirPlane"
+    TAXI = 'taxi',
+    AIRPLANE = "AirPlane"
   }
   
   export enum DeliveryStatus {

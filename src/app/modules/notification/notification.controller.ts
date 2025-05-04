@@ -33,16 +33,77 @@ import { Notification } from "./notification.model";
     }
   };
 
+  // export const viewNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  //   try {
+  //     const userId = req.user?.id;  
+      
+  //     if (!userId) throw new AppError('Unauthorized', 401);  
+  
+  //     const userNotifications = await Notification.find({ userId }).sort({ createdAt: -1 });
+  //     const announcement = await Notification.findOne({ type: 'announcement' });
+  //     const user = await User.findById(userId).select('fullName');
+  
+  //     if (!user) {
+  //       return res.status(404).json({
+  //         status: 'error',
+  //         message: 'User not found',
+  //       });
+  //     }
+  
+  //     const notifications = userNotifications || [];
+  
+  //     if (announcement) {
+  //       notifications.push(announcement); 
+  //     }
+  
+  //     res.status(200).json({
+  //       status: 'success',
+  //       data: notifications,  
+  //     });
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // };
+  
+  //
+ 
+ 
+ 
   export const viewNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user?.id;  
+      const userId = req.user?.id;
+      const { excludeTypes, page = 1, limit = 10 } = req.query;
       
-      if (!userId) throw new AppError('Unauthorized', 401);  
+      if (!userId) throw new AppError('Unauthorized', 401);
   
-      const userNotifications = await Notification.find({ userId }).sort({ createdAt: -1 });
-      const announcement = await Notification.findOne({ type: 'announcement' });
+      let query: any = { userId };
+      
+      if (excludeTypes) {
+        const typesToExclude = Array.isArray(excludeTypes) 
+          ? excludeTypes 
+          : [excludeTypes];
+        
+        query.type = { $nin: typesToExclude };
+      } else {
+        query.type = { $ne: 'Sender' };
+      }
+  
+      // Calculate pagination
+      const pageNum = Number(page);
+      const limitNum = Number(limit);
+      const skip = (pageNum - 1) * limitNum;
+  
+      const userNotifications = await Notification.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum);
+        const announcements = await Notification.find({ 
+        type: 'announcement',
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+      }).sort({ createdAt: -1 });
+  
+      // Get user info
       const user = await User.findById(userId).select('fullName');
-  
       if (!user) {
         return res.status(404).json({
           status: 'error',
@@ -50,15 +111,29 @@ import { Notification } from "./notification.model";
         });
       }
   
-      const notifications = userNotifications || [];
-  
-      if (announcement) {
-        notifications.push(announcement); 
+      // Combine user notifications and announcements
+      let notifications = [...userNotifications];
+      
+      if (announcements.length > 0) {
+        notifications = [...notifications, ...announcements];
+        // Re-sort to ensure correct order after combining
+        notifications.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       }
+  
+      // Get total count for pagination
+      const totalCount = await Notification.countDocuments(query);
   
       res.status(200).json({
         status: 'success',
-        data: notifications,  
+        data: notifications,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(totalCount / limitNum),
+          totalItems: totalCount,
+          itemsPerPage: limitNum
+        }
       });
     } catch (error) {
       next(error);
@@ -151,3 +226,33 @@ import { Notification } from "./notification.model";
       next(error);
     }
   };
+
+  export const getParcelNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+  
+      if (!userId) throw new AppError('Unauthorized', 401);
+  
+      // Fetch notifications related to parcel creation, assuming type is 'Sender' (you can adjust the type if needed)
+      const parcelNotifications = await Notification.find({
+        userId,
+        type: 'Sender', // Notifications triggered by parcel creation
+      }).sort({ createdAt: -1 }); // Sort by latest first
+  
+      // Handle case when there are no notifications
+      if (parcelNotifications.length === 0) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'No parcel-related notifications found.',
+        });
+      }
+  
+      res.status(200).json({
+        status: 'success',
+        data: parcelNotifications,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+  
