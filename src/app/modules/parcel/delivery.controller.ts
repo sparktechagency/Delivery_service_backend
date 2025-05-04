@@ -195,6 +195,46 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
 
     await parcel.save();
 
+    //notification
+    const RequestUser = await User.findById(parcel.receiverId);
+    if (RequestUser?.fcmToken) {
+      const senderMessage = {
+        notification: {
+          title: 'Delivery Request Removed',
+          body: `${RequestUser?.role === 'sender' ? 'A deliverer has requested has been removed' : 'A sender has removed'} you removed to this delivery parcel titled "${parcel.title}".`,
+          mobileNumber: RequestUser.mobileNumber || 'Unknown Number',
+          image:RequestUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+          AvgRating: RequestUser.avgRating || 0,
+        },
+        token: RequestUser.fcmToken,
+      };
+
+      try {
+        await admin.messaging().send(senderMessage);
+        console.log('Push notification sent to sender.');
+      } catch (err) {
+        console.error('Error sending push notification to sender:', err);
+      }
+    }
+
+    const notification = new Notification({
+      message: `${RequestUser?.role === 'sender' ? 'A deliverer has requested has been removed' : 'A sender has removed'} you removed to this delivery parcel titled "${parcel.title}".`,
+      type: 'sender',
+      title: `"${RequestUser?.fullName} Remove The Delivery Request"`,
+      description: parcel.description || '',
+      parcelTitle: parcel.title || '',
+      price: parcel.price || '',
+      requestId: parcel._id,
+      userId: RequestUser?._id,
+      image: RequestUser?.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+      AvgRating: RequestUser?.avgRating || 0,
+      SenderName: RequestUser?.fullName || '',
+      mobileNumber: RequestUser?.mobileNumber || ' ',
+      
+    });
+
+    await notification.save();
+
     res.status(200).json({
       status: "success",
       message: "Delivery request removed successfully",
@@ -393,6 +433,46 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
   
     parcel.deliveryRequests = [];
     await parcel.save();
+    // 🚀 End Notification Logi
+    const senderUser = await User.findById(parcel.senderId);
+
+    if (senderUser?.fcmToken) {
+      const senderMessage = {
+        notification: {
+          title: 'Assigned Delivery Man Cancelled',
+          body: `${senderUser.role === 'sender' ? 'A delivery Has been cancelled' : 'A user has cancelled'} your request to deliver title "${parcel.title}".`,
+          mobileNumber: senderUser.mobileNumber || 'Unknown Number',
+          image:senderUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+          AvgRating: senderUser.avgRating || 0,
+        },
+        token: senderUser.fcmToken,
+      };
+
+      try {
+        await admin.messaging().send(senderMessage);
+        console.log('Push notification sent to sender.');
+      } catch (err) {
+        console.error('Error sending push notification to sender:', err);
+      }
+    }
+
+    const notification = new Notification({
+      message: `${senderUser?.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
+      type: 'Cancel to assigned Delivery',
+      title: `"${senderUser?.fullName} has cancelled the assigned delivery "`,
+      description: parcel.description || '',
+      parcelTitle: parcel.title || '',
+      price: parcel.price || '',
+      requestId: parcel._id,
+      userId: senderUser?._id,
+      image: senderUser?.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+      AvgRating: senderUser?.avgRating || 0,
+      SenderName: senderUser?.fullName || '',
+      mobileNumber: senderUser?.mobileNumber || ' ',
+      
+    });
+
+    await notification.save();
 
     res.status(200).json({
       status: "success",
@@ -403,6 +483,7 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
   }
 };
 
+//delivery man can cancel the delivery man
 export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId } = req.body;
@@ -413,7 +494,7 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
     const parcel = await ParcelRequest.findById(parcelId);
     if (!parcel) throw new AppError("Parcel not found", 404);
 
-    // Ensure only the sender can cancel the delivery man
+    // Ensure only the delivery man can cancel the delivery man
     if (!parcel.deliveryId || parcel.deliveryId.toString() !== userId) {
       throw new AppError("Only the DeliveryMan can cancel the assigned Parcel", 403);
     }
@@ -426,6 +507,45 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
   
     parcel.deliveryRequests = [];
     await parcel.save();
+    // 🚀 End Notification
+    const DeliveryMan = await User.findById(parcel.receiverId);
+    if (DeliveryMan?.fcmToken) {
+      const senderMessage = {
+        notification: {
+          title: 'cancelled parcel Delivery Man',
+          body: `${DeliveryMan.role === 'recciver' ? 'A deliverery has cancelled' : 'A user has cancelled'} parcel title "${parcel.title}".`,
+          mobileNumber: DeliveryMan.mobileNumber || 'Unknown Number',
+          image:DeliveryMan.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+          AvgRating: DeliveryMan.avgRating || 0,
+        },
+        token: DeliveryMan.fcmToken,
+      };
+
+      try {
+        await admin.messaging().send(senderMessage);
+        console.log('Push notification sent to sender.');
+      } catch (err) {
+        console.error('Error sending push notification to sender:', err);
+      }
+    }
+
+    const notification = new Notification({
+      message: `${DeliveryMan?.role === 'recciver' ? 'A delivery has cancelled' : 'A user has cancelled'} parcel titled "${parcel.title}".`,
+      type: 'Recciver',
+      title: `"${DeliveryMan?.fullName} cancelled the delivery"`,
+      description: parcel.description || '',
+      parcelTitle: parcel.title || '',
+      price: parcel.price || '',
+      requestId: parcel._id,
+      userId: DeliveryMan?._id,
+      image: DeliveryMan?.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+      AvgRating: DeliveryMan?.avgRating || 0,
+      SenderName: DeliveryMan?.fullName || '',
+      mobileNumber: DeliveryMan?.mobileNumber || ' ',
+      
+    });
+
+    await notification.save();
 
     res.status(200).json({
       status: "success",
@@ -504,6 +624,7 @@ export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next:
     parcel.status = DeliveryStatus.IN_TRANSIT; // Change status to 'accepted'
     parcel.deliveryRequests = [];
     await parcel.save();
+    
 
     res.status(200).json({ status: 'success', message: 'Deliverer assigned successfully', data: parcel });
   } catch (error) {

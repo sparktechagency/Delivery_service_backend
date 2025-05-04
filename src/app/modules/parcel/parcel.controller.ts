@@ -718,11 +718,11 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
         })
         .populate({
           path: 'assignedDelivererId',
-          select: 'fullName email mobileNumber image avgRating role',
+          select: 'fullName email mobileNumber image avgRating senderType DeliveryType role',
         })
         .populate({
           path: 'deliveryRequests',
-          select: 'fullName email mobileNumber image avgRating role reviews', // Populate reviews
+          select: 'fullName email mobileNumber image avgRating senderType DeliveryType role reviews', // Populate reviews
         })
         .sort({ createdAt: -1 }) 
         .lean();
@@ -736,11 +736,11 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
         })
         .populate({
           path: 'assignedDelivererId',
-          select: 'fullName email mobileNumber image reviews avgRating role',
+          select: 'fullName email mobileNumber image reviews avgRating senderType DeliveryType role',
         })
         .populate({
           path: 'deliveryRequests',
-          select: 'fullName email mobileNumber image reviews avgRating role',
+          select: 'fullName email mobileNumber image reviews avgRating senderType DeliveryType role',
         })
         .sort({ createdAt: -1 })  
         .lean();
