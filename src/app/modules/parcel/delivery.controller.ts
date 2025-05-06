@@ -11,6 +11,7 @@ import { User } from '../user/user.model';
 import { Subscription } from '../../models/subscription.model';
 import { Notification } from '../notification/notification.model';
 import admin from "firebase-admin";
+import { Body } from 'twilio/lib/twiml/MessagingResponse';
 
 
 // export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -71,6 +72,101 @@ import admin from "firebase-admin";
 //     next(error);
 //   }
 // };
+// export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const { parcelIds } = req.body;  
+//     const userId = req.user?.id;    
+
+//     if (!userId) {
+//       throw new AppError("Unauthorized", 401);
+//     }
+
+//     const parcelObjectIds = parcelIds.map((id: string) => new mongoose.Types.ObjectId(id));
+//     const userObjectId = new mongoose.Types.ObjectId(userId);
+
+//     const parcels = await ParcelRequest.find({
+//       _id: { $in: parcelObjectIds },
+//       status: DeliveryStatus.PENDING,
+//     });
+   
+//     //check if parcel are same user to request then show your the owner this parcel not able to request
+//     for (let parcel of parcels) {
+//       if (parcel.senderId.toString() === userObjectId.toString()) {
+//         throw new AppError(`You can't request to deliver your own parcel ${parcel._id}`, 400);
+//       }
+//     }
+
+//     if (parcels.length === 0) {
+//       throw new AppError("No available parcels found", 404);
+//     }
+
+//     const user = await User.findById(userObjectId);
+//     if (!user) {
+//       throw new AppError("User not found", 404);
+//     }
+
+//     for (let parcel of parcels) {
+//       if (parcel.deliveryRequests.includes(userObjectId)) {
+//         throw new AppError(`You have already requested to deliver parcel ${parcel._id}`, 400);
+//       }
+
+//       parcel.deliveryRequests.push(userObjectId);
+//       parcel.status = DeliveryStatus.REQUESTED;
+//       await parcel.save();
+
+//       // 🚀 Start Notification Logic here
+//       const senderUser = await User.findById(parcel.senderId);
+
+//       if (senderUser?.fcmToken) {
+//         const senderMessage = {
+//           notification: {
+//             title: 'Delivery Request',
+//             body: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
+//             mobileNumber: user.mobileNumber || 'Unknown Number',
+//             image:user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+//             AvgRating: user.avgRating || 0,
+//           },
+//           token: senderUser.fcmToken,
+//         };
+
+//         try {
+//           await admin.messaging().send(senderMessage);
+//           console.log('Push notification sent to sender.');
+//         } catch (err) {
+//           console.error('Error sending push notification to sender:', err);
+//         }
+//       }
+
+//       const notification = new Notification({
+//         message: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
+//         type: 'Recciver',
+//         title: `"${user.fullName} Send The Delivery Request"`,
+//         description: parcel.description || '',
+//         parcelTitle: parcel.title || '',
+//         price: parcel.price || '',
+//         requestId: parcel._id,
+//         userId: senderUser?._id,
+//         image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+//         AvgRating: user.avgRating || 0,
+//         SenderName: user.fullName || '',
+//         mobileNumber: user.mobileNumber || ' ',
+        
+//       });
+
+//       await notification.save();
+//       // 🚀 End Notification Logic
+//     }
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "Your request to deliver the parcel(s) has been submitted successfully.",
+//     });
+
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelIds } = req.body;  
@@ -83,46 +179,47 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
     const parcelObjectIds = parcelIds.map((id: string) => new mongoose.Types.ObjectId(id));
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
+    // Query for parcels that are PENDING and not already requested by the user
     const parcels = await ParcelRequest.find({
       _id: { $in: parcelObjectIds },
       status: DeliveryStatus.PENDING,
+      deliveryRequests: { $ne: userObjectId }  // Ensure user hasn't already requested it
     });
    
-    //check if parcel are same user to request then show your the owner this parcel not able to request
+    if (parcels.length === 0) {
+      throw new AppError("No available parcels found or you have already requested these parcels", 404);
+    }
+
+    // Check if user is the sender (cannot request own parcels)
     for (let parcel of parcels) {
       if (parcel.senderId.toString() === userObjectId.toString()) {
         throw new AppError(`You can't request to deliver your own parcel ${parcel._id}`, 400);
       }
     }
 
-    if (parcels.length === 0) {
-      throw new AppError("No available parcels found", 404);
-    }
-
+    // Proceed with adding the user to the deliveryRequests array
     const user = await User.findById(userObjectId);
     if (!user) {
       throw new AppError("User not found", 404);
     }
 
     for (let parcel of parcels) {
-      if (parcel.deliveryRequests.includes(userObjectId)) {
-        throw new AppError(`You have already requested to deliver parcel ${parcel._id}`, 400);
-      }
-
+      // Add user to deliveryRequests
       parcel.deliveryRequests.push(userObjectId);
       parcel.status = DeliveryStatus.REQUESTED;
       await parcel.save();
 
-      // 🚀 Start Notification Logic here
+      // 🚀 Notification Logic
       const senderUser = await User.findById(parcel.senderId);
-
       if (senderUser?.fcmToken) {
         const senderMessage = {
           notification: {
-            title: 'Delivery Request',
-            body: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
+            type: 'delivery_request',
+            title: '${parcel.title}',
+            price: parcel.price || '',
+            body: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} "${user.fullName}"`,
             mobileNumber: user.mobileNumber || 'Unknown Number',
-            image:user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+            image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
             AvgRating: user.avgRating || 0,
           },
           token: senderUser.fcmToken,
@@ -137,11 +234,10 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
       }
 
       const notification = new Notification({
-        message: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
-        type: 'Recciver',
-        title: `"${user.fullName} Send The Delivery Request"`,
+        message: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
+        type: 'Requested-Delivery',
+        title: `"${parcel.title} "`,
         description: parcel.description || '',
-        parcelTitle: parcel.title || '',
         price: parcel.price || '',
         requestId: parcel._id,
         userId: senderUser?._id,
@@ -149,11 +245,9 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
         AvgRating: user.avgRating || 0,
         SenderName: user.fullName || '',
         mobileNumber: user.mobileNumber || ' ',
-        
       });
 
       await notification.save();
-      // 🚀 End Notification Logic
     }
 
     res.status(200).json({
@@ -165,6 +259,7 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
     next(error);
   }
 };
+
 
 export const removeDeliveryRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -200,7 +295,9 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
     if (RequestUser?.fcmToken) {
       const senderMessage = {
         notification: {
-          title: 'Delivery Request Removed',
+          title: '${parcel.title}',
+          price: parcel.price || '',
+          type: 'Rejected',
           body: `${RequestUser?.role === 'sender' ? 'A deliverer has requested has been removed' : 'A sender has removed'} you removed to this delivery parcel titled "${parcel.title}".`,
           mobileNumber: RequestUser.mobileNumber || 'Unknown Number',
           image:RequestUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
@@ -219,8 +316,8 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
 
     const notification = new Notification({
       message: `${RequestUser?.role === 'sender' ? 'A deliverer has requested has been removed' : 'A sender has removed'} you removed to this delivery parcel titled "${parcel.title}".`,
-      type: 'sender',
-      title: `"${RequestUser?.fullName} Remove The Delivery Request"`,
+      type: 'Rejected',
+      title: `"${parcel.title} "`,
       description: parcel.description || '',
       parcelTitle: parcel.title || '',
       price: parcel.price || '',
@@ -371,8 +468,10 @@ if (!hasRequested) {
     if (deliverer?.fcmToken) {
       const delivererMessage = {
         notification: {
-          title: 'Parcel Assigned',
-          body: `You have been assigned to deliver the parcel titled "${parcel.title}".`,
+          title: '${parcel.title}',
+          price: parcel.price || '',
+          type: 'Accepted',
+          body: `You have been assigned to deliver the parcel.`,
 
         },
         token: deliverer.fcmToken,
@@ -388,8 +487,8 @@ if (!hasRequested) {
 
     const notification = new Notification({
       message: `You have been assigned to deliver the parcel titled "${parcel.title}".`,
-      type: 'parcel_assignment',
-      title: 'Parcel Assigned',
+      type: 'Accepted',
+      title: '${parcel.title}',
       description: parcel.description || '',
       price: parcel.price || '',
       requestId: parcel._id,
@@ -439,7 +538,8 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
     if (senderUser?.fcmToken) {
       const senderMessage = {
         notification: {
-          title: 'Assigned Delivery Man Cancelled',
+          type: 'Cancelled',
+          title: '${parcel.title}',
           body: `${senderUser.role === 'sender' ? 'A delivery Has been cancelled' : 'A user has cancelled'} your request to deliver title "${parcel.title}".`,
           mobileNumber: senderUser.mobileNumber || 'Unknown Number',
           image:senderUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
@@ -458,8 +558,8 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
 
     const notification = new Notification({
       message: `${senderUser?.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
-      type: 'Cancel to assigned Delivery',
-      title: `"${senderUser?.fullName} has cancelled the assigned delivery "`,
+      type: 'Cancelled',
+      title: `"${parcel.title} "`,
       description: parcel.description || '',
       parcelTitle: parcel.title || '',
       price: parcel.price || '',

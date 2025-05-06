@@ -204,6 +204,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
           whatsapp: user.whatsapp || "missing whatsapp number",
           email : user.email || "missing email",
           image: user.image || "https://i.ibb.co/z5YHLV9/profile.png",
+          fcmToken: user.fcmToken || "missing fcm token",
 
         },
         earnings: earningsData,

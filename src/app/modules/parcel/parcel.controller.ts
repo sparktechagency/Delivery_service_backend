@@ -128,7 +128,6 @@ const getCoordinates = async (location: string) => {
   }
 };
 
-
 // export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     const {
@@ -248,7 +247,6 @@ const getCoordinates = async (location: string) => {
 //     next(error);
 //   }
 // };
-
 export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -265,12 +263,11 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       description,
     } = req.body;
 
-    // Create parcels upload directory if it doesn't exist
     const parcelsDir = path.join(process.cwd(), 'uploads', 'parcels');
     if (!fs.existsSync(parcelsDir)) {
       fs.mkdirSync(parcelsDir, { recursive: true });
     }
-    
+
     let images: string[] = [];
     if (req.files && typeof req.files === 'object') {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -286,11 +283,11 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       senderId: req.user?.id,
       pickupLocation: {
         type: 'Point',
-        coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude] 
+        coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude]
       },
       deliveryLocation: {
         type: 'Point',
-        coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude] 
+        coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude]
       },
       deliveryStartTime,
       deliveryEndTime,
@@ -324,56 +321,65 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       $inc: { totalSentParcels: 1, totalOrders: 1 }
     });
 
-    const otherUsers = await User.find({ 
-      isVerified: true, 
-      _id: { $ne: req.user?.id } 
+    // Fetch relevant users who should receive notifications (e.g., role 'deliverer')
+    const relevantUsers = await User.find({
+      isVerified: true,
+      role: 'deliverer',  // You can adjust this based on your use case
+      _id: { $ne: req.user?.id }, // Exclude the sender
     });
-    
-    const usersWithFCM = otherUsers.filter(user => user.fcmToken);
-    
-    const messages = usersWithFCM
-      .map(user => user.fcmToken)
-      .filter(token => token)
-      .map(token => ({
-        notification: {
-          title: 'New Parcel Send',
-          body: `A new parcel request has been created with the Name "${title}".`,
-        },
-        data: { 
-          PhoneNumber: phoneNumber || '', 
-          description: description || '',
-          role: req.user?.role || '',
-        },
-        token,
-      }));
 
-    try {
+    console.log(`Found ${relevantUsers.length} relevant users to notify.`);
+
+    if (relevantUsers.length > 0) {
+      // Send push notifications via FCM (this is working if users have valid fcmTokens)
+      const messages = relevantUsers
+        .filter(user => user.fcmToken) // Ensure users have fcmToken
+        .map(user => ({
+          notification: {
+            type: 'send_parcel',
+            title: `"${parcel.title}"`,
+            body: `A new parcel request has been created by "${user.fullName}".`,
+          },
+          data: { 
+            phoneNumber: phoneNumber || '', 
+            description: description || '',
+            role: req.user?.role || '',
+          },
+          token: user.fcmToken, // Only send if fcmToken exists
+        }));
+
       if (messages.length > 0) {
-        const responses = await Promise.all(
-          messages.map(message => admin.messaging().send(message))
-        );
-        console.log('Push notifications sent successfully:', responses);
+        try {
+          const responses = await Promise.all(
+            messages.map(message => admin.messaging().send(message))
+          );
+          console.log('Push notifications sent successfully:', responses);
+        } catch (error) {
+          console.error('Error sending push notifications:', error);
+        }
       }
-    } catch (error) {
-      console.error('Error sending push notifications:', error);
     }
 
-    const notificationPromises = otherUsers.map(user => {
+    // Create notifications in the database for the relevant users
+    console.log('Creating notifications for relevant users:', relevantUsers);
+
+    const notificationPromises = relevantUsers.map(user => {
       return new Notification({
         message: `A new parcel request titled "${title}" has been created.`,
-        type: 'Sender',
-        title: 'New Parcel Created To Deliver',
-        PhoneNumber: phoneNumber || '',
+        type: 'parcel_creation',
+        title: `"${parcel.title}"`,
+        phoneNumber: phoneNumber || '',
         description: description || '',
         price: price || '',
         requestId: parcel._id,
         userId: user._id,
         role: req.user?.role,
-      }).save();
+      }).save()
+        .then(() => console.log(`Notification saved for user: ${user._id}`))
+        .catch(err => console.error(`Error saving notification for user ${user._id}:`, err));
     });
-    
+
     await Promise.all(notificationPromises);
-    console.log(`Created ${notificationPromises.length} notifications for other users`);
 
     const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage');
 
@@ -390,6 +396,8 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     next(error);
   }
 };
+
+
 // export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     const {
@@ -406,7 +414,6 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 //       description,
 //     } = req.body;
 
-//     // Create parcels upload directory if it doesn't exist
 //     const parcelsDir = path.join(process.cwd(), 'uploads', 'parcels');
 //     if (!fs.existsSync(parcelsDir)) {
 //       fs.mkdirSync(parcelsDir, { recursive: true });
@@ -446,7 +453,6 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 //       status: 'PENDING',
 //     });
 
-//     // Update sender's record with the new parcel info
 //     await User.findByIdAndUpdate(req.user?.id, {
 //       $push: {
 //         SendOrders: {
@@ -473,46 +479,22 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     
 //     const usersWithFCM = otherUsers.filter(user => user.fcmToken);
     
-//     // const messages = usersWithFCM
-//     //   .map(user => user.fcmToken)
-//     //   .filter(token => token)
-//     //   .map(token => ({
-//     //     notification: {
-//     //       title: 'New Parcel Created',
-//     //       body: `A new parcel request has been created with the Name "${title}".`,
-//     //       description: description || '',
-//     //       role: req.user?.role,
-//     //       PhoneNumber: phoneNumber || '',
-          
-//     //     },
-//     //     token, 
-//     //   }));
 //     const messages = usersWithFCM
-//   .map(user => user.fcmToken)
-//   .filter(token => token)
-//   .map(token => ({
-//     notification: {
-//       title: 'New Parcel Created',
-//       body: `A new parcel request has been created with the Name "${title}".`,
-//       phoneNumber: `${phoneNumber || ''}`, 
-//       description: `"${description || ''}"`,
-//       role: req.user?.role,
-     
-//     },
-//     token,
-//   }));
-
-// try {
-//   if (messages.length > 0) {
-//     const responses = await Promise.all(
-//       messages.map(message => admin.messaging().send(message))
-//     );
-//     console.log('Push notifications sent successfully:', responses);
-//   }
-// } catch (error) {
-//   console.error('Error sending push notifications:', error);
-// }
-
+//       .map(user => user.fcmToken)
+//       .filter(token => token)
+//       .map(token => ({
+//         notification: {
+//           type: 'send_parcel',
+//           title: `"${parcel.title}"`,
+//           body: `A new has been Created This user "${User.name}".`,
+//         },
+//         data: { 
+//           PhoneNumber: phoneNumber || '', 
+//           description: description || '',
+//           role: req.user?.role || '',
+//         },
+//         token,
+//       }));
 
 //     try {
 //       if (messages.length > 0) {
@@ -525,32 +507,17 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 //       console.error('Error sending push notifications:', error);
 //     }
 
-//     // Create notification records for EACH other user
-//     // const notificationPromises = otherUsers.map(user => {
-//     //   return new Notification({
-//     //     message: `A new parcel request titled "${title}" has been created.`,
-//     //     type: 'parcel_update',  
-//     //     title: 'New Parcel Request',
-//     //     description: description || '',  
-//     //     price: price || '',
-//     //     requestId: parcel._id,
-//     //     userId: user._id, 
-//     //     role: req.user?.role,
-//     //     PhoneNumber: phoneNumber || '',
-//     //   }).save();
-//     // });
 //     const notificationPromises = otherUsers.map(user => {
 //       return new Notification({
 //         message: `A new parcel request titled "${title}" has been created.`,
-//         type: 'parcel_update',
-//         title: 'New Parcel Request',
-//         phoneNumber:`${phoneNumber || ''}`,
-//         description: `"${description || ''}"`,
+//         type: 'send_parcel',
+//         title: `"${parcel.title}"`,
+//         PhoneNumber: phoneNumber || '',
+//         description: description || '',
 //         price: price || '',
 //         requestId: parcel._id,
 //         userId: user._id,
 //         role: req.user?.role,
-        
 //       }).save();
 //     });
     
@@ -576,9 +543,8 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 
 export const deleteParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { parcelId } = req.params; // Assuming parcelId is passed in the URL
+    const { parcelId } = req.params;
     
-    // Find the parcel by ID
     const parcel = await ParcelRequest.findById(parcelId);
     
     if (!parcel) {
@@ -588,7 +554,6 @@ export const deleteParcelRequest = async (req: Request, res: Response, next: Nex
       });
     }
 
-    // Check if the parcel is either PENDING or REQUESTED
     if (parcel.status === 'IN_TRANSIT' || parcel.status === 'DELIVERED') {
       return res.status(400).json({
         status: 'error',
@@ -597,22 +562,18 @@ export const deleteParcelRequest = async (req: Request, res: Response, next: Nex
     }
 
     if (parcel.status === 'PENDING' || parcel.status === 'REQUESTED') {
-      // If parcel status is PENDING or REQUESTED, delete the parcel
       await ParcelRequest.findByIdAndDelete(parcelId);
 
-      // Optionally remove this parcel from the sender's list
       await User.findByIdAndUpdate(parcel.senderId, {
         $pull: { SendOrders: { parcelId } },
         $inc: { totalSentParcels: -1, totalOrders: -1 }
       });
 
-      // Send success response
-      res.status(200).json({
+    res.status(200).json({
         status: 'success',
         message: 'Parcel deleted successfully',
       });
     } else {
-      // Handle case for other statuses
       return res.status(400).json({
         status: 'error',
         message: 'Cannot delete the parcel as its status is not pending or requested.',
@@ -748,19 +709,16 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
 
     if (parcels && parcels.length > 0) {
       parcels = parcels.map(parcel => {
-        // Slice the deliveryRequests array to the first 5 requests only
         if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
           parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
         }
 
-        // Calculate total reviews and average rating for each deliveryRequest
         parcel.deliveryRequests = parcel.deliveryRequests.map((deliveryRequest: any) => {
           const totalReviews = deliveryRequest.reviews.length;
           const avgRating = totalReviews > 0
             ? deliveryRequest.reviews.reduce((sum: any, review: { rating: any; }) => sum + review.rating, 0) / totalReviews
-            : 0; // Default to 0 if no reviews exist
-
-          // Add calculated values to the deliveryRequest object
+            : 0; 
+            
           deliveryRequest.totalReviews = totalReviews;
           deliveryRequest.avgRating = avgRating;
 
@@ -780,11 +738,9 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-
 export const getParcelsByRadius = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { latitude, longitude, radius, status } = req.body;
-
     if (isNaN(latitude) || isNaN(longitude) || isNaN(radius)) {
       throw new AppError('Latitude, longitude, and radius must be valid numbers', 400);
     }
@@ -801,11 +757,12 @@ export const getParcelsByRadius = async (req: Request, res: Response, next: Next
       },
     };
 
+    filter.status = DeliveryStatus.PENDING;
+
 
     if (status && Object.values(DeliveryStatus).includes(status)) {
-      filter.status = status;  
+      filter.status = status;
     }
-
 
     const parcels = await ParcelRequest.find(filter);
 
@@ -830,7 +787,6 @@ export const getParcelWithDeliveryRequests = async (req: Request, res: Response,
   try {
     const { parcelId } = req.params;
 
-    // Find the parcel by its ID
     const parcel = await ParcelRequest.findById(parcelId).populate('deliveryRequests', 'name email'); // Populate deliveryRequests with User details (e.g., name, email)
 
     if (!parcel) {
@@ -841,7 +797,7 @@ export const getParcelWithDeliveryRequests = async (req: Request, res: Response,
       status: 'success',
       data: {
         parcel,
-        deliveryRequests: parcel.deliveryRequests // This will contain the list of users who requested to deliver the parcel
+        deliveryRequests: parcel.deliveryRequests 
       }
     });
   } catch (error) {
@@ -943,7 +899,6 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
       throw new AppError("Parcel ID and status are required", 400);
     }
 
-    // Validate status
     const validStatuses = [
       DeliveryStatus.REQUESTED,
       DeliveryStatus.IN_TRANSIT,

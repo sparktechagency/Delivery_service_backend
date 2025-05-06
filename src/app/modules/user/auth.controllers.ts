@@ -90,7 +90,7 @@ export const verifyOTP = async (req: Request, res: Response, next: NextFunction)
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { mobileNumber } = req.body;
+    const { mobileNumber, fcmToken } = req.body;
 
     if (!mobileNumber) {
       throw new AppError('Mobile number is required', 400);
@@ -102,6 +102,12 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     if (!user || !user.isVerified) {
       throw new AppError('Invalid credentials or unverified account', 401);
     }
+
+    if (fcmToken) {
+      user.fcmToken = fcmToken;
+      await user.save();
+    }
+    
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     await OTPVerification.create({
@@ -202,7 +208,7 @@ export const registerWithEmail = async (req: Request, res: Response, next: NextF
 
     console.log("🔹 Generated OTP (Plain):", otpCode);
 
-
+    
     const otpVerification = await OTPVerification.create({
       userId: user._id,
       email,
@@ -294,7 +300,7 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
 
 export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body;
+    const { email,fcmToken } = req.body;
 
     if (!email) {
       throw new AppError('Email is required', 400);
@@ -316,30 +322,23 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     let otp = await OTPVerification.findOne({ userId: user._id, email });
   
-    // // Store OTP as plain text (No hashing)
-    // await OTPVerification.create({
-    //   userId: user._id,
-    //   email,
-    //   otpCode,
-    //   expiresAt: new Date(Date.now() + 10 * 60 * 1000), // OTP expiry time (10 minutes)
-    // });
-
-
+    if (fcmToken) {
+      user.fcmToken = fcmToken;
+      await user.save(); 
+    }
+    
 
     if (otp) {
-      // If OTP exists, update the OTP code and expiry time
-      otp.otpCode = otpCode; // Update OTP code
-      otp.expiresAt = otpExpiry; // Update expiry time
+      otp.otpCode = otpCode; 
+      otp.expiresAt = otpExpiry; 
 
-      // Save the updated OTP record
-      await otp.save(); // Save the updated OTP to the database
+      await otp.save(); 
     } else {
-      // If no OTP exists, create a new OTP record
       await OTPVerification.create({
         userId: user._id,
         email,
         otpCode,
-        expiresAt: otpExpiry, // Set expiry time for OTP
+        expiresAt: otpExpiry, 
       });
     }
 
@@ -423,10 +422,9 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
       throw new AppError('Email and OTP code are required', 400);
     }
 
-    // ✅ Fetch the latest OTP entry for the email
     const verification = await OTPVerification.findOne({
       email,
-      expiresAt: { $gt: new Date() }, // Ensure OTP is not expired
+      expiresAt: { $gt: new Date() },
     });
 
     if (!verification || verification.otpCode !== otpCode) {

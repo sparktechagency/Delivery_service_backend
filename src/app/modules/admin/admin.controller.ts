@@ -663,8 +663,8 @@ interface DeliveryTimes {
   [DeliveryType.BICYCLE]: { totalTime: number, count: number };
   [DeliveryType.BIKE]: { totalTime: number, count: number };
   [DeliveryType.PERSON]: { totalTime: number, count: number };
-  [DeliveryType.Taxi]: { totalTime: number, count: number };
-  [DeliveryType.AirPlane]: { totalTime: number, count: number };
+  [DeliveryType.TAXI]: { totalTime: number, count: number };
+  [DeliveryType.AIRPLANE]: { totalTime: number, count: number };
 }
 
 export const getOrderDetails = async (req: Request, res: Response, next: NextFunction) => {
@@ -715,8 +715,8 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
       [DeliveryType.BICYCLE]: { totalTime: 0, count: 0 },
       [DeliveryType.BIKE]: { totalTime: 0, count: 0 },
       [DeliveryType.PERSON]: { totalTime: 0, count: 0 },
-      [DeliveryType.Taxi]: { totalTime: 0, count: 0 },
-      [DeliveryType.AirPlane]: { totalTime: 0, count: 0 }
+      [DeliveryType.TAXI]: { totalTime: 0, count: 0 },
+      [DeliveryType.AIRPLANE]: { totalTime: 0, count: 0 }
     };
 
     const parcels = await ParcelRequest.find(filter)

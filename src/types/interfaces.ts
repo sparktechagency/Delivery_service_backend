@@ -13,8 +13,8 @@ interface DeliveryTimes {
   [DeliveryType.BICYCLE]: { totalTime: number, count: number };
   [DeliveryType.BIKE]: { totalTime: number, count: number };
   [DeliveryType.PERSON]: { totalTime: number, count: number };
-  [DeliveryType.Taxi]: { totalTime: number, count: number };
-  [DeliveryType.AirPlane]: { totalTime: number, count: number };
+  [DeliveryType.TAXI]: { totalTime: number, count: number };
+  [DeliveryType.AIRPLANE]: { totalTime: number, count: number };
 }
 
 
