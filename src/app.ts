@@ -76,6 +76,7 @@ import path from 'path';
 import stripeWebhook from './app/modules/payments/webhhok';
 import { User } from './app/modules/user/user.model';
 import fs from 'fs';
+import { createServer, Server } from 'http';
 
 const app = express();
 app.use(cors());
@@ -126,7 +127,25 @@ app.post('/api/save-fcm-token', async (req, res) => {
     res.status(500).json({ message: 'Failed to save FCM token' });
   }
 });
+const SocketPort = process.env.SocketPort || "5000";
+const server = createServer(app);
+const io = new Server(server);
+io.on("headers", (headers, req) => {
+  headers["Access-Control-Allow-Origin"] = "*"; 
+});
 
+
+io.on("connection", (socket: any) => {
+  console.log("⚡ New client connected:", socket.id);
+  socket.on("disconnect", () => {
+    console.log("❌ Client disconnected:", socket.id);
+  });
+});
+
+server.listen(SocketPort, () => {
+  // console.log(`🚀 Server & Socket.io running on http://10.0.70.208:${PORT}`);
+  console.log(`🚀 Server & Socket.io running on http://10.0.70.208:${SocketPort}`);
+});
 
 // Error handling
 app.use(errorHandler);

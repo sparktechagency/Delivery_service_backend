@@ -16,6 +16,7 @@ import { AuthRequest, JWTPayload } from '../../middlewares/auth';
 import { emailHelper } from '../../../util/mailer/mailer'; 
 import { formatPhoneNumber } from "../../../util/formatPhoneNumber";
 import { UserActivity } from './user.activity.model';
+import DeviceToken from './fcm.token.model';
 
 
 
@@ -300,7 +301,7 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
 
 export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email,fcmToken } = req.body;
+    const { email, fcmToken } = req.body;
 
     if (!email) {
       throw new AppError('Email is required', 400);
@@ -311,36 +312,32 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
       throw new AppError('Invalid credentials or unverified account', 401);
     }
 
-    // Check if user is restricted
     if (user.isRestricted) {
       throw new AppError('Your profile is restricted. Please contact support team.', 403); // Restricted account error
     }
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    //! OTP Expired
+    //! OTP Expiry
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     let otp = await OTPVerification.findOne({ userId: user._id, email });
-  
-    if (fcmToken) {
-      user.fcmToken = fcmToken;
-      await user.save(); 
-    }
-    
 
+    // Handle OTP logic
     if (otp) {
-      otp.otpCode = otpCode; 
-      otp.expiresAt = otpExpiry; 
-
-      await otp.save(); 
+      otp.otpCode = otpCode;
+      otp.expiresAt = otpExpiry;
+      await otp.save();
     } else {
       await OTPVerification.create({
         userId: user._id,
         email,
         otpCode,
-        expiresAt: otpExpiry, 
+        expiresAt: otpExpiry,
       });
     }
+
+    // Store FCM token in the DeviceTokens collection
+    await DeviceToken.create({ userId: user._id, fcmToken });
 
     // Send OTP via email
     await transporter.sendMail({
@@ -355,6 +352,10 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
+
+
+
+
 
 // export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
 //   try {

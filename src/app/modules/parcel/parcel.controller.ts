@@ -15,7 +15,8 @@ import fs from 'fs';
 import { PhoneNumber } from 'libphonenumber-js';
 import { UserDocument } from '../user/user.model';
 import { ParcelRequestDocument } from './ParcelRequest.model'; 
-
+import { createNotification } from '../notification/notification.controller';
+import { Server } from "socket.io"; 
 // export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     const { pickupLocation, deliveryLocation, deliveryStartTime, deliveryEndTime, senderType, deliveryType, price, name, phoneNumber, title, description } = req.body;
@@ -128,6 +129,7 @@ const getCoordinates = async (location: string) => {
   }
 };
 
+
 // export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     const {
@@ -142,28 +144,42 @@ const getCoordinates = async (location: string) => {
 //       phoneNumber,
 //       title,
 //       description,
-//       // images
 //     } = req.body;
 
-//     let images: string[] = [];
-//     if (req.files && Array.isArray(req.files)) {
-//       images = req.files.map((file: Express.Multer.File) => `/uploads/parcels/${file.filename}`);
-//     } else {
-//       console.log("⚠️ No files received in request");
+//     // Ensure necessary fields are provided
+//     if (!pickupLocation || !deliveryLocation || !price || !title) {
+//       throw new AppError("Missing required fields", 400);
 //     }
 
+//     // Create uploads directory if it doesn't exist
+//     const parcelsDir = path.join(process.cwd(), "uploads", "parcels");
+//     if (!fs.existsSync(parcelsDir)) {
+//       fs.mkdirSync(parcelsDir, { recursive: true });
+//     }
+
+//     // Process uploaded images (if any)
+//     let images: string[] = [];
+//     if (req.files && typeof req.files === "object") {
+//       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+//       if (files.image && Array.isArray(files.image)) {
+//         images = files.image.map((file: Express.Multer.File) => `/uploads/image/${file.filename}`);
+//       }
+//     }
+
+//     // Get coordinates for pickup and delivery locations
 //     const pickupCoordinates = await getCoordinates(pickupLocation);
 //     const deliveryCoordinates = await getCoordinates(deliveryLocation);
 
+//     // Create the parcel request
 //     const parcel = await ParcelRequest.create({
 //       senderId: req.user?.id,
 //       pickupLocation: {
-//         type: 'Point',
-//         coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude] 
+//         type: "Point",
+//         coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude],
 //       },
 //       deliveryLocation: {
-//         type: 'Point',
-//         coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude] 
+//         type: "Point",
+//         coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude],
 //       },
 //       deliveryStartTime,
 //       deliveryEndTime,
@@ -172,81 +188,92 @@ const getCoordinates = async (location: string) => {
 //       price,
 //       title,
 //       description,
-//       images: images || [],
+//       images: images,
 //       name,
 //       phoneNumber,
-//       status: 'PENDING',
+//       status: "PENDING",
 //     });
 
-//     const users = await User.find({ isVerified: true, fcmToken: { $exists: true } });
+//     // Add the parcel to the user's SendOrders array
 //     await User.findByIdAndUpdate(req.user?.id, {
 //       $push: {
 //         SendOrders: {
 //           parcelId: parcel._id,
-//           pickupLocation: pickupLocation,
-//           deliveryLocation: deliveryLocation,
-//           price: price,
-//           title: title,
-//           description: description,
-//           senderType: senderType,
-//           deliveryType: deliveryType,
-//           deliveryStartTime: deliveryStartTime,
-//           deliveryEndTime: deliveryEndTime,
-//         }
+//           pickupLocation,
+//           deliveryLocation,
+//           price,
+//           title,
+//           phoneNumber: phoneNumber || "",
+//           description,
+//           senderType,
+//           deliveryType,
+//           deliveryStartTime,
+//           deliveryEndTime,
+//         },
 //       },
-//       $inc: { totalSentParcels: 1, totalOrders: 1 }
+//       $inc: { totalSentParcels: 1, totalOrders: 1 },
 //     });
 
-//     const messages = users
-//       .map(user => user.fcmToken)
-//       .filter(token => token)
-//       .map(token => ({
-//         notification: {
-//           title: 'New Parcel Request',
-//           body: `A new parcel request has been created with the title "${title}".`,
-//         },
-//         token, 
-//       }));
-
-//     try {
-//       if (messages.length > 0) {
-//         const responses = await Promise.all(
-//           messages.map(message => admin.messaging().send(message))
-//         );
-//         console.log('Push notifications sent successfully:', responses);
-//       }
-//     } catch (error) {
-//       console.error('Error sending push notifications:', error);
+//     // Get sender information
+//     const sender = await User.findById(req.user?.id).select("fullName");
+//     if (!sender) {
+//       throw new AppError("Sender not found", 404);
 //     }
 
-//     const notification = new Notification({
-//       message: `A new parcel request titled "${title}" has been created.`,
-//       type: 'parcel_update',  
-//       title: 'New Parcel Request',
-//       description: description || '',  
-//       price: price || '',
-//       requestId: parcel._id,
-//       userId: req.user?.id, 
-//     });
+//     // Find deliverers (not senders) who should receive notifications
+//     const deliverers = await User.find({
+//       isVerified: true,
+//       role: "sender", 
+//       _id: { $ne: req.user?.id },
+//     }).select("_id fcmToken");
+    
+//     // const delivererIds = deliverers.map(user => user._id.toString());
+//   const delivererIds = deliverers.filter(user => user.fcmToken).map(user => user._id.toString());
+    
+//     if (delivererIds.length > 0) {
+//       const notificationMessage = `A new parcel request titled "${title}" has been created by "${sender.fullName}".`;
+    
+//       // Send notifications through the centralized notification system
+//       await createNotification(
+//         delivererIds,
+//         notificationMessage,
+//         "send_parcel",
+//         title,
+//         {
+//           phoneNumber,
+//           price,
+//           description,
+//           parcelId: parcel._id.toString(),
+//         }
+//       );
+      
+//       console.log(`Sent notifications to ${delivererIds.length} deliverers`);
+//     } else {
+//       console.log("No deliverers found to send notifications");
+//     }
+    
 
-//     await notification.save();
-
-
-//     const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber image');
+//     // Fetch the full parcel with sender details to return as response
+//     const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage');
 
 //     res.status(201).json({
-//       status: 'success',
+//       status: "success",
 //       data: fullParcel,
 //     });
 //   } catch (error) {
-//     console.error('Error creating parcel:', error);
+//     console.error("Error creating parcel:", error);
 //     res.status(500).json({
-//       status: 'error',
-//       message: 'Failed to create parcel request',
+//       status: "error",
+//       message: "Failed to create parcel request",
 //     });
 //     next(error);
 //   }
 // };
+
+
+
+let io: Server | null = null;
+
 export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -263,31 +290,40 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       description,
     } = req.body;
 
-    const parcelsDir = path.join(process.cwd(), 'uploads', 'parcels');
+    // Ensure necessary fields are provided
+    if (!pickupLocation || !deliveryLocation || !price || !title) {
+      throw new AppError("Missing required fields", 400);
+    }
+
+    // Create uploads directory if it doesn't exist
+    const parcelsDir = path.join(process.cwd(), "uploads", "parcels");
     if (!fs.existsSync(parcelsDir)) {
       fs.mkdirSync(parcelsDir, { recursive: true });
     }
 
+    // Process uploaded images (if any)
     let images: string[] = [];
-    if (req.files && typeof req.files === 'object') {
+    if (req.files && typeof req.files === "object") {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       if (files.image && Array.isArray(files.image)) {
         images = files.image.map((file: Express.Multer.File) => `/uploads/image/${file.filename}`);
       }
     }
 
+    // Get coordinates for pickup and delivery locations
     const pickupCoordinates = await getCoordinates(pickupLocation);
     const deliveryCoordinates = await getCoordinates(deliveryLocation);
 
+    // Create the parcel request
     const parcel = await ParcelRequest.create({
       senderId: req.user?.id,
       pickupLocation: {
-        type: 'Point',
-        coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude]
+        type: "Point",
+        coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude],
       },
       deliveryLocation: {
-        type: 'Point',
-        coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude]
+        type: "Point",
+        coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude],
       },
       deliveryStartTime,
       deliveryEndTime,
@@ -299,104 +335,111 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       images: images,
       name,
       phoneNumber,
-      status: 'PENDING',
+      status: "PENDING",
     });
 
+    // Add the parcel to the user's SendOrders array
     await User.findByIdAndUpdate(req.user?.id, {
       $push: {
         SendOrders: {
           parcelId: parcel._id,
-          pickupLocation: pickupLocation,
-          deliveryLocation: deliveryLocation,
-          price: price,
-          title: title,
-          phoneNumber: phoneNumber || '',
-          description: description,
-          senderType: senderType,
-          deliveryType: deliveryType,
-          deliveryStartTime: deliveryStartTime,
-          deliveryEndTime: deliveryEndTime,
-        }
+          pickupLocation,
+          deliveryLocation,
+          price,
+          title,
+          phoneNumber: phoneNumber || "",
+          description,
+          senderType,
+          deliveryType,
+          deliveryStartTime,
+          deliveryEndTime,
+        },
       },
-      $inc: { totalSentParcels: 1, totalOrders: 1 }
+      $inc: { totalSentParcels: 1, totalOrders: 1 },
     });
 
-    // Fetch relevant users who should receive notifications (e.g., role 'deliverer')
-    const relevantUsers = await User.find({
-      isVerified: true,
-      role: 'deliverer',  // You can adjust this based on your use case
-      _id: { $ne: req.user?.id }, // Exclude the sender
-    });
-
-    console.log(`Found ${relevantUsers.length} relevant users to notify.`);
-
-    if (relevantUsers.length > 0) {
-      // Send push notifications via FCM (this is working if users have valid fcmTokens)
-      const messages = relevantUsers
-        .filter(user => user.fcmToken) // Ensure users have fcmToken
-        .map(user => ({
-          notification: {
-            type: 'send_parcel',
-            title: `"${parcel.title}"`,
-            body: `A new parcel request has been created by "${user.fullName}".`,
-          },
-          data: { 
-            phoneNumber: phoneNumber || '', 
-            description: description || '',
-            role: req.user?.role || '',
-          },
-          token: user.fcmToken, // Only send if fcmToken exists
-        }));
-
-      if (messages.length > 0) {
-        try {
-          const responses = await Promise.all(
-            messages.map(message => admin.messaging().send(message))
-          );
-          console.log('Push notifications sent successfully:', responses);
-        } catch (error) {
-          console.error('Error sending push notifications:', error);
-        }
-      }
+    // Get sender information
+    const sender = await User.findById(req.user?.id).select("fullName");
+    if (!sender) {
+      throw new AppError("Sender not found", 404);
     }
 
-    // Create notifications in the database for the relevant users
-    console.log('Creating notifications for relevant users:', relevantUsers);
+    // Find deliverers (not senders) who should receive notifications
+    const deliverers = await User.find({
+      isVerified: true,
+      role: "sender", 
+      _id: { $ne: req.user?.id },
+    }).select("_id fcmToken");
+    
+    const delivererIds = deliverers.filter(user => user.fcmToken).map(user => user._id.toString());
+    
+    if (delivererIds.length > 0) {
+      const notificationMessage = `A new parcel request titled "${title}" has been created by "${sender.fullName}". Pickup at ${pickupLocation}, Delivery at ${deliveryLocation}`;
+    
+      // Send notifications through the centralized notification system
+      await createNotification(
+        delivererIds,
+        notificationMessage,
+        "send_parcel",
+        title,
+        {
+          phoneNumber,
+          price,
+          description,
+          parcelId: parcel._id.toString(),
+        },
+        pickupCoordinates,
+        deliveryCoordinates,
+      );
+      
+      // Emit a socket event to notify deliverers
+      delivererIds.forEach(delivererId => {
+        if (io === null) {
+          console.error("Socket.io instance is not initialized.");
+          return;
+        }
+        if (io) {
+          
+          if (io) {
+            if (io) {
+              (io as Server).to(delivererId).emit('new_parcel', {
+                message: notificationMessage,
+                parcelId: parcel._id.toString(),
+                pickupLocation,
+                deliveryLocation,
+              });
+            } else {
+              console.error("Socket.io instance is not initialized.");
+            }
+          } else {
+            console.error("Socket.io instance is not initialized.");
+          }
+        } else {
+          console.error("Socket.io instance is not initialized.");
+        }
+      });
 
-    const notificationPromises = relevantUsers.map(user => {
-      return new Notification({
-        message: `A new parcel request titled "${title}" has been created.`,
-        type: 'parcel_creation',
-        title: `"${parcel.title}"`,
-        phoneNumber: phoneNumber || '',
-        description: description || '',
-        price: price || '',
-        requestId: parcel._id,
-        userId: user._id,
-        role: req.user?.role,
-      }).save()
-        .then(() => console.log(`Notification saved for user: ${user._id}`))
-        .catch(err => console.error(`Error saving notification for user ${user._id}:`, err));
-    });
-
-    await Promise.all(notificationPromises);
-
+      console.log(`Sent notifications to ${delivererIds.length} deliverers`);
+    } else {
+      console.log("No deliverers found to send notifications");
+    }
+    
+    // Fetch the full parcel with sender details to return as response
     const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage');
 
     res.status(201).json({
-      status: 'success',
+      status: "success",
       data: fullParcel,
     });
   } catch (error) {
-    console.error('Error creating parcel:', error);
+    console.error("Error creating parcel:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Failed to create parcel request',
+      status: "error",
+      message: "Failed to create parcel request",
     });
     next(error);
   }
 };
-
 
 // export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
@@ -414,11 +457,13 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 //       description,
 //     } = req.body;
 
+//     // Create uploads directory if it doesn't exist
 //     const parcelsDir = path.join(process.cwd(), 'uploads', 'parcels');
 //     if (!fs.existsSync(parcelsDir)) {
 //       fs.mkdirSync(parcelsDir, { recursive: true });
 //     }
-    
+
+//     // Process uploaded images
 //     let images: string[] = [];
 //     if (req.files && typeof req.files === 'object') {
 //       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -427,18 +472,20 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 //       }
 //     }
 
+//     // Get coordinates for pickup and delivery locations
 //     const pickupCoordinates = await getCoordinates(pickupLocation);
 //     const deliveryCoordinates = await getCoordinates(deliveryLocation);
 
+//     // Create the parcel request
 //     const parcel = await ParcelRequest.create({
 //       senderId: req.user?.id,
 //       pickupLocation: {
 //         type: 'Point',
-//         coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude] 
+//         coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude],
 //       },
 //       deliveryLocation: {
 //         type: 'Point',
-//         coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude] 
+//         coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude],
 //       },
 //       deliveryStartTime,
 //       deliveryEndTime,
@@ -453,6 +500,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 //       status: 'PENDING',
 //     });
 
+//     // Add the parcel to the user's SendOrders array
 //     await User.findByIdAndUpdate(req.user?.id, {
 //       $push: {
 //         SendOrders: {
@@ -467,62 +515,48 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 //           deliveryType: deliveryType,
 //           deliveryStartTime: deliveryStartTime,
 //           deliveryEndTime: deliveryEndTime,
-//         }
+//         },
 //       },
-//       $inc: { totalSentParcels: 1, totalOrders: 1 }
+//       $inc: { totalSentParcels: 1, totalOrders: 1 },
 //     });
 
-//     const otherUsers = await User.find({ 
-//       isVerified: true, 
-//       _id: { $ne: req.user?.id } 
-//     });
-    
-//     const usersWithFCM = otherUsers.filter(user => user.fcmToken);
-    
-//     const messages = usersWithFCM
-//       .map(user => user.fcmToken)
-//       .filter(token => token)
-//       .map(token => ({
-//         notification: {
-//           type: 'send_parcel',
-//           title: `"${parcel.title}"`,
-//           body: `A new has been Created This user "${User.name}".`,
-//         },
-//         data: { 
-//           PhoneNumber: phoneNumber || '', 
-//           description: description || '',
-//           role: req.user?.role || '',
-//         },
-//         token,
-//       }));
-
-//     try {
-//       if (messages.length > 0) {
-//         const responses = await Promise.all(
-//           messages.map(message => admin.messaging().send(message))
-//         );
-//         console.log('Push notifications sent successfully:', responses);
-//       }
-//     } catch (error) {
-//       console.error('Error sending push notifications:', error);
+//     // Get sender information
+//     const sender = await User.findById(req.user?.id).select('fullName');
+//     if (!sender) {
+//       throw new Error('Sender not found');
 //     }
 
-//     const notificationPromises = otherUsers.map(user => {
-//       return new Notification({
-//         message: `A new parcel request titled "${title}" has been created.`,
-//         type: 'send_parcel',
-//         title: `"${parcel.title}"`,
-//         PhoneNumber: phoneNumber || '',
-//         description: description || '',
-//         price: price || '',
-//         requestId: parcel._id,
-//         userId: user._id,
-//         role: req.user?.role,
-//       }).save();
-//     });
+//     // Find deliverers (not senders) who should receive notifications
+//     const deliverers = await User.find({
+//       isVerified: true,
+//       role: 'sender', 
+//       _id: { $ne: req.user?.id }, // Exclude the sender
+//     }).select('_id');
+
+//     const delivererIds = deliverers.map(user => user._id.toString());
     
-//     await Promise.all(notificationPromises);
-//     console.log(`Created ${notificationPromises.length} notifications for other users`);
+//     if (delivererIds.length > 0) {
+//       // Create notification message
+//       const notificationMessage = `A new parcel request titled "${title}" has been created by "${sender.fullName}".`;
+      
+//       // Send notifications through our centralized notification system
+//       await createNotification(
+//         delivererIds,
+//         notificationMessage,
+//         'send_parcel',
+//         title,
+//         {
+//           phoneNumber,
+//           price,
+//           description,
+//           parcelId: parcel._id.toString()
+//         }
+//       );
+      
+//       console.log(`Sent notifications to ${delivererIds.length} deliverers`);
+//     } else {
+//       console.log('No deliverers found to send notifications');
+//     }
 
 //     const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage');
 
@@ -539,6 +573,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
 //     next(error);
 //   }
 // };
+
 
 
 export const deleteParcelRequest = async (req: Request, res: Response, next: NextFunction) => {

@@ -233,6 +233,7 @@ export interface UserDocument extends Document {
   mobileNumber?: string;
   image: string;
   passwordHash?: string;
+  notificationStatus?: boolean;
   facebook: string;
   fcmToken: string;
   instagram: string;
@@ -315,7 +316,7 @@ const userSchema = new Schema<UserDocument>({
   instagram: { type: String },
   whatsapp: { type: String },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.SENDER },
-  fcmToken: { type: String, unique: true, sparse: true },
+  fcmToken: { type: String},
   isTrial: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
   senderType: { type: String, enum: Object.values(SenderType) },
@@ -328,6 +329,7 @@ const userSchema = new Schema<UserDocument>({
   totalAmountSpent: { type: Number, default: 0 },
   totalSentParcels: { type: Number, default: 0 },
   totalReceivedParcels: { type: Number, default: 0 },
+  notificationStatus: { type: Boolean, default: true },
   
 
   SendOrders: [{
