@@ -215,7 +215,7 @@ import { console } from "inspector";
       }
   
       // Deduplicate by userId and map to send messages
-      const uniqueUserIds = Array.from(new Set(deviceTokens.map(token => userIds.toString())) );
+      const uniqueUserIds = Array.from(new Set(deviceTokens.map(_token => userIds.toString())) );
       const messages = deviceTokens.map(token => ({
         notification,
         data,
@@ -248,7 +248,11 @@ userIds: string[], message: string, type: string, title: string, additionalData:
   description?: string;
   image?: string;
   parcelId?: string;
-} = {}, as: any, NotificationData: any) => {
+  AvgRating?: number;
+  pickupLocation?: { latitude: number; longitude: number; };
+  deliveryLocation?: { latitude: number; longitude: number; };
+  name?: string;
+} = {}, _as: any, _NotificationData: any, deliveryLocation: any, p0: { latitude: number | undefined; longitude: number | undefined; }) => {
   try {
     if (!userIds || userIds.length === 0) {
       console.log('No users to notify');
@@ -279,7 +283,9 @@ userIds: string[], message: string, type: string, title: string, additionalData:
         price: additionalData.price || 0,
         description: additionalData.description || '',
         image: additionalData.image || '',
-        isRead: false
+        isRead: false,
+        
+
       });
 
       return notification.save();  // Save the new notification to the database
@@ -310,9 +316,6 @@ userIds: string[], message: string, type: string, title: string, additionalData:
     console.error('Error creating notifications:', error);
   }
 };
-
-
-
 
 /**
  * Get all non-parcel notifications for a user
@@ -470,8 +473,7 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
 export const updateNotificationStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
-    const { notificationStatus } = req.body; // `notificationStatus` should be a boolean value
-
+    const { notificationStatus } = req.body; 
     if (!userId) {
       return res.status(401).json({
         status: 'error',
@@ -479,7 +481,6 @@ export const updateNotificationStatus = async (req: Request, res: Response, next
       });
     }
 
-    // Check if notificationStatus is provided and is a boolean
     if (typeof notificationStatus !== 'boolean') {
       return res.status(400).json({
         status: 'error',
@@ -487,7 +488,6 @@ export const updateNotificationStatus = async (req: Request, res: Response, next
       });
     }
 
-    // Update the notificationStatus for the user
     const user = await User.findByIdAndUpdate(
       userId,
       { notificationStatus },

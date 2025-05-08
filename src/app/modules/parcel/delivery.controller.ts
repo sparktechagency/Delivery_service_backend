@@ -1,4 +1,3 @@
-// delivery.controller.ts
 import { AuthRequest } from '../../middlewares/auth';
 import { AppError } from '../../middlewares/error';
 import { ParcelRequest } from './ParcelRequest.model'
@@ -221,6 +220,15 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
             mobileNumber: user.mobileNumber || 'Unknown Number',
             image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
             AvgRating: user.avgRating || 0,
+            name: senderUser.fullName || '',
+            pickupLocation: {
+              latitude: parcel.pickupLocation?.coordinates[1],
+              longitude: parcel.pickupLocation?.coordinates[0]
+            },
+            deliveryLocation: {
+              latitude: parcel.deliveryLocation?.coordinates[1],
+              longitude: parcel.deliveryLocation?.coordinates[0]
+            }
           },
           token: senderUser.fcmToken,
         };
@@ -236,7 +244,7 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
       const notification = new Notification({
         message: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
         type: 'Requested-Delivery',
-        title: `"${parcel.title} "`,
+        title: `${parcel.title}`,
         description: parcel.description || '',
         price: parcel.price || '',
         requestId: parcel._id,
@@ -245,6 +253,15 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
         AvgRating: user.avgRating || 0,
         SenderName: user.fullName || '',
         mobileNumber: user.mobileNumber || ' ',
+        name: user.fullName || '',
+        pickupLocation: {
+          latitude: parcel.pickupLocation?.coordinates[1],
+          longitude: parcel.pickupLocation?.coordinates[0]
+        },
+        deliveryLocation: {
+          latitude: parcel.deliveryLocation?.coordinates[1],
+          longitude: parcel.deliveryLocation?.coordinates[0]
+        }
       });
 
       await notification.save();
@@ -302,6 +319,14 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
           mobileNumber: RequestUser.mobileNumber || 'Unknown Number',
           image:RequestUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
           AvgRating: RequestUser.avgRating || 0,
+          pickupLocation: {
+            latitude: parcel.pickupLocation?.coordinates[1],
+            longitude: parcel.pickupLocation?.coordinates[0]
+          },
+          deliveryLocation: {
+            latitude: parcel.deliveryLocation?.coordinates[1],
+            longitude: parcel.deliveryLocation?.coordinates[0]
+          }
         },
         token: RequestUser.fcmToken,
       };
@@ -327,6 +352,14 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
       AvgRating: RequestUser?.avgRating || 0,
       SenderName: RequestUser?.fullName || '',
       mobileNumber: RequestUser?.mobileNumber || ' ',
+      pickupLocation: {
+        latitude: parcel.pickupLocation?.coordinates[1],
+        longitude: parcel.pickupLocation?.coordinates[0]
+      },
+      deliveryLocation: {
+        latitude: parcel.deliveryLocation?.coordinates[1],
+        longitude: parcel.deliveryLocation?.coordinates[0]
+      }
       
     });
 
@@ -340,7 +373,6 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
     next(error);
   }
 };
-
 
 
 // export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -472,6 +504,14 @@ if (!hasRequested) {
           price: parcel.price || '',
           type: 'Accepted',
           body: `You have been assigned to deliver the parcel.`,
+          pickupLocation: {
+            latitude: parcel.pickupLocation?.coordinates[1],
+            longitude: parcel.pickupLocation?.coordinates[0],
+          },
+          deliveryLocation: {
+            latitude: parcel.deliveryLocation?.coordinates[1],
+            longitude: parcel.deliveryLocation?.coordinates[0],
+          }
 
         },
         token: deliverer.fcmToken,
@@ -495,6 +535,14 @@ if (!hasRequested) {
       userId: deliverer?._id,
       SenderName: (await User.findById(parcel.senderId))?.fullName || 'Unknown Sender',
       role: deliverer?.role,
+      pickupLocation: {
+        latitude: parcel.pickupLocation?.coordinates[1],        
+        longitude: parcel.pickupLocation?.coordinates[0],
+      },
+      deliveryLocation: {
+        latitude: parcel.deliveryLocation?.coordinates[1],        
+        longitude: parcel.deliveryLocation?.coordinates[0],
+      }
     });
 
     await notification.save();
@@ -544,6 +592,17 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
           mobileNumber: senderUser.mobileNumber || 'Unknown Number',
           image:senderUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
           AvgRating: senderUser.avgRating || 0,
+          pickupLocation: {
+            latitude: parcel.pickupLocation?.coordinates[1],
+            longitude: parcel.pickupLocation?.coordinates[0]          
+          },
+          deliveryLocation: {
+            latitude: parcel.deliveryLocation?.coordinates[1],
+            longitude: parcel.deliveryLocation?.coordinates[0]          
+          }
+
+
+
         },
         token: senderUser.fcmToken,
       };
@@ -569,6 +628,14 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
       AvgRating: senderUser?.avgRating || 0,
       SenderName: senderUser?.fullName || '',
       mobileNumber: senderUser?.mobileNumber || ' ',
+      pickupLocation: {
+        latitude: parcel.pickupLocation?.coordinates[1],
+        longitude: parcel.pickupLocation?.coordinates[0]
+      },
+      deliveryLocation: {
+        latitude: parcel.deliveryLocation?.coordinates[1],
+        longitude: parcel.deliveryLocation?.coordinates[0]
+      }
       
     });
 
@@ -642,6 +709,17 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
       AvgRating: DeliveryMan?.avgRating || 0,
       SenderName: DeliveryMan?.fullName || '',
       mobileNumber: DeliveryMan?.mobileNumber || ' ',
+      pickupLocation: {
+        latitude: parcel.pickupLocation?.coordinates[1],
+        longitude: parcel.pickupLocation?.coordinates[0]
+      },
+      deliveryLocation: { 
+        latitude: parcel.deliveryLocation?.coordinates[1],
+        longitude: parcel.deliveryLocation?.coordinates[0]
+      }
+
+
+
       
     });
 
@@ -868,9 +946,7 @@ export const updateGlobalFreeDeliveries = async (req: Request, res: Response) =>
   }
 };
 
-
 //Admin Assign single or multiple user free delivery
-
 export const assignFreeDeliveriesToUser = async (req: Request, res: Response) => {
   try {
     const { userIds, freeDeliveries } = req.body;
@@ -955,7 +1031,6 @@ export const postReviewForUser = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
-
 
 export const getReviewsForUser = async (req: Request, res: Response, next: NextFunction) => {
   try {

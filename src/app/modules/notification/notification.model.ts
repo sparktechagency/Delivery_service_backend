@@ -43,6 +43,9 @@ export interface NotificationData {
   description?: string;
   image?: string;
   parcelId?: string;
+  uswerId?: string;
+  AvgRating?: number;
+  name?: string;
   pickupLocation?: { latitude: number; longitude: number };  
   deliveryLocation?: { latitude: number; longitude: number };
 }
@@ -88,6 +91,9 @@ const notificationSchema = new mongoose.Schema({
     },
     required: false
   },
+  parcelId: { type: mongoose.Schema.Types.ObjectId, ref: 'ParcelRequest' },
+  AvgRating: { type: Number, default: 0 },
+  name: { type: String },
   description: { type: String },
   isRead: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }

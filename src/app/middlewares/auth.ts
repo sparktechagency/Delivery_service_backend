@@ -1,71 +1,3 @@
-
-// //auth.ts
-// import { Request, Response, NextFunction } from 'express';
-// import jwt from 'jsonwebtoken';
-// import { config } from '../../config/index';
-// import { AppError } from './error';
-// import { UserRole } from '../../types/index';
-// import { IUser } from '../../types/interfaces';
-// import { User } from '../models/user.model';
-
-// export interface JWTPayload {
-//   id: string;
-//   role: UserRole;
-// }
-
-// export interface AuthRequest extends Request {
-//   headers: any;
-//   // user?: JWTPayload;
-//   user?: IUser
-// }
-
-// export const authenticate = async (
-//   req: AuthRequest,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     const token = req.headers.authorization?.split(' ')[1];
-//     if (!token) {
-//       throw new AppError('Authentication required', 401);
-//     }
-
-//     const decoded = jwt.verify(token, config.jwtSecret) as JWTPayload;
-//     // req.user = decoded;
-//     const user = await User.findById(decoded.id);
-//     if (!user) {
-//       throw new AppError('User not found', 404);
-//     }
-
-//     req.user = {
-//       id: user.id,
-//       role: user.role,
-//       username: user.fullName, // Map `fullName` to `username`
-//       phoneNumber: user.mobileNumber,
-//       email: user.email,
-//       senderType: user.senderType,
-//       isVerified: user.isVerified,
-//       freeDeliveries: user.freeDeliveries,
-//       createdAt: user.createdAt,
-//       updatedAt: user.updatedAt
-//     } as IUser;
-
-
-//     next();
-//   } catch (error) {
-//     next(new AppError('Invalid token', 401));
-//   }
-// };
-
-// export const authorize = (...roles: UserRole[]) => {
-//   return (req: AuthRequest, res: Response, next: NextFunction) => {
-//     if (!req.user || !roles.includes(req.user.role)) {
-//       throw new AppError('Unauthorized', 403);
-//     }
-//     next();
-//   };
-// };
-
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/index';
@@ -130,7 +62,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 
     req.user = {
       id: user.id,
-      role: user.role,  // Ensure role is passed in `req.user`
+      role: user.role,  
       username: user.fullName,
     } as IUser;
 
@@ -138,7 +70,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 
     next();
   } catch (error) {
-    console.error("❌ Authentication Error:", error); // Debugging
+    console.error("❌ Authentication Error:", error); 
     next(error);
   }
 };

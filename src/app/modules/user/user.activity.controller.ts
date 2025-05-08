@@ -80,24 +80,18 @@ import mongoose from 'mongoose';
 
 export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      // Extract userId from request parameters
       const userId = req.params.userId;
       
-      // Validate user ID
       if (!userId) {
         throw new AppError("User ID is required", 400);
       }
   
-      // Log the incoming user ID for debugging
       console.log('Searching for User ID:', userId);
   
-      // Find user with detailed profile information
-      // Use mongoose.Types.ObjectId to ensure correct ID parsing
       const user = await User.findById(new mongoose.Types.ObjectId(userId))
-        .select('-passwordHash') // Exclude sensitive information
+        .select('-passwordHash') 
         .lean();
   
-      // Log found user for debugging
       console.log('Found User:', user);
   
       if (!user) {
@@ -105,7 +99,6 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
         throw new AppError("User not found", 404);
       }
   
-      // Fetch parcels 
       const parcels = await ParcelRequest.find({
         $or: [
           { senderId: userId },

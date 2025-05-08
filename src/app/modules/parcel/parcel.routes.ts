@@ -18,7 +18,7 @@ parcelRouter.put("/assign", authenticate, assignDeliveryMan);
 parcelRouter.put("/cancel-assignment", authenticate, cancelAssignedDeliveryMan);
 parcelRouter.put('/remove-request',authenticate, removeDeliveryRequest )
 parcelRouter.post('/delivery',authenticate, updateParcelStatus )
-parcelRouter.delete('/delete/:parcelId', authenticate,deleteParcelRequest )
+parcelRouter.delete('/delete/:parcelId', authenticate,deleteParcelRequest)
 
 
 //DeliverParcel

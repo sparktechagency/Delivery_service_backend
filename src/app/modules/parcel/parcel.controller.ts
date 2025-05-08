@@ -270,8 +270,6 @@ const getCoordinates = async (location: string) => {
 //   }
 // };
 
-
-
 let io: Server | null = null;
 
 export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
@@ -388,8 +386,16 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
           description,
           parcelId: parcel._id.toString(),
         },
-        pickupCoordinates,
-        deliveryCoordinates,
+        pickupLocation, {
+          latitude: parcel.pickupLocation?.coordinates[1],
+          longitude: parcel.pickupLocation?.coordinates[0]
+        },
+        deliveryLocation,
+         {
+          latitude: parcel.deliveryLocation?.coordinates[1],
+          longitude: parcel.deliveryLocation?.coordinates[0]
+        }
+        // userInfo.AvgRating
       );
       
       // Emit a socket event to notify deliverers
@@ -646,7 +652,6 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
   }
 };
 
-
 // export const getUserParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
 //   try {
 //     const userId = req.user?.id; 
@@ -704,7 +709,7 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
 
     let parcels;
 
-    if (req.user && req.user.role === UserRole.recciver) {
+    if (req.user && req.user.role === UserRole.SENDER) {
       parcels = await ParcelRequest.find({
         assignedDelivererId: userId, 
       })
@@ -718,7 +723,7 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
         })
         .populate({
           path: 'deliveryRequests',
-          select: 'fullName email mobileNumber image avgRating senderType DeliveryType role reviews', // Populate reviews
+          select: 'fullName email mobileNumber image avgRating senderType DeliveryType role reviews', 
         })
         .sort({ createdAt: -1 }) 
         .lean();
@@ -815,8 +820,6 @@ export const getParcelsByRadius = async (req: Request, res: Response, next: Next
     next(error);
   }
 };
-
-
 
 export const getParcelWithDeliveryRequests = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -1261,10 +1264,4 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     });
   }
 };
-
-
-
-
-
-
 
