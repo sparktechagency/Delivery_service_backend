@@ -226,10 +226,10 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     }).select('fcmToken userId');
 
     // ✅ Compose message
-    const notificationMessage = `A new parcel request titled "${title}" has been created by "${sender.fullName}".`;
+    const notificationMessage = `A new parcel "${title}" created by "${sender.fullName}".`;
     const pushPayload = {
       notification: {
-        title: 'New Parcel Request',
+        title: `"${parcel.title}"`,
         body: notificationMessage,
       },
       data: {
