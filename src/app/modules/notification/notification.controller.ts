@@ -141,7 +141,7 @@ import { console } from "inspector";
 
   export const getAllAnnouncements = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      if (req.user?.role !== 'admin') {
+      if (req.user?.role !== 'ADMIN') {
         throw new AppError('Unauthorized, admin access required', 403);
       }
   
@@ -197,82 +197,325 @@ import { console } from "inspector";
   //   }
   // };
 
-  export const sendPushNotification = async (
-    userIds: string[],
-    notification: { title: string; body: string },
-    data: Record<string, string>
-  ) => {
-    try {
-      // Fetch the FCM tokens from the DeviceToken collection based on userIds
-      const deviceTokens = await DeviceToken.find({
-        userId: { $in: userIds },
-        fcmToken: { $exists: true, $ne: '' },
-      }).select('fcmToken userId');
-  
-      if (deviceTokens.length === 0) {
-        console.log('No valid FCM tokens found');
-        return;
-      }
-  
-      // Deduplicate by userId and map to send messages
-      const uniqueUserIds = Array.from(new Set(deviceTokens.map(_token => userIds.toString())) );
-      const messages = deviceTokens.map(token => ({
-        notification,
-        data,
-        token: token.fcmToken, // Ensure one token per user
-       
-      }));
-      console.log(uniqueUserIds);
-  
-      // Send notifications in batches of 500 (FCM limit)
-      const batchSize = 500;
-      for (let i = 0; i < messages.length; i += batchSize) {
-        const batch = messages.slice(i, i + batchSize);
-        const responses = await Promise.all(batch.map(message => admin.messaging().send(message)));
-        console.log(`Batch ${Math.floor(i / batchSize) + 1}: Sent ${responses.length} push notifications`);
-      }
-    } catch (error) {
-      console.error('Error sending push notifications:', error);
-    }
-  };
+//   export const sendPushNotification = async (
+//     userIds: string[],
+//     notification: { title: string; body: string },
+//     data: Record<string, string>
+//   ) => {
+//     try {
+//       // const deviceTokens = await DeviceToken.find({
+//       //   userId: { $in: userIds },
+//       //   fcmToken: { $exists: true, $ne: '' },
+//       // }).select('fcmToken userId');
+//     console.log(`Fetching device tokens for users: ${userIds}`);
+//     const deviceTokens = await DeviceToken.find({
+//        userId: { $in: userIds },
+//        fcmToken: { $exists: true, $ne: '' },
+//       }).select('fcmToken userId');
+//       console.log(`Found ${deviceTokens.length} valid FCM tokens`);
+//       if (deviceTokens.length === 0) {
+//         console.log('No valid FCM tokens found');
+//         return;
+//       }
   
 
-/**
- * Create a new notification and send push notification
- */
+//       const uniqueUserIds = Array.from(new Set(deviceTokens.map(_token => userIds.toString())) );
+//       const messages = deviceTokens.map(token => ({
+//         notification,
+//         data,
+//         token: token.fcmToken, 
+       
+//       }));
+//       console.log(uniqueUserIds);
+  
+//       const batchSize = 500;
+//       for (let i = 0; i < messages.length; i += batchSize) {
+//         const batch = messages.slice(i, i + batchSize);
+//         const responses = await Promise.all(batch.map(message => admin.messaging().send(message)));
+//         console.log(`Batch ${Math.floor(i / batchSize) + 1}: Sent ${responses.length} push notifications`);
+//       }
+//     } catch (error) {
+//       console.error('Error sending push notifications:', error);
+//     }
+//   };
+  
+// /**
+//  * Create a new notification and send push notification
+//  */
+// export const createNotification = async (
+// userIds: string[], message: string, type: string, title: string, additionalData: {
+//   phoneNumber?: string;
+//   mobileNumber?: string;
+//   price?: number;
+//   description?: string;
+//   image?: string;
+//   parcelId?: string;
+//   AvgRating?: number;
+//   pickupLocation?: { latitude: number; longitude: number; };
+//   deliveryLocation?: { latitude: number; longitude: number; };
+//   name?: string;
+// } = {}, _as: any, _NotificationData: any, deliveryLocation: any, p0: { latitude: number | undefined; longitude: number | undefined; }) => {
+//   try {
+//     if (!userIds || userIds.length === 0) {
+//       console.log('No users to notify');
+//       return;
+//     }
+
+//     // Ensure unique notification creation for each user
+//     const notificationPromises = userIds.map(async (userId) => {
+//       const existingNotification = await Notification.findOne({
+//         userId,
+//         type,
+//         parcelId: additionalData.parcelId,  
+//       });
+
+//       if (existingNotification) {
+//         console.log(`Notification already exists for user ${userId}, skipping.`);
+//         return null;  
+//       }
+
+
+//       // const notification = new Notification({
+//       //   userId,
+//       //   message,
+//       //   type,
+//       //   title,
+//       //   phoneNumber: additionalData.phoneNumber || '',
+//       //   mobileNumber: additionalData.mobileNumber || '',
+//       //   price: additionalData.price || 0,
+//       //   description: additionalData.description || '',
+//       //   image: additionalData.image || '',
+//       //   isRead: false,
+        
+
+//       // });
+//       const notification = new Notification({
+//         userId,
+//         message,
+//         type,
+//         title,
+//         phoneNumber: additionalData.phoneNumber || '',
+//         mobileNumber: additionalData.mobileNumber || '',
+//         price: additionalData.price || 0,
+//         description: additionalData.description || '',
+//         image: additionalData.image || '',
+//         isRead: false,
+//       });
+      
+//       console.log(`Creating notification for user ${userId} with message: ${message}`);
+//       const savedNotification = await notification.save();
+//       console.log(`Notification created with ID: ${savedNotification._id}`);
+      
+
+//       return notification.save();  // Save the new notification to the database
+//     });
+
+//     // Filter out any null promises (for skipped notifications) and await the rest
+//     const results = await Promise.all(notificationPromises.filter(Boolean));
+
+//     console.log(`Created ${results.length} database notifications`);
+
+//     // After database notification creation, send the push notifications
+//     await sendPushNotification(
+//       userIds,
+//       { title, body: message },
+//       {
+//         type,
+//         title,
+//         message,
+//         phoneNumber: additionalData.phoneNumber || '',
+//         description: additionalData.description || '',
+//         parcelId: additionalData.parcelId || '',
+//         ...Object.entries(additionalData)
+//           .filter(([_, value]) => value !== undefined)
+//           .reduce((acc, [key, value]) => ({ ...acc, [key]: String(value) }), {})
+//       }
+//     );
+//   } catch (error) {
+//     console.error('Error creating notifications:', error);
+//   }
+// };
+
+// Updated sendPushNotification function with proper error handling
+export const sendPushNotification = async (
+  userIds: string[],
+  notification: { title: string; body: string },
+  data: Record<string, string>
+) => {
+  try {
+    if (!userIds || userIds.length === 0) {
+      console.log('No users to send push notifications to');
+      return;
+    }
+
+    console.log(`Fetching device tokens for users: ${userIds}`);
+    
+    // Find device tokens for the specified users - ensure we're getting valid tokens
+    const deviceTokens = await DeviceToken.find({
+      userId: { $in: userIds },
+      fcmToken: { $exists: true, $ne: '' }
+    }).select('fcmToken userId');
+    
+    console.log(`Found ${deviceTokens.length} valid FCM tokens for ${userIds.length} users`);
+    
+    if (deviceTokens.length === 0) {
+      console.log('No valid FCM tokens found, skipping push notifications');
+      return;
+    }
+
+    // Validate tokens before sending
+    const validTokens = deviceTokens.filter(dt => 
+      dt.fcmToken && dt.fcmToken.length > 10 && dt.fcmToken.indexOf(' ') === -1
+    );
+    
+    if (validTokens.length !== deviceTokens.length) {
+      console.log(`Filtered out ${deviceTokens.length - validTokens.length} invalid tokens`);
+    }
+
+    // Map each token to a message with proper payload formatting
+    const messages = validTokens.map(token => ({
+      notification: {
+        title: notification.title,
+        body: notification.body
+      },
+      data: data,
+      token: token.fcmToken,
+      android: {
+        priority: "high" as "high",
+        notification: {
+          sound: 'default',
+          priority: "high" as "high", 
+          channelId: 'default-channel'
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            contentAvailable: true,
+            sound: 'default',
+            badge: 1
+          }
+        },
+        headers: {
+          "apns-priority": "10"
+        }
+      }
+    }));
+
+    if (messages.length === 0) {
+      console.log('No valid messages to send');
+      return;
+    }
+
+    // Send messages in batches to avoid hitting FCM limits
+    const batchSize = 500;
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (let i = 0; i < messages.length; i += batchSize) {
+      const batch = messages.slice(i, i + batchSize);
+      try {
+        // Use individual sends with Promise.all since sendAll has type issues
+        const sendPromises = batch.map(message => admin.messaging().send(message, true));
+        const results = await Promise.all(sendPromises.map(p => p.catch(e => e)));
+        
+        const batchSuccesses = results.filter(r => !(r instanceof Error)).length;
+        const batchFailures = results.filter(r => r instanceof Error).length;
+        
+        successCount += batchSuccesses;
+        failureCount += batchFailures;
+        
+        console.log(`Batch ${Math.floor(i / batchSize) + 1}: Sent ${batchSuccesses} successful, ${batchFailures} failed notifications`);
+        
+        // Log specific errors for debugging
+        results.forEach((result, idx) => {
+          if (result instanceof Error) {
+            console.error(`Failed to send notification to token ${validTokens[i + idx]?.fcmToken?.substring(0, 10)}...: `, 
+              result.message);
+            
+            // Check for token issues that require cleanup
+            if (result.message && (
+                result.message.includes('registration-token-not-registered') || 
+                result.message.includes('invalid-registration-token'))) {
+              const tokenToRemove = validTokens[i + idx];
+              // Schedule token removal asynchronously
+              DeviceToken.deleteOne({ fcmToken: tokenToRemove.fcmToken }).catch(err => {
+                console.error('Error removing invalid token:', err);
+              });
+            }
+          }
+        });
+      } catch (batchError) {
+        failureCount += batch.length;
+        console.error(`Error sending batch ${Math.floor(i / batchSize) + 1}:`, batchError);
+      }
+    }
+
+    console.log(`Push notification stats: ${successCount} succeeded, ${failureCount} failed`);
+  } catch (error) {
+    console.error('Error sending push notifications:', error);
+  }
+};
+
+// Fixed createNotification function
 export const createNotification = async (
-userIds: string[], message: string, type: string, title: string, additionalData: {
-  phoneNumber?: string;
-  mobileNumber?: string;
-  price?: number;
-  description?: string;
-  image?: string;
-  parcelId?: string;
-  AvgRating?: number;
-  pickupLocation?: { latitude: number; longitude: number; };
-  deliveryLocation?: { latitude: number; longitude: number; };
-  name?: string;
-} = {}, _as: any, _NotificationData: any, deliveryLocation: any, p0: { latitude: number | undefined; longitude: number | undefined; }) => {
+  userIds: string[], 
+  message: string, 
+  type: string, 
+  title: string, 
+  additionalData: {
+    phoneNumber?: string;
+    mobileNumber?: string;
+    price?: number;
+    description?: string;
+    image?: string;
+    parcelId?: string;
+    AvgRating?: number;
+    name?: string;
+  } = {},
+  pickupLocationAddress?: string,
+  pickupLocationCoords?: { latitude: number | undefined; longitude: number | undefined },
+  deliveryLocationAddress?: string,
+  deliveryLocationCoords?: { latitude: number | undefined; longitude: number | undefined }
+) => {
   try {
     if (!userIds || userIds.length === 0) {
       console.log('No users to notify');
       return;
     }
 
+    console.log(`Creating notifications for users: ${userIds}, type: ${type}, title: ${title}`);
+
+    // Filter out users who have turned off notifications
+    const usersWithNotificationsEnabled = await User.find({
+      _id: { $in: userIds },
+      notificationStatus: true
+    }).select('_id');
+
+    const enabledUserIds = usersWithNotificationsEnabled.map(user => user._id.toString());
+    
+    console.log(`${enabledUserIds.length} of ${userIds.length} users have notifications enabled`);
+    
+    if (enabledUserIds.length === 0) {
+      console.log('All users have turned off notifications, skipping');
+      return;
+    }
+
     // Ensure unique notification creation for each user
-    const notificationPromises = userIds.map(async (userId) => {
+    const notificationPromises = enabledUserIds.map(async (userId) => {
+      // Check for existing notification to avoid duplicates
       const existingNotification = await Notification.findOne({
         userId,
         type,
-        parcelId: additionalData.parcelId,  // Ensure it relates to this specific parcel
+        parcelId: additionalData.parcelId,  
       });
 
       if (existingNotification) {
         console.log(`Notification already exists for user ${userId}, skipping.`);
-        return null;  // Skip creating a new notification if it already exists
+        return null;  
       }
 
-      // If no existing notification, create and save the new notification
+      // Create new notification with all relevant data
       const notification = new Notification({
         userId,
         message,
@@ -283,34 +526,62 @@ userIds: string[], message: string, type: string, title: string, additionalData:
         price: additionalData.price || 0,
         description: additionalData.description || '',
         image: additionalData.image || '',
+        parcelId: additionalData.parcelId || '',
+        pickupLocation: pickupLocationAddress || '',
+        deliveryLocation: deliveryLocationAddress || '',
         isRead: false,
-        
-
       });
-
-      return notification.save();  // Save the new notification to the database
+      
+      console.log(`Creating notification for user ${userId} with message: ${message}`);
+      const savedNotification = await notification.save();
+      console.log(`Notification created with ID: ${savedNotification._id}`);
+      
+      return savedNotification;
     });
 
     // Filter out any null promises (for skipped notifications) and await the rest
     const results = await Promise.all(notificationPromises.filter(Boolean));
-
     console.log(`Created ${results.length} database notifications`);
 
-    // After database notification creation, send the push notifications
-    await sendPushNotification(
-      userIds,
-      { title, body: message },
-      {
-        type,
-        title,
-        message,
-        phoneNumber: additionalData.phoneNumber || '',
-        description: additionalData.description || '',
-        parcelId: additionalData.parcelId || '',
-        ...Object.entries(additionalData)
-          .filter(([_, value]) => value !== undefined)
-          .reduce((acc, [key, value]) => ({ ...acc, [key]: String(value) }), {})
+    // Prepare data for push notification with proper formatting
+    const pushData: Record<string, string> = {
+      type,
+      title,
+      message,
+      notificationType: type // Add this for consistent filtering on client
+    };
+
+    // Add all additional data with proper string conversion
+    Object.entries(additionalData).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        pushData[key] = String(value);
       }
+    });
+
+    // Add location data if available with proper formatting
+    if (pickupLocationCoords?.latitude && pickupLocationCoords?.longitude) {
+      pushData.pickupLatitude = String(pickupLocationCoords.latitude);
+      pushData.pickupLongitude = String(pickupLocationCoords.longitude);
+    }
+    
+    if (deliveryLocationCoords?.latitude && deliveryLocationCoords?.longitude) {
+      pushData.deliveryLatitude = String(deliveryLocationCoords.latitude);
+      pushData.deliveryLongitude = String(deliveryLocationCoords.longitude);
+    }
+
+    if (pickupLocationAddress) {
+      pushData.pickupLocationAddress = pickupLocationAddress;
+    }
+
+    if (deliveryLocationAddress) {
+      pushData.deliveryLocationAddress = deliveryLocationAddress;
+    }
+
+    // Send push notifications
+    await sendPushNotification(
+      enabledUserIds,
+      { title, body: message },
+      pushData
     );
   } catch (error) {
     console.error('Error creating notifications:', error);
@@ -373,28 +644,125 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
   }
 };
 
+// export const getParcelNotifications = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const userId = req.user?.id;
+
+//     if (!userId) {
+//       return res.status(401).json({
+//         status: 'error',
+//         message: 'User not authenticated'
+//       });
+//     }
+
+//     // Check if user has notifications enabled
+//     const user = await User.findById(userId).select('notificationStatus');
+
+
+//     if (!user) {
+//       return res.status(404).json({
+//         status: 'error',
+//         message: 'User not found'
+//       });
+//     }
+
+//     // If notificationStatus is false, don't show any notifications
+//     if (!user.notificationStatus) {
+//       return res.status(200).json({
+//         status: 'success',
+//         message: 'Notifications are disabled for this user.',
+//         data: {
+//           notifications: [],
+//           pagination: {
+//             total: 0,
+//             page: 1,
+//             limit: 10,
+//             pages: 0
+//           }
+//         }
+//       });
+//     }
+
+//     // Proceed to fetch notifications if notificationStatus is true
+//     const page = parseInt(req.query.page as string) || 1;
+//     const limit = parseInt(req.query.limit as string) || 10;
+//     const skip = (page - 1) * limit;
+    
+//     // Get total count for pagination
+//     const totalCount = await Notification.countDocuments({
+//       userId,
+//       type: { $in: ['send_parcel', 'sender'] },
+//     });
+
+//     // Get parcel-related notifications with pagination
+//     console.log(`Fetching notifications for user ${userId} with page: ${page}, limit: ${limit}`);
+//     const parcelNotifications = await Notification.find({
+//       userId,
+//       type: { $in: ['send_parcel', 'sender'] },
+//     })
+//       .sort({ createdAt: -1 })
+//       .skip(skip)
+//       .limit(limit);
+//     console.log(`Found ${parcelNotifications.length} notifications for user ${userId}`);
+
+//     // Handle case when there are no notifications
+//     if (parcelNotifications.length === 0) {
+//       return res.status(200).json({
+//         status: 'success',
+//         message: 'No parcel-related notifications found.',
+//         data: {
+//           notifications: [],
+//           pagination: {
+//             total: 0,
+//             page,
+//             limit,
+//             pages: 0
+//           }
+//         }
+//       });
+//     }
+
+//     res.status(200).json({
+//       status: 'success',
+//       data: {
+//         notifications: parcelNotifications,
+//         pagination: {
+//           total: totalCount,
+//           page,
+//           limit,
+//           pages: Math.ceil(totalCount / limit)
+//         }
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Error fetching parcel notifications:', error);
+//     res.status(500).json({
+//       status: 'error',
+//       message: 'Failed to fetch parcel notifications'
+//     });
+//     next(error);
+//   }
+// };
+
 export const getParcelNotifications = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
-
     if (!userId) {
       return res.status(401).json({
         status: 'error',
         message: 'User not authenticated'
       });
     }
-
+    
     // Check if user has notifications enabled
     const user = await User.findById(userId).select('notificationStatus');
-
-
     if (!user) {
       return res.status(404).json({
         status: 'error',
         message: 'User not found'
       });
     }
-
+    
     // If notificationStatus is false, don't show any notifications
     if (!user.notificationStatus) {
       return res.status(200).json({
@@ -411,19 +779,20 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
         }
       });
     }
-
+    
     // Proceed to fetch notifications if notificationStatus is true
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
-    
+   
     // Get total count for pagination
     const totalCount = await Notification.countDocuments({
       userId,
       type: { $in: ['send_parcel', 'sender'] },
     });
-
+    
     // Get parcel-related notifications with pagination
+    console.log(`Fetching notifications for user ${userId} with page: ${page}, limit: ${limit}`);
     const parcelNotifications = await Notification.find({
       userId,
       type: { $in: ['send_parcel', 'sender'] },
@@ -431,7 +800,9 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
-
+      
+    console.log(`Found ${parcelNotifications.length} notifications for user ${userId}`);
+    
     // Handle case when there are no notifications
     if (parcelNotifications.length === 0) {
       return res.status(200).json({
@@ -448,7 +819,7 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
         }
       });
     }
-
+    
     res.status(200).json({
       status: 'success',
       data: {

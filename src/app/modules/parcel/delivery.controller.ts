@@ -216,7 +216,7 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
             type: 'delivery_request',
             title: '${parcel.title}',
             price: parcel.price || '',
-            body: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} "${user.fullName}"`,
+            body: `${user.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} "${user.fullName}"`,
             mobileNumber: user.mobileNumber || 'Unknown Number',
             image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
             AvgRating: user.avgRating || 0,
@@ -242,7 +242,7 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
       }
 
       const notification = new Notification({
-        message: `${user.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
+        message: `${user.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
         type: 'Requested-Delivery',
         title: `${parcel.title}`,
         description: parcel.description || '',
@@ -492,7 +492,7 @@ if (!hasRequested) {
     const deliverer = await User.findById(delivererId);
 
     if (deliverer && deliverer.role === UserRole.SENDER) {
-      deliverer.role = UserRole.recciver;
+      deliverer.role = UserRole.RECCIVER;
       await deliverer.save();
     }
 
@@ -616,7 +616,7 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
     }
 
     const notification = new Notification({
-      message: `${senderUser?.role === 'recciver' ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
+      message: `${senderUser?.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
       type: 'Cancelled',
       title: `"${parcel.title} "`,
       description: parcel.description || '',
@@ -680,7 +680,7 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
       const senderMessage = {
         notification: {
           title: 'cancelled parcel Delivery Man',
-          body: `${DeliveryMan.role === 'recciver' ? 'A deliverery has cancelled' : 'A user has cancelled'} parcel title "${parcel.title}".`,
+          body: `${DeliveryMan.role === UserRole.RECCIVER ? 'A deliverery has cancelled' : 'A user has cancelled'} parcel title "${parcel.title}".`,
           mobileNumber: DeliveryMan.mobileNumber || 'Unknown Number',
           image:DeliveryMan.image || 'https://i.ibb.co/z5YHLV9/profile.png',
           AvgRating: DeliveryMan.avgRating || 0,
@@ -697,7 +697,7 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
     }
 
     const notification = new Notification({
-      message: `${DeliveryMan?.role === 'recciver' ? 'A delivery has cancelled' : 'A user has cancelled'} parcel titled "${parcel.title}".`,
+      message: `${DeliveryMan?.role === UserRole.RECCIVER ? 'A delivery has cancelled' : 'A user has cancelled'} parcel titled "${parcel.title}".`,
       type: 'Recciver',
       title: `"${DeliveryMan?.fullName} cancelled the delivery"`,
       description: parcel.description || '',
@@ -768,7 +768,7 @@ export const cancelDeliveryRequest = async (req: AuthRequest, res: Response, nex
 
 
     const deliverer = await User.findById(delivererId);
-    if (deliverer && deliverer.role === UserRole.recciver) {
+    if (deliverer && deliverer.role === UserRole.RECCIVER) {
       deliverer.role = UserRole.SENDER; 
       await deliverer.save();
     }

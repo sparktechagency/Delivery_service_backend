@@ -299,12 +299,70 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+// export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { email, fcmToken } = req.body;
+
+//     if (!email) {
+//       throw new AppError('Email is required', 400);
+//     }
+
+//     const user = await User.findOne({ email });
+//     if (!user || !user.isVerified) {
+//       throw new AppError('Invalid credentials or unverified account', 401);
+//     }
+
+//     if (user.isRestricted) {
+//       throw new AppError('Your profile is restricted. Please contact support team.', 403); // Restricted account error
+//     }
+
+//     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+//     //! OTP Expiry
+//     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+//     let otp = await OTPVerification.findOne({ userId: user._id, email });
+
+//     // Handle OTP logic
+//     if (otp) {
+//       otp.otpCode = otpCode;
+//       otp.expiresAt = otpExpiry;
+//       await otp.save();
+//     } else {
+//       await OTPVerification.create({
+//         userId: user._id,
+//         email,
+//         otpCode,
+//         expiresAt: otpExpiry,
+//       });
+//     }
+
+//     // Store FCM token in the DeviceTokens collection
+//     await DeviceToken.create({ userId: user._id, fcmToken });
+
+//     // Send OTP via email
+//     await transporter.sendMail({
+//       from: config.email.user,
+//       to: email,
+//       subject: 'Your Login OTP',
+//       text: `Your OTP for login is: ${otpCode}`,
+//     });
+
+//     res.json({ status: 'success', message: 'OTP sent to your email' });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, fcmToken } = req.body;
+    const { email, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
     if (!email) {
       throw new AppError('Email is required', 400);
+    }
+
+    // Check if FCM token and deviceId are provided
+    if (fcmToken && !deviceId) {
+      throw new AppError('deviceId is required when providing fcmToken', 400);
     }
 
     const user = await User.findOne({ email });
@@ -313,12 +371,12 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
     }
 
     if (user.isRestricted) {
-      throw new AppError('Your profile is restricted. Please contact support team.', 403); // Restricted account error
+      throw new AppError('Your profile is restricted. Please contact support team.', 403);
     }
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    //! OTP Expiry
+    // OTP Expiry
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     let otp = await OTPVerification.findOne({ userId: user._id, email });
 
@@ -336,8 +394,31 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
       });
     }
 
-    // Store FCM token in the DeviceTokens collection
-    await DeviceToken.create({ userId: user._id, fcmToken });
+    // Store FCM token only if both fcmToken and deviceId are provided
+    if (fcmToken && deviceId) {
+      // Check if this device token already exists
+      const existingToken = await DeviceToken.findOne({
+        userId: user._id,
+        deviceId: deviceId
+      });
+
+      if (existingToken) {
+        // Update existing token
+        existingToken.fcmToken = fcmToken;
+        existingToken.deviceType = deviceType;
+        await existingToken.save();
+        console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+      } else {
+        // Create new device token
+        await DeviceToken.create({
+          userId: user._id,
+          fcmToken,
+          deviceId,
+          deviceType
+        });
+        console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+      }
+    }
 
     // Send OTP via email
     await transporter.sendMail({
@@ -349,26 +430,20 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
 
     res.json({ status: 'success', message: 'OTP sent to your email' });
   } catch (error) {
+    console.error('Error in loginWithEmailOTP:', error);
     next(error);
   }
 };
-
-
-
-
-
-// export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
+// export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     const { email, otpCode } = req.body;
-
 //     if (!email || !otpCode) {
 //       throw new AppError('Email and OTP code are required', 400);
 //     }
 
-//     // Fetch the latest OTP entry for the email
 //     const verification = await OTPVerification.findOne({
 //       email,
-//       expiresAt: { $gt: new Date() }, // Ensure OTP is not expired
+//       expiresAt: { $gt: new Date() },
 //     });
 
 //     if (!verification || verification.otpCode !== otpCode) {
@@ -380,22 +455,15 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
 //       throw new AppError('User not found', 404);
 //     }
 
-//     // Track the user login activity
-//     const loginTime = new Date(); // Get current time
-//     await UserActivity.create({
-//       userId: user._id,
-//       loginTime, // Log the login time
-//     });
-
 //     const payload: JWTPayload = {
 //       id: user._id.toString(),
 //       role: user.role as UserRole,
 //     };
 
-//     // Generate JWT token after successful OTP verification
-//     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '24h' });
+//     // ✅ Generate JWT token after successful OTP verification
+//     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
 
-//     // Delete OTP record after successful verification
+//     // ✅ Delete OTP record after successful verification
 //     await OTPVerification.deleteOne({ _id: verification._id });
 
 //     res.json({
@@ -415,21 +483,17 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
 //   }
 // };
 
-
 export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, otpCode } = req.body;
+    const { email, otpCode, fcmToken, deviceId, deviceType = 'android' } = req.body;
+
     if (!email || !otpCode) {
       throw new AppError('Email and OTP code are required', 400);
     }
 
-    const verification = await OTPVerification.findOne({
-      email,
-      expiresAt: { $gt: new Date() },
-    });
-
-    if (!verification || verification.otpCode !== otpCode) {
-      throw new AppError('Invalid or expired OTP', 400);
+    // Check if FCM token and deviceId are provided
+    if (fcmToken && !deviceId) {
+      throw new AppError('deviceId is required when providing fcmToken', 400);
     }
 
     const user = await User.findOne({ email });
@@ -437,35 +501,74 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
       throw new AppError('User not found', 404);
     }
 
-    const payload: JWTPayload = {
-      id: user._id.toString(),
-      role: user.role as UserRole,
-    };
+    const otp = await OTPVerification.findOne({
+      userId: user._id,
+      email,
+      otpCode,
+      expiresAt: { $gt: new Date() },
+    });
 
-    // ✅ Generate JWT token after successful OTP verification
-    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+    if (!otp) {
+      throw new AppError('Invalid or expired OTP', 400);
+    }
 
-    // ✅ Delete OTP record after successful verification
-    await OTPVerification.deleteOne({ _id: verification._id });
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: '20d' }
+    );
 
+    // Handle FCM token registration/update here as well
+    // This ensures token is registered even if user skips login step
+    if (fcmToken && deviceId) {
+      // Check if this device token already exists
+      const existingToken = await DeviceToken.findOne({
+        userId: user._id,
+        deviceId: deviceId
+      });
+
+      if (existingToken) {
+        // Update existing token
+        existingToken.fcmToken = fcmToken;
+        existingToken.deviceType = deviceType;
+        await existingToken.save();
+        console.log(`Updated FCM token for user ${user._id}, device ${deviceId} during OTP verification`);
+      } else {
+        // Create new device token
+        await DeviceToken.create({
+          userId: user._id,
+          fcmToken,
+          deviceId,
+          deviceType
+        });
+        console.log(`Created new FCM token for user ${user._id}, device ${deviceId} during OTP verification`);
+      }
+    }
+
+    // Delete the OTP document after successful verification
+    await OTPVerification.deleteOne({ _id: otp._id });
+
+    // Return user info along with the token
     res.json({
       status: 'success',
+      message: 'OTP verified successfully',
       data: {
-        token,
         user: {
-          id: user._id,
-          fullName: user.fullName,
+          _id: user._id,
           email: user.email,
+          fullName: user.fullName,
           role: user.role,
+          // Include other non-sensitive user fields as needed
         },
+        token,
       },
     });
   } catch (error) {
+    console.error('Error in verifyOTP:', error);
     next(error);
   }
 };
-
-
 // export const googleLoginOrRegister = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     const { googleId, fullName, email, profileImage } = req.body; // Assuming these are coming from Google OAuth

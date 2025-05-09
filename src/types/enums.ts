@@ -1,8 +1,8 @@
 export enum UserRole {
     SENDER = 'sender',
-    DELIVERER = 'deliverer',
-    ADMIN = 'admin',
-    recciver = "recciver"
+    DELIVERER = 'DELIVERER',
+    ADMIN = 'ADMIN',
+    RECCIVER = "RECCIVER",
   }
   
   export enum DeliveryType {
@@ -12,7 +12,7 @@ export enum UserRole {
     BIKE = 'bike',
     PERSON = 'person',
     TAXI = 'taxi',
-    AIRPLANE = "AirPlane"
+    AIRPLANE = "Plane"
   }
   
   export enum DeliveryStatus {

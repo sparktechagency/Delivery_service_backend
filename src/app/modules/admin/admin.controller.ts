@@ -141,7 +141,7 @@ export const updateAdminProfile = async (req: Request, res: Response, next: Next
 
 
     const user = await Admin.findById(userId);
-    if (!user || user.role !== 'admin') {
+    if (!user || user.role !== 'ADMIN') {
       return res.status(403).json({
         status: "error",
         message: "You are not authorized to update admin profiles"
