@@ -1372,6 +1372,9 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
 
     // Aggregate to count the number of users for each rating (1 to 5 stars)
     const ratingCounts = await User.aggregate([
+      // Match users who have reviews
+      { $match: { "reviews": { $exists: true, $ne: [] } } },
+
       // Unwind the reviews array to work with individual reviews
       { $unwind: "$reviews" },
 
@@ -1383,7 +1386,7 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
         }
       },
 
-      // Sort the results by rating in descending order
+      // Sort the results by rating in ascending order
       { $sort: { _id: 1 } }
     ]);
 
@@ -1398,7 +1401,7 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
       });
     }
 
-    // Send the response with the counts of users for each rating
+    // Initialize the user ratings count
     const userRatings = {
       "5_star": 0,
       "4_star": 0,
@@ -1426,6 +1429,7 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
     next(error);
   }
 };
+
 
 // export const getUserStatistics = async (req: Request, res: Response) => {
 //   try {
@@ -1538,9 +1542,9 @@ export const getUserRatingsStatistics = async (req: Request, res: Response) => {
   try {
     // Aggregate ratings by grouping them
     const ratingsStats = await User.aggregate([
-      { $unwind: "$reviews" }, // Unwind the reviews array
-      { $group: { _id: "$reviews.rating", count: { $sum: 1 } } }, // Group by rating and count
-      { $sort: { _id: 1 } } // Sort by rating (1-5 stars)
+      { $unwind: "$reviews" }, 
+      { $group: { _id: "$reviews.rating", count: { $sum: 1 } } }, 
+      { $sort: { _id: 1 } }
     ]);
 
     // Create a result object with ratings from 1 to 5

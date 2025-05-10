@@ -188,10 +188,13 @@ const transporter = nodemailer.createTransport({
 
 export const registerWithEmail = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { fullName, country,email } = req.body;
+    const { fullName, country, email, mobileNumber, fcmToken, deviceId, deviceType = 'android'  } = req.body;
 
     if (!email) {
       throw new AppError('Email is required', 400);
+    }
+    if (fcmToken && !deviceId) {
+      throw new AppError('deviceId is required when providing fcmToken', 400);
     }
 
     const existingUser = await User.findOne({ email });
@@ -199,7 +202,7 @@ export const registerWithEmail = async (req: Request, res: Response, next: NextF
       throw new AppError('Email already registered', 400);
     }
 
-    const user = await User.create({ fullName,country, email, isVerified: false });
+    const user = await User.create({ fullName,country, email,mobileNumber, isVerified: false });
 
 
     await OTPVerification.deleteMany({ email });
@@ -217,6 +220,32 @@ export const registerWithEmail = async (req: Request, res: Response, next: NextF
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
+        // Store FCM token only if both fcmToken and deviceId are provided
+        if (fcmToken && deviceId) {
+          // Check if this device token already exists
+          const existingToken = await DeviceToken.findOne({
+            userId: user._id,
+            deviceId: deviceId
+          });
+    
+          if (existingToken) {
+            // Update existing token
+            existingToken.fcmToken = fcmToken;
+            existingToken.deviceType = deviceType;
+            await existingToken.save();
+            console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+          } else {
+            // Create new device token
+            await DeviceToken.create({
+              userId: user._id,
+              fcmToken,
+              deviceId,
+              deviceType
+            });
+            console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+          }
+        }
+    
     // ✅ Send the **plain OTP** via email
     await emailHelper.sendEmail({
       to: email,
@@ -243,13 +272,15 @@ export const registerWithEmail = async (req: Request, res: Response, next: NextF
 
 export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, otpCode } = req.body;
+    const { email, otpCode,fcmToken, deviceId, deviceType = 'android'} = req.body;
     console.log("🔹 User Entered OTP:", otpCode);
 
     if (!email || !otpCode) {
       throw new AppError('Email and OTP code are required', 400);
     }
-
+    if (fcmToken && !deviceId) {
+      throw new AppError('deviceId is required when providing fcmToken', 400);
+    }
     // ✅ Fetch the latest OTP entry for the email
     const verification = await OTPVerification.findOne({
       email,
@@ -283,75 +314,53 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
       id: user._id.toString(),
       role: user.role as UserRole,
     };
+    // Store FCM token only if both fcmToken and deviceId are provided
+    if (fcmToken && deviceId) {
+      // Check if this device token already exists
+      const existingToken = await DeviceToken.findOne({
+        userId: user._id,
+        deviceId: deviceId
+      });
+
+      if (existingToken) {                                                                                                                               
+        // Update existing token
+        existingToken.fcmToken = fcmToken;
+        existingToken.deviceType = deviceType;
+        await existingToken.save();
+        console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+      } else {
+        // Create new device token
+        await DeviceToken.create({
+          userId: user._id,
+          fcmToken,
+          deviceId,
+          deviceType
+        });
+        console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+      }
+    }
 
     // ✅ Generate JWT token after successful OTP verification
     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
 
     res.json({ 
-      token,
-      status: 'success', 
-      message: 'Email verified successfully'
-      
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+        },
+        token,
+      },
     });
+    
   } catch (error) {
     console.error('Verification Error:', error);
     next(error);
   }
 };
 
-// export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { email, fcmToken } = req.body;
-
-//     if (!email) {
-//       throw new AppError('Email is required', 400);
-//     }
-
-//     const user = await User.findOne({ email });
-//     if (!user || !user.isVerified) {
-//       throw new AppError('Invalid credentials or unverified account', 401);
-//     }
-
-//     if (user.isRestricted) {
-//       throw new AppError('Your profile is restricted. Please contact support team.', 403); // Restricted account error
-//     }
-
-//     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-//     //! OTP Expiry
-//     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-//     let otp = await OTPVerification.findOne({ userId: user._id, email });
-
-//     // Handle OTP logic
-//     if (otp) {
-//       otp.otpCode = otpCode;
-//       otp.expiresAt = otpExpiry;
-//       await otp.save();
-//     } else {
-//       await OTPVerification.create({
-//         userId: user._id,
-//         email,
-//         otpCode,
-//         expiresAt: otpExpiry,
-//       });
-//     }
-
-//     // Store FCM token in the DeviceTokens collection
-//     await DeviceToken.create({ userId: user._id, fcmToken });
-
-//     // Send OTP via email
-//     await transporter.sendMail({
-//       from: config.email.user,
-//       to: email,
-//       subject: 'Your Login OTP',
-//       text: `Your OTP for login is: ${otpCode}`,
-//     });
-
-//     res.json({ status: 'success', message: 'OTP sent to your email' });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 export const loginWithEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, fcmToken, deviceId, deviceType = 'android' } = req.body;
@@ -434,55 +443,6 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
-// export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { email, otpCode } = req.body;
-//     if (!email || !otpCode) {
-//       throw new AppError('Email and OTP code are required', 400);
-//     }
-
-//     const verification = await OTPVerification.findOne({
-//       email,
-//       expiresAt: { $gt: new Date() },
-//     });
-
-//     if (!verification || verification.otpCode !== otpCode) {
-//       throw new AppError('Invalid or expired OTP', 400);
-//     }
-
-//     const user = await User.findOne({ email });
-//     if (!user) {
-//       throw new AppError('User not found', 404);
-//     }
-
-//     const payload: JWTPayload = {
-//       id: user._id.toString(),
-//       role: user.role as UserRole,
-//     };
-
-//     // ✅ Generate JWT token after successful OTP verification
-//     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
-
-//     // ✅ Delete OTP record after successful verification
-//     await OTPVerification.deleteOne({ _id: verification._id });
-
-//     res.json({
-//       status: 'success',
-//       data: {
-//         token,
-//         user: {
-//           id: user._id,
-//           fullName: user.fullName,
-//           email: user.email,
-//           role: user.role,
-//         },
-//       },
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, otpCode, fcmToken, deviceId, deviceType = 'android' } = req.body;
@@ -569,57 +529,20 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
     next(error);
   }
 };
-// export const googleLoginOrRegister = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { googleId, fullName, email, profileImage } = req.body; // Assuming these are coming from Google OAuth
-
-//     if (!googleId || !email || !fullName) {
-//       throw new AppError('Missing Google credentials', 400);
-//     }
-
-//     // Check if the user already exists in the database
-//     let user = await User.findOne({ email });
-
-//     if (!user) {
-//       // If user does not exist, create a new user
-//       user = await User.create({
-//         fullName,
-//         email,
-//         googleId,        // Store the Google ID for reference
-//         profileImage: profileImage || '', // Store the profile image if available
-//         isVerified: true, // Automatically mark as verified, as no OTP is required for Google login
-//         isRestricted: false, // By default, set the user as not restricted
-//         role: 'receiver',  // Assuming default role is 'receiver'; you can change based on your use case
-//       });
-
-//       // Send the response after user creation
-//       return res.status(201).json({
-//         status: 'success',
-//         message: 'User registered successfully with Google.',
-//         data: user,
-//       });
-//     }
-
-//     // If user exists, log them in automatically
-//     res.status(200).json({
-//       status: 'success',
-//       message: 'User logged in successfully with Google.',
-//       data: user, // Return user data, including profile information
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here'; 
 
 export const googleLoginOrRegister = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { googleId, fullName, email, profileImage } = req.body;
+    const { googleId, fullName, email, profileImage, fcmToken, deviceId, deviceType = 'android'  } = req.body;
 
     if (!googleId || !email || !fullName) {
       throw new AppError('Missing Google credentials', 400);
     }
+    if (fcmToken && !deviceId) {
+      throw new AppError('deviceId is required when providing fcmToken', 400);
+    }
+
     let user = await User.findOne({ email });
 
     if (!user) {
@@ -633,6 +556,31 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
         isRestricted: false, 
         role: 'receiver', 
       });
+    // Store FCM token only if both fcmToken and deviceId are provided
+    if (fcmToken && deviceId) {
+      // Check if this device token already exists
+      const existingToken = await DeviceToken.findOne({
+        userId: user._id,
+        deviceId: deviceId
+      });
+
+      if (existingToken) {
+        // Update existing token
+        existingToken.fcmToken = fcmToken;
+        existingToken.deviceType = deviceType;
+        await existingToken.save();
+        console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+      } else {
+        // Create new device token
+        await DeviceToken.create({
+          userId: user._id,
+          fcmToken,
+          deviceId,
+          deviceType
+        });
+        console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+      }
+    }
 
 
       const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '20d' });

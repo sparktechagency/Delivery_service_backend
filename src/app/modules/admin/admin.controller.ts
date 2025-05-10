@@ -269,9 +269,6 @@ export const reviewAdminUpdates = async (req: Request, res: Response, next: Next
     }
   };
 
-
-  
-
 export const getOrders = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (mongoose.connection.readyState !== 1) {

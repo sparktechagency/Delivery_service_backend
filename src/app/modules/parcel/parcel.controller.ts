@@ -188,7 +188,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       status: 'PENDING',
     });
 
-    // Update sender's record
+    // Update sender's record 
     await User.findByIdAndUpdate(req.user?.id, {
       $push: {
         SendOrders: {
@@ -211,7 +211,8 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     // Get sender info
     const sender = await User.findById(req.user?.id).select('fullName');
     if (!sender) throw new Error('Sender not found');
-
+  
+    //specific user obly notify
     const usersToNotify = await User.find({
       isVerified: true,
       _id: { $ne: req.user?.id },
@@ -229,7 +230,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     const notificationMessage = `A new parcel "${title}" created by "${sender.fullName}".`;
     const pushPayload = {
       notification: {
-        title: `"${parcel.title}"`,
+        title: `${parcel.title}`,
         body: notificationMessage,
       },
       data: {
