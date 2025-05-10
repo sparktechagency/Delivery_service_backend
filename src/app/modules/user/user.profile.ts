@@ -198,13 +198,14 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
 
         user: {
           ...user.toObject(),
-          mobileNumber: user.mobileNumber || "missing mobile number", 
-          facebook: user.facebook || "missing facebook link", 
-          instagram: user.instagram || "missing instagram link",
-          whatsapp: user.whatsapp || "missing whatsapp number",
+          mobileNumber: user.mobileNumber || "", 
+          facebook: user.facebook || "", 
+          instagram: user.instagram || "",
+          whatsapp: user.whatsapp || "",
           email : user.email || "missing email",
           image: user.image || "https://i.ibb.co/z5YHLV9/profile.png",
-          fcmToken: user.fcmToken || "missing fcm token",
+          fcmToken: user.fcmToken || "",
+          country: user.country || "",
 
         },
         earnings: earningsData,
