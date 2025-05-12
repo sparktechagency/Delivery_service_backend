@@ -496,9 +496,52 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
+// export const getParcelsByRadius = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { latitude, longitude, radius, status } = req.body;
+//     if (isNaN(latitude) || isNaN(longitude) || isNaN(radius)) {
+//       throw new AppError('Latitude, longitude, and radius must be valid numbers', 400);
+//     }
+
+//     console.log(`Searching for parcels within ${radius} km of lat: ${latitude}, lon: ${longitude}`);
+
+//     const radiusInRadians = radius / 6371;
+
+//     const filter: any = {
+//       'pickupLocation.coordinates': {
+//         $geoWithin: {
+//           $centerSphere: [[longitude, latitude], radiusInRadians], 
+//         },
+//       },
+//     };
+
+//     filter.status = DeliveryStatus.PENDING;
+
+
+//     if (status && Object.values(DeliveryStatus).includes(status)) {
+//       filter.status = status;
+//     }
+
+//     const parcels = await ParcelRequest.find(filter);
+
+//     if (parcels.length === 0) {
+//       console.log('No parcels found within the specified radius.');
+//     } else {
+//       console.log(`Found ${parcels.length} parcels within the specified radius.`);
+//     }
+
+//     res.json({
+//       status: 'success',
+//       data: parcels,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 export const getParcelsByRadius = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { latitude, longitude, radius, status } = req.body;
+
     if (isNaN(latitude) || isNaN(longitude) || isNaN(radius)) {
       throw new AppError('Latitude, longitude, and radius must be valid numbers', 400);
     }
@@ -513,16 +556,20 @@ export const getParcelsByRadius = async (req: Request, res: Response, next: Next
           $centerSphere: [[longitude, latitude], radiusInRadians], 
         },
       },
+      status: DeliveryStatus.PENDING, 
     };
-
-    filter.status = DeliveryStatus.PENDING;
-
-
     if (status && Object.values(DeliveryStatus).includes(status)) {
       filter.status = status;
     }
 
-    const parcels = await ParcelRequest.find(filter);
+    // Exclude parcels created by the logged-in user
+    if (req.user?.id) {
+      filter.senderId = { $ne: req.user.id }; //avoid the user from seeing their own parcels
+    }
+
+    const parcels = await ParcelRequest.find(filter)
+      .populate('senderId', 'fullName') 
+      .lean();
 
     if (parcels.length === 0) {
       console.log('No parcels found within the specified radius.');
@@ -560,7 +607,6 @@ export const getParcelWithDeliveryRequests = async (req: Request, res: Response,
     next(error);
   }
 };
-
 
 // export const updateParcelStatus = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
@@ -793,6 +839,7 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+
 // export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     const { latitude, longitude, radius = 15, deliveryType } = req.query;
@@ -838,10 +885,23 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
 //       },
 //     };
 
-//     // If a specific deliveryType is provided, filter by deliveryType
+//     // Delivery type mapping based on selected delivery type
+//     const deliveryTypeMapping: { [key: string]: string[] } = {
+//       [DeliveryType.PERSON]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE],
+//       [DeliveryType.BICYCLE]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE],
+//       [DeliveryType.BIKE]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR],
+//       [DeliveryType.CAR]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR],
+//       [DeliveryType.TAXI]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR, DeliveryType.TAXI],
+//       [DeliveryType.TRUCK]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR, DeliveryType.TRUCK],
+//       [DeliveryType.AIRPLANE]: [DeliveryType.AIRPLANE],
+//     };
+
 //     if (deliveryType && Object.values(DeliveryType).includes(deliveryType as DeliveryType)) {
-//       nearbyPickupQuery.deliveryType = deliveryType;
-//       nearbyDeliveryQuery.deliveryType = deliveryType;
+//       const validTypes = deliveryTypeMapping[deliveryType as string];
+//       if (validTypes) {
+//         nearbyPickupQuery.deliveryType = { $in: validTypes };
+//         nearbyDeliveryQuery.deliveryType = { $in: validTypes };
+//       }
 //     } else if (deliveryType) {
 //       // If the provided deliveryType is invalid, return an error
 //       return res.status(400).json({
@@ -883,6 +943,9 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
 // };
 export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Debugging: Check the user ID
+    console.log("Logged-in user ID:", req.user?.id); // Add this line to verify the user ID
+
     const { latitude, longitude, radius = 15, deliveryType } = req.query;
 
     const lat = parseFloat(latitude as string);
@@ -910,10 +973,11 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
       status: DeliveryStatus.PENDING,
       pickupLocation: {
         $nearSphere: {
-          $geometry: { type: 'Point', coordinates: [lng, lat] }, 
-          $maxDistance: maxDistance, 
+          $geometry: { type: 'Point', coordinates: [lng, lat] },
+          $maxDistance: maxDistance,
         },
       },
+      senderId: { $ne: req.user?.id }, // Exclude parcels owned by the logged-in user
     };
 
     const nearbyDeliveryQuery: any = {
@@ -921,9 +985,10 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
       deliveryLocation: {
         $nearSphere: {
           $geometry: { type: 'Point', coordinates: [lng, lat] },
-          $maxDistance: maxDistance, 
+          $maxDistance: maxDistance,
         },
       },
+      senderId: { $ne: req.user?.id }, // Exclude parcels owned by the logged-in user
     };
 
     // Delivery type mapping based on selected delivery type
@@ -944,7 +1009,6 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
         nearbyDeliveryQuery.deliveryType = { $in: validTypes };
       }
     } else if (deliveryType) {
-      // If the provided deliveryType is invalid, return an error
       return res.status(400).json({
         status: 'error',
         message: `Invalid delivery type: ${deliveryType}. Please select a valid delivery type.`,
@@ -952,13 +1016,11 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     }
 
     const nearbyPickupParcels = await ParcelRequest.find(nearbyPickupQuery)
-      .select('title price senderId description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
-      .populate('senderId', 'fullName email mobileNumber role')
+      .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') // Removed senderId
       .lean();
 
     const nearbyDeliveryParcels = await ParcelRequest.find(nearbyDeliveryQuery)
-      .select('title price senderId description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
-      .populate('senderId', 'fullName email mobileNumber role')
+      .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') // Removed senderId
       .lean();
 
     const allNearbyParcels = [...nearbyPickupParcels, ...nearbyDeliveryParcels];
@@ -982,4 +1044,5 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     });
   }
 };
+
 

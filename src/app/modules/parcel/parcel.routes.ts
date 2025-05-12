@@ -22,7 +22,7 @@ parcelRouter.delete('/delete/:parcelId', authenticate,deleteParcelRequest)
 
 
 //DeliverParcel
-parcelRouter.get('/filtered', getFilteredParcels);
+parcelRouter.get('/filtered', authenticate,getFilteredParcels);
 
 export default parcelRouter;
 
