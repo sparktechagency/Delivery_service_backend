@@ -9,7 +9,7 @@ const adminSchema = new mongoose.Schema({
   permanentAddress: { type: String },
   postalCode: { type: String },
   username: { type: String, unique: true, required: true },
-   profileImage: { type: String },
+  image: { type: String, default: "" },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.ADMIN },
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },

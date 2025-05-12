@@ -25,7 +25,7 @@ adminRouter.post('/login', loginAdmin);
 // adminRouter.put('/profile/:id', authenticate, authorize(UserRole.ADMIN), upload.single('image'), updateAdminProfile);
 
 // Route to update admin profile (authenticate, authorize, upload image, then update profile)
-adminRouter.put('/profile/:id', authenticate, upload.single('profileImage'), updateAdminProfile);
+adminRouter.put('/profile/:id', authenticate, updateAdminProfile);
 adminRouter.put('/change-password', authenticate, authorize(UserRole.ADMIN), changeAdminPassword);
 adminRouter.delete('/user/:userId', authenticate, authorize(UserRole.ADMIN), deleteUser);
 adminRouter.get('/profile', authenticate, authorize(UserRole.ADMIN), getAdminProfile);

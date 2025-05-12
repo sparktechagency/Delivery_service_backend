@@ -287,14 +287,12 @@ export const getGlobalTrialDetailsForAdmin = async (req: Request, res: Response)
 
 export const updateSubscriptionById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;  // Extract the subscription ID from the URL parameters
+    const { id } = req.params; 
     const { type, price, freeParcels, description, deliveryLimit, expiryDate } = req.body; // Extract the fields to update
 
-    // Log the received ID and request body (optional for debugging)
     console.log("Subscription ID to Update:", id);
     console.log("Updated Request Body:", req.body);
 
-    // Find the subscription plan by its ID
     const subscription = await Subscription.findById(id);
 
     if (!subscription) {

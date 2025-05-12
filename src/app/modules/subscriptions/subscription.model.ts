@@ -91,12 +91,14 @@ interface BaseSubscription extends Document {
   trialActive: boolean; // Flag to mark if the global trial is active
   expiryDate: Date;
   kind?: string; // Discriminator key
+  deliveryLimit: number;
 }
 export interface GlobalSubscriptionDocument extends Document {
   type: string;
   freeDeliveries: number;
   description: string;
   totalDeliveries: number;
+  deliveryLimit: number;
   price: number;
   earnings: number;
   isActive: boolean;
@@ -122,6 +124,7 @@ export interface GlobalSubscriptionDocument extends BaseSubscription {
   totalDeliveries: number;
   price: number;
   earnings: number;
+  deliveryLimit: number;
   isActive: boolean;
   isTrial: boolean;
   trialActive: boolean; // Flag to mark if the global trial is active
@@ -180,6 +183,7 @@ const baseSchema = new Schema({
   trialPeriod: { type: Number, default: 60 }, // Default trial period (60 days)
   subscriptionStartDate: { type: Date, default: Date.now }, // Start date of the subscription
   subscriptionEndDate: { type: Date }, // End date of the subscription
+  deliveryLimit: { type: Number, default: 0 },
   expiryDate: {
     type: Date,
     default: () => new Date(new Date().setMonth(new Date().getMonth() + 1)),

@@ -357,8 +357,8 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
       
 
     const reorderedParcels = parcels.map(parcel => {
-      const { _id, ...rest } = parcel.toObject(); 
-      return { _id, ...rest }; 
+      const { _id, ...rest } = parcel.toObject() as any; // Use 'as any' to allow adding custom properties
+      return { _id, ...rest, isRequestedByMe: false }; // Add isRequestedByMe property
     });
 
     res.status(200).json({
@@ -370,123 +370,55 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
   }
 };
 
-// export const getUserParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const userId = req.user?.id; 
-//     if (!userId) throw new AppError("Unauthorized", 401); 
-
-//     let parcels;
-
-//     if (req.user && req.user.role === UserRole.recciver) {
-//       parcels = await ParcelRequest.find({
-//         assignedDelivererId: userId, 
-//       })
-//         .populate("senderId", "fullName email mobileNumber image avgRating role")
-//         .populate("assignedDelivererId", "fullName email mobileNumber image avgRating role")
-//         .populate("deliveryRequests", "fullName email mobileNumber image avgRating role")
-
-//         .sort({ createdAt: -1 }) 
-//         .lean();
-//     } else {
-//       parcels = await ParcelRequest.find({
-//         senderId: userId, 
-//       })
-//       //this are assined DeliveryMan
-//         .populate("senderId", "fullName email mobileNumber reviews avgRating image role")
-//         .populate("assignedDelivererId", "fullName email mobileNumber image reviews avgRating role")
-//         .populate("deliveryRequests", "fullName email mobileNumber image reviews avgRating role")
-//         .sort({ createdAt: -1 })  
-//         .lean();
-//     }
-
-//     if (parcels && parcels.length > 0) {
-//       parcels = parcels.map(parcel => {
-//         // Slice the deliveryRequests array to the first 5 requests only
-//         if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
-//           parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
-//         }
-//         return parcel;
-//       });
-//     }
-
-//     res.status(200).json({
-//       status: "success",
-//       data: parcels,  
-//     });
-//   } catch (error) {
-//     next(error);  
-//   }
-// };
 
 export const getUserParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("Unauthorized", 401);
-    }
-
+    if (!userId) throw new AppError("Unauthorized", 401);
     let parcels;
-
-    if (req.user && req.user.role === UserRole.RECCIVER) {
+    if (req.user && req.user.role === UserRole.SENDER) {
       parcels = await ParcelRequest.find({
-        assignedDelivererId: userId, 
+        assignedDelivererId: userId,
       })
-        .populate({
-          path: 'senderId',
-          select: 'fullName email mobileNumber image avgRating role',
-        })
-        .populate({
-          path: 'assignedDelivererId',
-          select: 'fullName email mobileNumber image avgRating senderType DeliveryType role',
-        })
-        .populate({
-          path: 'deliveryRequests',
-          select: 'fullName email mobileNumber image avgRating senderType DeliveryType role reviews', 
-        })
-        .sort({ createdAt: -1 }) 
+        .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
+        .populate("assignedDelivererId", "fullName email mobileNumber image avgRating role")
+        .populate("deliveryRequests", "fullName email mobileNumber image avgRating role")
+        .sort({ createdAt: -1 })
         .lean();
     } else {
       parcels = await ParcelRequest.find({
-        senderId: userId, 
+        senderId: userId,
       })
-        .populate({
-          path: 'senderId',
-          select: 'fullName email mobileNumber image reviews avgRating role',
-        })
-        .populate({
-          path: 'assignedDelivererId',
-          select: 'fullName email mobileNumber image reviews avgRating senderType DeliveryType role',
-        })
-        .populate({
-          path: 'deliveryRequests',
-          select: 'fullName email mobileNumber image reviews avgRating senderType DeliveryType role',
-        })
+        .populate("senderId", "fullName email mobileNumber phoneNumber reviews avgRating image role")
+        .populate("assignedDelivererId", "fullName email mobileNumber image reviews avgRating role")
+        .populate("deliveryRequests", "fullName email mobileNumber image reviews avgRating role")
         .sort({ createdAt: -1 })  
         .lean();
     }
-
     if (parcels && parcels.length > 0) {
       parcels = parcels.map(parcel => {
+        // Handle sender mobile number
+        if (parcel.senderId && typeof parcel.senderId === 'object' && parcel.senderId !== null) {
+          // Check if it's a populated user object by looking for common user properties
+          if ('email' in parcel.senderId) {
+            // Check for mobileNumber first, then phoneNumber
+            const mobileNumber = 
+              ('mobileNumber' in parcel.senderId ? parcel.senderId.mobileNumber : null) || 
+              ('phoneNumber' in parcel.senderId ? parcel.senderId.phoneNumber : null) || 
+              "";
+            
+            // Set the mobileNumber
+            (parcel.senderId as any).mobileNumber = mobileNumber;
+          }
+        }
+        
+        // Slice the deliveryRequests array to the first 5 requests only
         if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
           parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
         }
-
-        parcel.deliveryRequests = parcel.deliveryRequests.map((deliveryRequest: any) => {
-          const totalReviews = deliveryRequest.reviews.length;
-          const avgRating = totalReviews > 0
-            ? deliveryRequest.reviews.reduce((sum: any, review: { rating: any; }) => sum + review.rating, 0) / totalReviews
-            : 0; 
-            
-          deliveryRequest.totalReviews = totalReviews;
-          deliveryRequest.avgRating = avgRating;
-
-          return deliveryRequest;
-        });
-
         return parcel;
       });
     }
-
     res.status(200).json({
       status: "success",
       data: parcels,  
@@ -495,6 +427,70 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
     next(error);  
   }
 };
+
+// Controller to show parcels requested by the user and those assigned to them
+export const getAssignedAndRequestedParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new AppError("Unauthorized", 401);
+
+    // Parcels where the user has requested to deliver
+    const requestedParcels = await ParcelRequest.find({
+      deliveryRequests: userId, // User has requested to deliver this parcel
+      status: { $ne: DeliveryStatus.DELIVERED } // Exclude completed parcels
+    })
+      .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
+      .populate("assignedDelivererId", "fullName email mobileNumber image avgRating role")
+      .populate("deliveryRequests", "fullName email mobileNumber image avgRating role")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Parcels where the user has been assigned as the deliverer
+    const assignedParcels = await ParcelRequest.find({
+      assignedDelivererId: userId, // User is the assigned deliverer for this parcel
+      status: { $ne: DeliveryStatus.DELIVERED } // Exclude completed parcels
+    })
+      .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
+      .populate("assignedDelivererId", "fullName email mobileNumber image avgRating role")
+      .populate("deliveryRequests", "fullName email mobileNumber image avgRating role")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Combine both requested and assigned parcels into one response
+    const allParcels = [...requestedParcels, ...assignedParcels];
+
+    // Modify parcels as needed, for example, set the mobile number for the sender if missing
+    const parcels = allParcels.map(parcel => {
+      if (parcel.senderId && typeof parcel.senderId === 'object' && parcel.senderId !== null) {
+        if ('email' in parcel.senderId) {
+          const mobileNumber = 
+            ('mobileNumber' in parcel.senderId ? parcel.senderId.mobileNumber : null) || 
+            ('phoneNumber' in parcel.senderId ? parcel.senderId.phoneNumber : null) || 
+            "";
+          
+          (parcel.senderId as any).mobileNumber = mobileNumber;
+        }
+      }
+
+      // Slice the deliveryRequests array to the first 5 requests only
+      if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
+        parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
+      }
+
+      return parcel;
+    });
+
+    res.status(200).json({
+      status: "success",
+      data: parcels,  
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
 
 // export const getParcelsByRadius = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
@@ -538,6 +534,7 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
 //     next(error);
 //   }
 // };
+
 export const getParcelsByRadius = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { latitude, longitude, radius, status } = req.body;

@@ -23,8 +23,9 @@ import path from 'path';
 import fs from 'fs';
 import mongoose from 'mongoose';
 import { AuthRequest } from '../../middlewares/auth';
-import upload from '../../../multer/multer';
+
 import { ParcelRequest } from '../parcel/ParcelRequest.model';
+import fileUploadHandler from '../../../multer/multer';
 
 
 export const createAdmin = async (req: Request, res: Response, next: NextFunction) => {
@@ -123,8 +124,12 @@ export const createAdmin = async (req: Request, res: Response, next: NextFunctio
     }
   };
   
-
+const upload = fileUploadHandler();
 export const updateAdminProfile = async (req: Request, res: Response, next: NextFunction) => {
+  upload(req, res, async (err: any) => {
+    if (err) {
+      return res.status(400).json({ message: err.message });
+    }
   try {
 
     const adminId = req.params.id;
@@ -165,11 +170,10 @@ export const updateAdminProfile = async (req: Request, res: Response, next: Next
     admin.username = username || admin.username;
 
     // Handle profile image upload
-    if (image) {
-      const uploadPath = `uploads/profiles/${Date.now()}-${image.originalname}`;
-      fs.writeFileSync(uploadPath, image.buffer);
-      admin.profileImage = `/${uploadPath}`; // Save file path
-      console.log("✅ Profile Image Saved:", admin.profileImage);
+    if (req.files && (req.files as { [fieldname: string]: Express.Multer.File[] })['image']) {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const imagePath = '/uploads/image/' + files['image'][0].filename;  
+      admin.image = imagePath;
     }
 
     // Save the updated admin profile
@@ -186,6 +190,7 @@ export const updateAdminProfile = async (req: Request, res: Response, next: Next
     console.error("❌ Error Updating Profile:", error);
     next(error);
   }
+});
 };
 
 
