@@ -221,6 +221,8 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
             image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
             AvgRating: user.avgRating || 0,
             name: senderUser.fullName || '',
+            deliveryStartTime: parcel.deliveryStartTime,
+            deliveryEndTime: parcel.deliveryEndTime,
             pickupLocation: {
               latitude: parcel.pickupLocation?.coordinates[1],
               longitude: parcel.pickupLocation?.coordinates[0]
@@ -254,6 +256,8 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
         SenderName: user.fullName || '',
         mobileNumber: user.mobileNumber || ' ',
         name: user.fullName || '',
+        deliveryStartTime: parcel.deliveryStartTime,
+        deliveryEndTime: parcel.deliveryEndTime,
         pickupLocation: {
           latitude: parcel.pickupLocation?.coordinates[1],
           longitude: parcel.pickupLocation?.coordinates[0]
@@ -319,6 +323,8 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
           mobileNumber: RequestUser.mobileNumber || 'Unknown Number',
           image:RequestUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
           AvgRating: RequestUser.avgRating || 0,
+          deliveryStartTime: parcel.deliveryStartTime,
+          deliveryEndTime: parcel.deliveryEndTime,
           pickupLocation: {
             latitude: parcel.pickupLocation?.coordinates[1],
             longitude: parcel.pickupLocation?.coordinates[0]
@@ -352,6 +358,8 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
       AvgRating: RequestUser?.avgRating || 0,
       SenderName: RequestUser?.fullName || '',
       mobileNumber: RequestUser?.mobileNumber || ' ',
+      deliveryStartTime: parcel.deliveryStartTime,
+      deliveryEndTime: parcel.deliveryEndTime,
       pickupLocation: {
         latitude: parcel.pickupLocation?.coordinates[1],
         longitude: parcel.pickupLocation?.coordinates[0]
@@ -504,6 +512,8 @@ if (!hasRequested) {
           price: parcel.price || '',
           type: 'Accepted',
           body: `You have been assigned to deliver the parcel.`,
+          deliveryStartTime: parcel.deliveryStartTime,
+          deliveryEndTime: parcel.deliveryEndTime,
           pickupLocation: {
             latitude: parcel.pickupLocation?.coordinates[1],
             longitude: parcel.pickupLocation?.coordinates[0],
@@ -535,6 +545,8 @@ if (!hasRequested) {
       userId: deliverer?._id,
       SenderName: (await User.findById(parcel.senderId))?.fullName || 'Unknown Sender',
       role: deliverer?.role,
+      deliveryStartTime: parcel.deliveryStartTime,
+      deliveryEndTime: parcel.deliveryEndTime,
       pickupLocation: {
         latitude: parcel.pickupLocation?.coordinates[1],        
         longitude: parcel.pickupLocation?.coordinates[0],
@@ -592,6 +604,8 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
           mobileNumber: senderUser.mobileNumber || 'Unknown Number',
           image:senderUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
           AvgRating: senderUser.avgRating || 0,
+          deliveryStartTime: parcel.deliveryStartTime,
+          deliveryEndTime: parcel.deliveryEndTime,
           pickupLocation: {
             latitude: parcel.pickupLocation?.coordinates[1],
             longitude: parcel.pickupLocation?.coordinates[0]          
@@ -628,6 +642,8 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
       AvgRating: senderUser?.avgRating || 0,
       SenderName: senderUser?.fullName || '',
       mobileNumber: senderUser?.mobileNumber || ' ',
+      deliveryStartTime: parcel.deliveryStartTime,
+      deliveryEndTime: parcel.deliveryEndTime,
       pickupLocation: {
         latitude: parcel.pickupLocation?.coordinates[1],
         longitude: parcel.pickupLocation?.coordinates[0]
@@ -684,6 +700,8 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
           mobileNumber: DeliveryMan.mobileNumber || 'Unknown Number',
           image:DeliveryMan.image || 'https://i.ibb.co/z5YHLV9/profile.png',
           AvgRating: DeliveryMan.avgRating || 0,
+          deliveryStartTime: parcel.deliveryStartTime,
+          deliveryEndTime: parcel.deliveryEndTime,
         },
         token: DeliveryMan.fcmToken,
       };
@@ -709,6 +727,8 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
       AvgRating: DeliveryMan?.avgRating || 0,
       SenderName: DeliveryMan?.fullName || '',
       mobileNumber: DeliveryMan?.mobileNumber || ' ',
+      deliveryStartTime: parcel.deliveryStartTime,
+      deliveryEndTime: parcel.deliveryEndTime,
       pickupLocation: {
         latitude: parcel.pickupLocation?.coordinates[1],
         longitude: parcel.pickupLocation?.coordinates[0]

@@ -241,6 +241,8 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
         price: String(price),
         description: description || '',
         phoneNumber: phoneNumber || '',
+        deliveryStartTime,
+        deliveryEndTime,
       },
     };
 
@@ -267,6 +269,8 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
         price,
         phoneNumber,
         description,
+        deliveryStartTime,
+        deliveryEndTime,
         pickupLocation: {
           latitude: pickupCoordinates.latitude,
           longitude: pickupCoordinates.longitude,
@@ -296,8 +300,6 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     next(error);
   }
 };
-
-
 
 
 export const deleteParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
@@ -351,14 +353,14 @@ export const deleteParcelRequest = async (req: Request, res: Response, next: Nex
 export const getAvailableParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const parcels = await ParcelRequest.find({ status: DeliveryStatus.PENDING })
-      .select('title description pickupLocation deliveryLocation deliveryTime deliveryType senderType status deliveryRequests name price phoneNumber createdAt updatedAt images') 
+      .select('title description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType senderType status deliveryRequests name price phoneNumber createdAt updatedAt images') 
       .populate("senderId", "fullName email mobileNumber profileImage role")
       .sort({ createdAt: -1 });
       
 
     const reorderedParcels = parcels.map(parcel => {
-      const { _id, ...rest } = parcel.toObject() as any; // Use 'as any' to allow adding custom properties
-      return { _id, ...rest, isRequestedByMe: false }; // Add isRequestedByMe property
+      const { _id, ...rest } = parcel.toObject() as any; 
+      return { _id, ...rest, isRequestedByMe: false };
     });
 
     res.status(200).json({
@@ -985,7 +987,7 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
           $maxDistance: maxDistance,
         },
       },
-      senderId: { $ne: req.user?.id }, // Exclude parcels owned by the logged-in user
+      senderId: { $ne: req.user?.id }, 
     };
 
     // Delivery type mapping based on selected delivery type
@@ -1013,12 +1015,15 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     }
 
     const nearbyPickupParcels = await ParcelRequest.find(nearbyPickupQuery)
-      .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') // Removed senderId
+      .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
+      .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
       .lean();
 
     const nearbyDeliveryParcels = await ParcelRequest.find(nearbyDeliveryQuery)
-      .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') // Removed senderId
+      .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
+       .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
       .lean();
+
 
     const allNearbyParcels = [...nearbyPickupParcels, ...nearbyDeliveryParcels];
 

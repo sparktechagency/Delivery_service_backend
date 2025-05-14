@@ -161,182 +161,7 @@ import { console } from "inspector";
     }
   };
 
-  // export const getNotifications = async (req: Request, res: Response, next: NextFunction) => {
-  //   try {
-  //     const userId = req.user?.id;
-  
-  //     if (!userId) {
-  //       return res.status(401).json({
-  //         status: 'error',
-  //         message: 'Unauthorized. User ID is missing.',
-  //       });
-  //     }
-  
-  //     const notifications = await Notification.find({ userId })
-  //       .sort({ createdAt: -1 })  
-  //       .exec();
-  
-  //     if (!notifications || notifications.length === 0) {
-  //       return res.status(404).json({
-  //         status: 'error',
-  //         message: 'No notifications found.',
-  //       });
-  //     }
-  
-  //     res.status(200).json({
-  //       status: 'success',
-  //       data: notifications,
-  //     });
-  //   } catch (error) {
-  //     console.error('Error fetching notifications:', error);
-  //     res.status(500).json({
-  //       status: 'error',
-  //       message: 'Internal Server Error.',
-  //     });
-  //     next(error);
-  //   }
-  // };
 
-//   export const sendPushNotification = async (
-//     userIds: string[],
-//     notification: { title: string; body: string },
-//     data: Record<string, string>
-//   ) => {
-//     try {
-//       // const deviceTokens = await DeviceToken.find({
-//       //   userId: { $in: userIds },
-//       //   fcmToken: { $exists: true, $ne: '' },
-//       // }).select('fcmToken userId');
-//     console.log(`Fetching device tokens for users: ${userIds}`);
-//     const deviceTokens = await DeviceToken.find({
-//        userId: { $in: userIds },
-//        fcmToken: { $exists: true, $ne: '' },
-//       }).select('fcmToken userId');
-//       console.log(`Found ${deviceTokens.length} valid FCM tokens`);
-//       if (deviceTokens.length === 0) {
-//         console.log('No valid FCM tokens found');
-//         return;
-//       }
-  
-
-//       const uniqueUserIds = Array.from(new Set(deviceTokens.map(_token => userIds.toString())) );
-//       const messages = deviceTokens.map(token => ({
-//         notification,
-//         data,
-//         token: token.fcmToken, 
-       
-//       }));
-//       console.log(uniqueUserIds);
-  
-//       const batchSize = 500;
-//       for (let i = 0; i < messages.length; i += batchSize) {
-//         const batch = messages.slice(i, i + batchSize);
-//         const responses = await Promise.all(batch.map(message => admin.messaging().send(message)));
-//         console.log(`Batch ${Math.floor(i / batchSize) + 1}: Sent ${responses.length} push notifications`);
-//       }
-//     } catch (error) {
-//       console.error('Error sending push notifications:', error);
-//     }
-//   };
-  
-// /**
-//  * Create a new notification and send push notification
-//  */
-// export const createNotification = async (
-// userIds: string[], message: string, type: string, title: string, additionalData: {
-//   phoneNumber?: string;
-//   mobileNumber?: string;
-//   price?: number;
-//   description?: string;
-//   image?: string;
-//   parcelId?: string;
-//   AvgRating?: number;
-//   pickupLocation?: { latitude: number; longitude: number; };
-//   deliveryLocation?: { latitude: number; longitude: number; };
-//   name?: string;
-// } = {}, _as: any, _NotificationData: any, deliveryLocation: any, p0: { latitude: number | undefined; longitude: number | undefined; }) => {
-//   try {
-//     if (!userIds || userIds.length === 0) {
-//       console.log('No users to notify');
-//       return;
-//     }
-
-//     // Ensure unique notification creation for each user
-//     const notificationPromises = userIds.map(async (userId) => {
-//       const existingNotification = await Notification.findOne({
-//         userId,
-//         type,
-//         parcelId: additionalData.parcelId,  
-//       });
-
-//       if (existingNotification) {
-//         console.log(`Notification already exists for user ${userId}, skipping.`);
-//         return null;  
-//       }
-
-
-//       // const notification = new Notification({
-//       //   userId,
-//       //   message,
-//       //   type,
-//       //   title,
-//       //   phoneNumber: additionalData.phoneNumber || '',
-//       //   mobileNumber: additionalData.mobileNumber || '',
-//       //   price: additionalData.price || 0,
-//       //   description: additionalData.description || '',
-//       //   image: additionalData.image || '',
-//       //   isRead: false,
-        
-
-//       // });
-//       const notification = new Notification({
-//         userId,
-//         message,
-//         type,
-//         title,
-//         phoneNumber: additionalData.phoneNumber || '',
-//         mobileNumber: additionalData.mobileNumber || '',
-//         price: additionalData.price || 0,
-//         description: additionalData.description || '',
-//         image: additionalData.image || '',
-//         isRead: false,
-//       });
-      
-//       console.log(`Creating notification for user ${userId} with message: ${message}`);
-//       const savedNotification = await notification.save();
-//       console.log(`Notification created with ID: ${savedNotification._id}`);
-      
-
-//       return notification.save();  // Save the new notification to the database
-//     });
-
-//     // Filter out any null promises (for skipped notifications) and await the rest
-//     const results = await Promise.all(notificationPromises.filter(Boolean));
-
-//     console.log(`Created ${results.length} database notifications`);
-
-//     // After database notification creation, send the push notifications
-//     await sendPushNotification(
-//       userIds,
-//       { title, body: message },
-//       {
-//         type,
-//         title,
-//         message,
-//         phoneNumber: additionalData.phoneNumber || '',
-//         description: additionalData.description || '',
-//         parcelId: additionalData.parcelId || '',
-//         ...Object.entries(additionalData)
-//           .filter(([_, value]) => value !== undefined)
-//           .reduce((acc, [key, value]) => ({ ...acc, [key]: String(value) }), {})
-//       }
-//     );
-//   } catch (error) {
-//     console.error('Error creating notifications:', error);
-//   }
-// };
-
-// Updated sendPushNotification function with proper error handling
 export const sendPushNotification = async (
   userIds: string[],
   notification: { title: string; body: string },
@@ -622,10 +447,21 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
       .skip(skip)
       .limit(limit);
 
+    // Format the deliveryStartTime and deliveryEndTime to ISO string
+    const formattedNotifications = notifications.map(notification => {
+      if (notification.deliveryStartTime) {
+        notification.deliveryStartTime = new Date(notification.deliveryStartTime).toISOString();
+      }
+      if (notification.deliveryEndTime) {
+        notification.deliveryEndTime = new Date(notification.deliveryEndTime).toISOString(); 
+      }
+      return notification;
+    });
+
     res.status(200).json({
       status: 'success',
       data: {
-        notifications,
+        notifications: formattedNotifications,
         pagination: {
           total: totalCount,
           page,
@@ -643,106 +479,6 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
     next(error);
   }
 };
-
-// export const getParcelNotifications = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const userId = req.user?.id;
-
-//     if (!userId) {
-//       return res.status(401).json({
-//         status: 'error',
-//         message: 'User not authenticated'
-//       });
-//     }
-
-//     // Check if user has notifications enabled
-//     const user = await User.findById(userId).select('notificationStatus');
-
-
-//     if (!user) {
-//       return res.status(404).json({
-//         status: 'error',
-//         message: 'User not found'
-//       });
-//     }
-
-//     // If notificationStatus is false, don't show any notifications
-//     if (!user.notificationStatus) {
-//       return res.status(200).json({
-//         status: 'success',
-//         message: 'Notifications are disabled for this user.',
-//         data: {
-//           notifications: [],
-//           pagination: {
-//             total: 0,
-//             page: 1,
-//             limit: 10,
-//             pages: 0
-//           }
-//         }
-//       });
-//     }
-
-//     // Proceed to fetch notifications if notificationStatus is true
-//     const page = parseInt(req.query.page as string) || 1;
-//     const limit = parseInt(req.query.limit as string) || 10;
-//     const skip = (page - 1) * limit;
-    
-//     // Get total count for pagination
-//     const totalCount = await Notification.countDocuments({
-//       userId,
-//       type: { $in: ['send_parcel', 'sender'] },
-//     });
-
-//     // Get parcel-related notifications with pagination
-//     console.log(`Fetching notifications for user ${userId} with page: ${page}, limit: ${limit}`);
-//     const parcelNotifications = await Notification.find({
-//       userId,
-//       type: { $in: ['send_parcel', 'sender'] },
-//     })
-//       .sort({ createdAt: -1 })
-//       .skip(skip)
-//       .limit(limit);
-//     console.log(`Found ${parcelNotifications.length} notifications for user ${userId}`);
-
-//     // Handle case when there are no notifications
-//     if (parcelNotifications.length === 0) {
-//       return res.status(200).json({
-//         status: 'success',
-//         message: 'No parcel-related notifications found.',
-//         data: {
-//           notifications: [],
-//           pagination: {
-//             total: 0,
-//             page,
-//             limit,
-//             pages: 0
-//           }
-//         }
-//       });
-//     }
-
-//     res.status(200).json({
-//       status: 'success',
-//       data: {
-//         notifications: parcelNotifications,
-//         pagination: {
-//           total: totalCount,
-//           page,
-//           limit,
-//           pages: Math.ceil(totalCount / limit)
-//         }
-//       }
-//     });
-//   } catch (error) {
-//     console.error('Error fetching parcel notifications:', error);
-//     res.status(500).json({
-//       status: 'error',
-//       message: 'Failed to fetch parcel notifications'
-//     });
-//     next(error);
-//   }
-// };
 
 export const getParcelNotifications = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -778,6 +514,7 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
           }
         }
       });
+      
     }
     
     // Proceed to fetch notifications if notificationStatus is true
@@ -837,6 +574,44 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch parcel notifications'
+    });
+    next(error);
+  }
+};
+
+
+export const markAllNotificationsAsRead = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;  
+
+    if (!userId) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'User not authenticated',
+      });
+    }
+
+    const result = await Notification.updateMany(
+      { userId, isRead: false },  // Match unread notifications for this user
+      { $set: { isRead: true } }  // Set all matched notifications to isRead: true
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No unread notifications found to mark as read',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: `Marked ${result.modifiedCount} notifications as read.`,
+    });
+  } catch (error) {
+    console.error('Error marking notifications as read:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to mark notifications as read',
     });
     next(error);
   }

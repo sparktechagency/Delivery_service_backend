@@ -1370,30 +1370,24 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
   try {
     console.log("🔄 getUserRatingCounts called");
 
-    // Aggregate to count the number of users for each rating (1 to 5 stars)
     const ratingCounts = await User.aggregate([
-      // Match users who have reviews
+
       { $match: { "reviews": { $exists: true, $ne: [] } } },
 
-      // Unwind the reviews array to work with individual reviews
       { $unwind: "$reviews" },
 
-      // Group by rating and count the number of occurrences of each rating
       {
         $group: {
-          _id: "$reviews.rating", // Group by the rating field
-          count: { $sum: 1 } // Count the number of users with that rating
+          _id: "$reviews.rating", 
+          count: { $sum: 1 } 
         }
       },
 
-      // Sort the results by rating in ascending order
       { $sort: { _id: 1 } }
     ]);
 
-    // Log the results for debugging
     console.log("📊 User rating counts:", JSON.stringify(ratingCounts, null, 2));
 
-    // If no ratings are found, return an empty list or a message
     if (ratingCounts.length === 0) {
       return res.status(404).json({
         status: "error",
@@ -1401,25 +1395,23 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
       });
     }
 
-    // Initialize the user ratings count
     const userRatings = {
-      "5_star": 0,
-      "4_star": 0,
-      "3_star": 0,
-      "2_star": 0,
-      "1_star": 0
+      "star_5": 0,
+      "star_4": 0,
+      "star_3": 0,
+      "star_2": 0,
+      "star_1": 0
     };
 
-    // Populate the user ratings counts based on the aggregation result
+    
     ratingCounts.forEach((ratingCount) => {
-      if (ratingCount._id === 5) userRatings["5_star"] = ratingCount.count;
-      if (ratingCount._id === 4) userRatings["4_star"] = ratingCount.count;
-      if (ratingCount._id === 3) userRatings["3_star"] = ratingCount.count;
-      if (ratingCount._id === 2) userRatings["2_star"] = ratingCount.count;
-      if (ratingCount._id === 1) userRatings["1_star"] = ratingCount.count;
+      if (ratingCount._id === 5) userRatings["star_5"] = ratingCount.count;
+      if (ratingCount._id === 4) userRatings["star_4"] = ratingCount.count;
+      if (ratingCount._id === 3) userRatings["star_3"] = ratingCount.count;
+      if (ratingCount._id === 2) userRatings["star_2"] = ratingCount.count;
+      if (ratingCount._id === 1) userRatings["star_1"] = ratingCount.count;
     });
 
-    // Return the counts of users with each star rating
     res.status(200).json({
       status: "success",
       data: userRatings

@@ -393,8 +393,9 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
+     const { filterType, sortBy, sortOrder } = req.query;
     const skip = (page - 1) * limit;
-    const { filterType, sortBy, sortOrder } = req.query;
+   
 
     console.log("🔍 Fetching users with pagination, rating, earnings, and sorting...");
 
@@ -424,7 +425,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
     const users = await User.find(filter)
       .skip(skip)
       .limit(limit)
-      .select('fullName email mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt reviews')
+      .select('fullName image email mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt reviews')
       .lean();
 
     users.forEach((user) => {
