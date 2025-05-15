@@ -175,11 +175,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
     }
     
     const earningsData = {
-      // totalEarnings: user.totalEarning || 0,
-      // monthlyEarnings: user.monthlyEarnings || 0,
-      // totalAmountSpent: user.totalAmountSpent || 0,
-      // totalSentParcels: user.totalSentParcels || 0,
-      // totalReceivedParcels: user.totalReceivedParcels || 0,
+
       totalEarnings: user.totalEarning || 0,
       monthlyEarnings: user.monthlyEarnings || 0,
       totalAmountSpent: user.totalAmountSpent || 0,
@@ -217,6 +213,69 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
     next(error);
   }
 };
+
+//single profile data
+export const getSingleProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    // Convert mongoose document to plain object
+    const userObj = user.toObject();
+
+    // Remove the fields you don't want to expose
+    if (userObj?.RecciveOrders !== undefined) {
+      delete userObj.RecciveOrders;
+    }
+    if (userObj?.SendOrders !== undefined) {
+      delete userObj?.SendOrders;
+    }
+
+    const earningsData = {
+      totalEarnings: user.totalEarning || 0,
+      monthlyEarnings: user.monthlyEarnings || 0,
+      totalAmountSpent: user.totalAmountSpent || 0,
+      totalSentParcels: user.totalSentParcels || 0,
+      totalReceivedParcels: user.totalReceivedParcels || 0,
+      tripsCompleted: user.TotaltripsCompleted || 0,
+    };
+
+    const totalRatings = user.reviews.reduce((acc, review) => acc + review.rating, 0);
+    const averageRating = user.reviews.length > 0 ? totalRatings / user.reviews.length : 0;
+
+    res.status(200).json({
+      status: "success",
+      message: "User profile fetched successfully",
+      data: {
+        user: {
+          ...userObj,
+          mobileNumber: user.mobileNumber || "",
+          facebook: user.facebook || "",
+          instagram: user.instagram || "",
+          whatsapp: user.whatsapp || "",
+          email: user.email || "missing email",
+          image: user.image || "https://i.ibb.co/z5YHLV9/profile.png",
+          fcmToken: user.fcmToken || "",
+          country: user.country || "",
+        },
+        earnings: earningsData,
+        averageRating: averageRating.toFixed(2),
+        totalReviews: user.reviews.length,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // delete user
 export const deleteProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
