@@ -15,9 +15,11 @@ import fs from 'fs';
 import { PhoneNumber } from 'libphonenumber-js';
 import { UserDocument } from '../user/user.model';
 import { ParcelRequestDocument } from './ParcelRequest.model'; 
-import { createNotification } from '../notification/notification.controller';
+import { createNotification, sendPushNotification } from '../notification/notification.controller';
 import { Server } from "socket.io"; 
 import DeviceToken from '../user/fcm.token.model';
+import PushNotification from '../notification/push.notification.model';
+
 // export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     const { pickupLocation, deliveryLocation, deliveryStartTime, deliveryEndTime, senderType, deliveryType, price, name, phoneNumber, title, description } = req.body;
@@ -132,7 +134,6 @@ const getCoordinates = async (location: string) => {
 
 let io: Server | null = null;
 
-
 export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -193,6 +194,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       $push: {
         SendOrders: {
           parcelId: parcel._id,
+          type: 'send_parcel',
           pickupLocation,
           deliveryLocation,
           price,
@@ -258,34 +260,72 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       }
     }
 
-    // ✅ Store in DB for all users
-    for (const userId of userIds) {
-      await Notification.create({
-        userId,
-        message: notificationMessage,
-        type: 'send_parcel',
-        title,
-        parcelId: parcel._id,
-        price,
-        phoneNumber,
-        description,
-        deliveryStartTime,
-        deliveryEndTime,
-        pickupLocation: {
-          latitude: pickupCoordinates.latitude,
-          longitude: pickupCoordinates.longitude,
-        },
-        deliveryLocation: {
-          latitude: deliveryCoordinates.latitude,
-          longitude: deliveryCoordinates.longitude,
-        },
-        isRead: false,
-      });
-    }
 
+    // ✅ Store in DB for all users
+    // for (const userId of userIds) {
+    //   await Notification.create({
+    //     // userId,
+    //     userId: new mongoose.Types.ObjectId(userId),
+    //     message: notificationMessage,
+    //     type: 'send_parcel',
+    //     title,
+    //     parcelId: parcel._id,
+    //     price,
+    //     phoneNumber,
+    //     description,
+    //     deliveryStartTime,
+    //     deliveryEndTime,
+    //     pickupLocation: {
+    //       latitude: pickupCoordinates.latitude,
+    //       longitude: pickupCoordinates.longitude,
+    //     },
+    //     deliveryLocation: {
+    //       latitude: deliveryCoordinates.latitude,
+    //       longitude: deliveryCoordinates.longitude,
+    //     },
+    //     isRead: false,
+    //   });
+
+      
+    // }
+
+
+
+    for (const userId of userIds) {
+  try {
+    await Notification.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      message: notificationMessage,
+      type: 'send_parcel',
+      title,
+      parcelId: parcel._id,
+      price,
+      phoneNumber,
+      description,
+      deliveryStartTime,
+      deliveryEndTime,
+      pickupLocation: {
+        latitude: pickupCoordinates.latitude,
+        longitude: pickupCoordinates.longitude,
+      },
+      deliveryLocation: {
+        latitude: deliveryCoordinates.latitude,
+        longitude: deliveryCoordinates.longitude,
+      },
+      isRead: false,
+      createdAt: new Date(),
+       localCreatedAt: moment().tz('Asia/Dhaka').format('YYYY-MM-DD hh:mm A')
+    });
+  } catch (err) {
+    console.error('Error saving notification for user:', userId, err);
+  }
+}
+  
     console.log(`🔔 Notifications sent to ${userIds.length} users`);
 
-    const fullParcel = await ParcelRequest.findById(parcel._id).populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage');
+    const fullParcel = await ParcelRequest.findById(parcel._id)
+    .populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage')
+    
 
     return res.status(201).json({
       status: 'success',
@@ -300,6 +340,165 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     next(error);
   }
 };
+
+// export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const {
+//       pickupLocation,
+//       deliveryLocation,
+//       deliveryStartTime,
+//       deliveryEndTime,
+//       senderType,
+//       deliveryType,
+//       price,
+//       name,
+//       phoneNumber,
+//       title,
+//       description,
+//     } = req.body;
+
+//     // Ensure parcels upload directory exists
+//     const parcelsDir = path.join(process.cwd(), 'uploads', 'parcels');
+//     if (!fs.existsSync(parcelsDir)) {
+//       fs.mkdirSync(parcelsDir, { recursive: true });
+//     }
+
+//     // Handle images if uploaded
+//     let images: string[] = [];
+//     if (req.files && typeof req.files === 'object') {
+//       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+//       if (files.image && Array.isArray(files.image)) {
+//         images = files.image.map((file: Express.Multer.File) => `/uploads/image/${file.filename}`);
+//       }
+//     }
+
+//     // Get coordinates for pickup and delivery
+//     const pickupCoordinates = await getCoordinates(pickupLocation);
+//     const deliveryCoordinates = await getCoordinates(deliveryLocation);
+
+//     // Create parcel request document
+//     const parcel = await ParcelRequest.create({
+//       senderId: req.user?.id,
+//       pickupLocation: {
+//         type: 'Point',
+//         coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude],
+//       },
+//       deliveryLocation: {
+//         type: 'Point',
+//         coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude],
+//       },
+//       deliveryStartTime,
+//       deliveryEndTime,
+//       senderType,
+//       deliveryType,
+//       price,
+//       title,
+//       description,
+//       images,
+//       name,
+//       phoneNumber,
+//       status: 'PENDING',
+//     });
+
+//     // Update sender's SendOrders and counters
+//     await User.findByIdAndUpdate(req.user?.id, {
+//       $push: {
+//         SendOrders: {
+//           parcelId: parcel._id,
+//           pickupLocation,
+//           deliveryLocation,
+//           price,
+//           title,
+//           phoneNumber,
+//           description,
+//           senderType,
+//           deliveryType,
+//           deliveryStartTime,
+//           deliveryEndTime,
+//         },
+//       },
+//       $inc: { totalSentParcels: 1, totalOrders: 1 },
+//     });
+
+//     // Fetch sender full name
+//     const sender = await User.findById(req.user?.id).select('fullName');
+//     if (!sender) throw new Error('Sender not found');
+
+//     // Get all users to notify (verified, not sender, notifications enabled)
+//     const usersToNotify = await User.find({
+//       isVerified: true,
+//       _id: { $ne: req.user?.id },
+//       notificationStatus: true,
+//     }).select('_id');
+
+//     const userIds = usersToNotify.map(user => user._id.toString());
+
+//     // Compose notification message
+//     const notificationMessage = `A new parcel "${title}" created by "${sender.fullName}".`;
+
+//     // Create notifications in DB for all users (in parallel, with filtering/deduplication)
+//     await createNotification(
+//       userIds,
+//       notificationMessage,
+//       'send_parcel',
+//       title,
+//       {
+//         parcelId: parcel._id.toString(),
+//         price,
+//         phoneNumber,
+//         description,
+//         name,
+//       },
+//       pickupLocation,
+//       { latitude: pickupCoordinates.latitude, longitude: pickupCoordinates.longitude },
+//       deliveryLocation,
+//       { latitude: deliveryCoordinates.latitude, longitude: deliveryCoordinates.longitude }
+//     );
+
+//     // Prepare push notification payload
+//     const pushPayloadData = {
+//       type: 'send_parcel',
+//       title,
+//       message: notificationMessage,
+//       parcelId: parcel._id.toString(),
+//       price: String(price),
+//       description: description || '',
+//       phoneNumber: phoneNumber || '',
+//       deliveryStartTime,
+//       deliveryEndTime,
+//       pickupLatitude: String(pickupCoordinates.latitude),
+//       pickupLongitude: String(pickupCoordinates.longitude),
+//       deliveryLatitude: String(deliveryCoordinates.latitude),
+//       deliveryLongitude: String(deliveryCoordinates.longitude),
+//     };
+
+//     // Send push notifications to users with notifications enabled
+//     await sendPushNotification(
+//       userIds,
+//       { title, body: notificationMessage },
+//       pushPayloadData
+//     );
+
+//     console.log(`🔔 Notifications sent and push delivered to ${userIds.length} users`);
+
+//     // Populate parcel with sender info to return
+//     const fullParcel = await ParcelRequest.findById(parcel._id)
+//       .populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage');
+
+//     return res.status(201).json({
+//       status: 'success',
+//       data: fullParcel,
+//     });
+
+//   } catch (error) {
+//     console.error('❌ Error in createParcelRequest:', error);
+//     res.status(500).json({
+//       status: 'error',
+//       message: 'Failed to create parcel request',
+//     });
+//     next(error);
+//   }
+// };
 
 
 export const deleteParcelRequest = async (req: Request, res: Response, next: NextFunction) => {

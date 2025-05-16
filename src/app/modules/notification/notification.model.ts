@@ -36,6 +36,7 @@
 // export const Notification = mongoose.model('Notification', notificationSchema);
 
 import mongoose from "mongoose";
+import moment from "moment-timezone";
 export interface NotificationData {
   phoneNumber?: string;
   mobileNumber?: string;
@@ -50,11 +51,13 @@ export interface NotificationData {
   name?: string;
   pickupLocation?: { latitude: number; longitude: number };  
   deliveryLocation?: { latitude: number; longitude: number };
+  createdAt?: Date;
+  
 }
 
 
 const notificationSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true  },
   message: { type: String, required: true },
   type: {
     type: String,
@@ -100,7 +103,13 @@ const notificationSchema = new mongoose.Schema({
   name: { type: String },
   description: { type: String },
   isRead: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+    localCreatedAt: { 
+    type: String, 
+    default: function() {
+      return moment().tz('Asia/Dhaka').format('YYYY-MM-DD hh:mm A');
+    }
+  }
 });
 
 export const Notification = mongoose.model('Notification', notificationSchema);

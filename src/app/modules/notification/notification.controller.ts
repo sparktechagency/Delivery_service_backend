@@ -9,6 +9,7 @@ import admin from "../../../config/firebase";
 import DeviceToken from "../user/fcm.token.model";
 import { ParcelRequest } from "../parcel/ParcelRequest.model";
 import { console } from "inspector";
+import PushNotification from "./push.notification.model";
 
   export const sendRadiusNotification = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -162,6 +163,125 @@ import { console } from "inspector";
   };
 
 
+// export const sendPushNotification = async (
+//   userIds: string[],
+//   notification: { title: string; body: string },
+//   data: Record<string, string>
+// ) => {
+//   try {
+//     if (!userIds || userIds.length === 0) {
+//       console.log('No users to send push notifications to');
+//       return;
+//     }
+
+//     console.log(`Fetching device tokens for users: ${userIds}`);
+    
+//     // Find device tokens for the specified users - ensure we're getting valid tokens
+//     const deviceTokens = await DeviceToken.find({
+//       userId: { $in: userIds },
+//       fcmToken: { $exists: true, $ne: '' }
+//     }).select('fcmToken userId');
+    
+//     console.log(`Found ${deviceTokens.length} valid FCM tokens for ${userIds.length} users`);
+    
+//     if (deviceTokens.length === 0) {
+//       console.log('No valid FCM tokens found, skipping push notifications');
+//       return;
+//     }
+
+//     // Validate tokens before sending
+//     const validTokens = deviceTokens.filter(dt => 
+//       dt.fcmToken && dt.fcmToken.length > 10 && dt.fcmToken.indexOf(' ') === -1
+//     );
+    
+//     if (validTokens.length !== deviceTokens.length) {
+//       console.log(`Filtered out ${deviceTokens.length - validTokens.length} invalid tokens`);
+//     }
+
+//     // Map each token to a message with proper payload formatting
+//     const messages = validTokens.map(token => ({
+//       notification: {
+//         title: notification.title,
+//         body: notification.body
+//       },
+//       data: data,
+//       token: token.fcmToken,
+//       android: {
+//         priority: "high" as "high",
+//         notification: {
+//           sound: 'default',
+//           priority: "high" as "high", 
+//           channelId: 'default-channel'
+//         }
+//       },
+//       apns: {
+//         payload: {
+//           aps: {
+//             contentAvailable: true,
+//             sound: 'default',
+//             badge: 1
+//           }
+//         },
+//         headers: {
+//           "apns-priority": "10"
+//         }
+//       }
+//     }));
+
+//     if (messages.length === 0) {
+//       console.log('No valid messages to send');
+//       return;
+//     }
+
+//     // Send messages in batches to avoid hitting FCM limits
+//     const batchSize = 500;
+//     let successCount = 0;
+//     let failureCount = 0;
+
+//     for (let i = 0; i < messages.length; i += batchSize) {
+//       const batch = messages.slice(i, i + batchSize);
+//       try {
+//         // Use individual sends with Promise.all since sendAll has type issues
+//         const sendPromises = batch.map(message => admin.messaging().send(message, true));
+//         const results = await Promise.all(sendPromises.map(p => p.catch(e => e)));
+        
+//         const batchSuccesses = results.filter(r => !(r instanceof Error)).length;
+//         const batchFailures = results.filter(r => r instanceof Error).length;
+        
+//         successCount += batchSuccesses;
+//         failureCount += batchFailures;
+        
+//         console.log(`Batch ${Math.floor(i / batchSize) + 1}: Sent ${batchSuccesses} successful, ${batchFailures} failed notifications`);
+        
+//         // Log specific errors for debugging
+//         results.forEach((result, idx) => {
+//           if (result instanceof Error) {
+//             console.error(`Failed to send notification to token ${validTokens[i + idx]?.fcmToken?.substring(0, 10)}...: `, 
+//               result.message);
+            
+//             // Check for token issues that require cleanup
+//             if (result.message && (
+//                 result.message.includes('registration-token-not-registered') || 
+//                 result.message.includes('invalid-registration-token'))) {
+//               const tokenToRemove = validTokens[i + idx];
+//               // Schedule token removal asynchronously
+//               DeviceToken.deleteOne({ fcmToken: tokenToRemove.fcmToken }).catch(err => {
+//                 console.error('Error removing invalid token:', err);
+//               });
+//             }
+//           }
+//         });
+//       } catch (batchError) {
+//         failureCount += batch.length;
+//         console.error(`Error sending batch ${Math.floor(i / batchSize) + 1}:`, batchError);
+//       }
+//     }
+
+//     console.log(`Push notification stats: ${successCount} succeeded, ${failureCount} failed`);
+//   } catch (error) {
+//     console.error('Error sending push notifications:', error);
+//   }
+// };
 export const sendPushNotification = async (
   userIds: string[],
   notification: { title: string; body: string },
@@ -174,30 +294,27 @@ export const sendPushNotification = async (
     }
 
     console.log(`Fetching device tokens for users: ${userIds}`);
-    
-    // Find device tokens for the specified users - ensure we're getting valid tokens
+
     const deviceTokens = await DeviceToken.find({
       userId: { $in: userIds },
       fcmToken: { $exists: true, $ne: '' }
     }).select('fcmToken userId');
-    
+
     console.log(`Found ${deviceTokens.length} valid FCM tokens for ${userIds.length} users`);
-    
+
     if (deviceTokens.length === 0) {
       console.log('No valid FCM tokens found, skipping push notifications');
       return;
     }
 
-    // Validate tokens before sending
-    const validTokens = deviceTokens.filter(dt => 
+    const validTokens = deviceTokens.filter(dt =>
       dt.fcmToken && dt.fcmToken.length > 10 && dt.fcmToken.indexOf(' ') === -1
     );
-    
+
     if (validTokens.length !== deviceTokens.length) {
       console.log(`Filtered out ${deviceTokens.length - validTokens.length} invalid tokens`);
     }
 
-    // Map each token to a message with proper payload formatting
     const messages = validTokens.map(token => ({
       notification: {
         title: notification.title,
@@ -209,7 +326,7 @@ export const sendPushNotification = async (
         priority: "high" as "high",
         notification: {
           sound: 'default',
-          priority: "high" as "high", 
+          priority: "high" as "high",
           channelId: 'default-channel'
         }
       },
@@ -232,7 +349,6 @@ export const sendPushNotification = async (
       return;
     }
 
-    // Send messages in batches to avoid hitting FCM limits
     const batchSize = 500;
     let successCount = 0;
     let failureCount = 0;
@@ -240,30 +356,43 @@ export const sendPushNotification = async (
     for (let i = 0; i < messages.length; i += batchSize) {
       const batch = messages.slice(i, i + batchSize);
       try {
-        // Use individual sends with Promise.all since sendAll has type issues
         const sendPromises = batch.map(message => admin.messaging().send(message, true));
         const results = await Promise.all(sendPromises.map(p => p.catch(e => e)));
-        
+
         const batchSuccesses = results.filter(r => !(r instanceof Error)).length;
         const batchFailures = results.filter(r => r instanceof Error).length;
-        
+
         successCount += batchSuccesses;
         failureCount += batchFailures;
-        
+
         console.log(`Batch ${Math.floor(i / batchSize) + 1}: Sent ${batchSuccesses} successful, ${batchFailures} failed notifications`);
-        
-        // Log specific errors for debugging
+
+        // Save notifications in DB for successful sends
+        const successfulMessages = batch.filter((_, idx) => !(results[idx] instanceof Error));
+        const notificationsToSave = successfulMessages.map((msg, idx) => ({
+          userId: validTokens[i + idx].userId,
+          fcmToken: validTokens[i + idx].fcmToken,
+          title: msg.notification.title,
+          body: msg.notification.body,
+          data: msg.data,
+          sentAt: new Date(),
+        }));
+
+        // Insert notifications in bulk
+        if (notificationsToSave.length > 0) {
+          await PushNotification.insertMany(notificationsToSave);
+        }
+
+        // Log errors and clean invalid tokens
         results.forEach((result, idx) => {
           if (result instanceof Error) {
-            console.error(`Failed to send notification to token ${validTokens[i + idx]?.fcmToken?.substring(0, 10)}...: `, 
+            console.error(`Failed to send notification to token ${validTokens[i + idx]?.fcmToken?.substring(0, 10)}...: `,
               result.message);
-            
-            // Check for token issues that require cleanup
+
             if (result.message && (
-                result.message.includes('registration-token-not-registered') || 
-                result.message.includes('invalid-registration-token'))) {
+              result.message.includes('registration-token-not-registered') ||
+              result.message.includes('invalid-registration-token'))) {
               const tokenToRemove = validTokens[i + idx];
-              // Schedule token removal asynchronously
               DeviceToken.deleteOne({ fcmToken: tokenToRemove.fcmToken }).catch(err => {
                 console.error('Error removing invalid token:', err);
               });
@@ -281,7 +410,6 @@ export const sendPushNotification = async (
     console.error('Error sending push notifications:', error);
   }
 };
-
 // Fixed createNotification function
 export const createNotification = async (
   userIds: string[], 
@@ -522,24 +650,27 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
    
-    // Get total count for pagination
-    const totalCount = await Notification.countDocuments({
-      userId,
-      type: { $in: ['send_parcel', 'sender'] },
-    });
-    
-    // Get parcel-related notifications with pagination
-    console.log(`Fetching notifications for user ${userId} with page: ${page}, limit: ${limit}`);
-    const parcelNotifications = await Notification.find({
-      userId,
-      type: { $in: ['send_parcel', 'sender'] },
-    })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-      
-    console.log(`Found ${parcelNotifications.length} notifications for user ${userId}`);
-    
+
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+          return res.status(401).json({ status: 'error', message: 'Invalid or missing user ID' });
+        }
+
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+
+        const totalCount = await Notification.countDocuments({
+          userId: userObjectId,
+          type: { $in: ['send_parcel', 'sender'] }
+        });
+
+        const parcelNotifications = await Notification.find({
+          userId: userObjectId,
+          type: { $in: ['send_parcel', 'sender'] }
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      console.log(`Found ${parcelNotifications.length} notifications for user ${userId}`);
     // Handle case when there are no notifications
     if (parcelNotifications.length === 0) {
       return res.status(200).json({
@@ -578,6 +709,7 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
     next(error);
   }
 };
+
 
 
 export const markAllNotificationsAsRead = async (req: Request, res: Response, next: NextFunction) => {
