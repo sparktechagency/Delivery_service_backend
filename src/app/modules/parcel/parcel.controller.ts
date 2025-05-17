@@ -691,44 +691,37 @@ export const getAssignedAndRequestedParcels = async (req: AuthRequest, res: Resp
 };
 
 //all states parcel
-export const getAllUserRelatedParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     if (!userId) throw new AppError("Unauthorized", 401);
 
-    // Find parcels where user is sender
-    const sentParcels = await ParcelRequest.find({ senderId: userId })
+    // Parcels where user is sender
+    const sendParcels = await ParcelRequest.find({ senderId: userId })
       .populate("senderId", "fullName email mobileNumber phoneNumber role")
       .populate("assignedDelivererId", "fullName email mobileNumber role")
       .populate("deliveryRequests", "fullName email mobileNumber role")
       .sort({ createdAt: -1 })
       .lean();
 
-    // Find parcels where user is assigned deliverer
-    const assignedParcels = await ParcelRequest.find({ assignedDelivererId: userId })
+    sendParcels.forEach(p => ((p as any).typeParcel = "sendParcel"));
+
+    // Parcels where user requested delivery (exclude parcels user sent)
+    const deliveryRequestParcels = await ParcelRequest.find({
+      deliveryRequests: userId,
+      senderId: { $ne: userId },
+    })
       .populate("senderId", "fullName email mobileNumber phoneNumber role")
       .populate("assignedDelivererId", "fullName email mobileNumber role")
       .populate("deliveryRequests", "fullName email mobileNumber role")
       .sort({ createdAt: -1 })
       .lean();
 
-    // Find parcels where user requested delivery
-    const requestedParcels = await ParcelRequest.find({ deliveryRequests: userId })
-      .populate("senderId", "fullName email mobileNumber phoneNumber role")
-      .populate("assignedDelivererId", "fullName email mobileNumber role")
-      .populate("deliveryRequests", "fullName email mobileNumber role")
-      .sort({ createdAt: -1 })
-      .lean();
+    deliveryRequestParcels.forEach(p => ((p as any).typeParcel = "deliveryRequest"));
 
-    // Combine and remove duplicates by _id (optional but recommended)
-    const allParcelsMap = new Map<string, any>();
-    [...sentParcels, ...assignedParcels, ...requestedParcels].forEach(parcel => {
-      allParcelsMap.set(parcel._id.toString(), parcel);
-    });
-    let parcels = Array.from(allParcelsMap.values());
-
-    parcels = parcels.map(parcel => {
-      // Ensure sender mobileNumber fallback
+    // Combine both arrays (no duplicates possible due to senderId condition)
+    const parcels = [...sendParcels, ...deliveryRequestParcels].map(parcel => {
+      // Fallback for sender mobile number
       if (parcel.senderId && typeof parcel.senderId === "object" && parcel.senderId !== null) {
         if ("email" in parcel.senderId) {
           const mobileNumber =
@@ -738,10 +731,12 @@ export const getAllUserRelatedParcels = async (req: AuthRequest, res: Response, 
           (parcel.senderId as any).mobileNumber = mobileNumber;
         }
       }
-      // Limit deliveryRequests to first 5
+
+      // Limit deliveryRequests array length to 5 max
       if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
         parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
       }
+
       return parcel;
     });
 
@@ -753,7 +748,6 @@ export const getAllUserRelatedParcels = async (req: AuthRequest, res: Response, 
     next(error);
   }
 };
-
 
 
 // export const getParcelsByRadius = async (req: Request, res: Response, next: NextFunction) => {

@@ -1,7 +1,7 @@
 // routes/parcel.routes.ts
 import express from 'express';
 import { authenticate } from '../../middlewares/auth';
-import { createParcelRequest, deleteParcelRequest, getAllUserRelatedParcels, getAssignedAndRequestedParcels, getAvailableParcels, getFilteredParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels, getUserReviews, updateParcelStatus } from './parcel.controller';
+import { createParcelRequest, deleteParcelRequest, getUserSendAndDeliveryRequestParcels, getAssignedAndRequestedParcels, getAvailableParcels, getFilteredParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels, getUserReviews, updateParcelStatus } from './parcel.controller';
 import { assignDeliveryMan, cancelAssignedDeliveryMan, removeDeliveryRequest } from './delivery.controller';
 import fileUploadHandler from '../../../multer/multer';
 const upload = fileUploadHandler();
@@ -11,7 +11,7 @@ const parcelRouter = express.Router();
 parcelRouter.post("/create", authenticate, upload, createParcelRequest);
 parcelRouter.get('/available', authenticate, getAvailableParcels);
 parcelRouter.get("/user-parcels", authenticate, getUserParcels);
-parcelRouter.get("/user-all-parcels", authenticate, getAllUserRelatedParcels);
+parcelRouter.get("/user-all-parcels", authenticate, getUserSendAndDeliveryRequestParcels);
 parcelRouter.post('/availableByRadius', authenticate,getParcelsByRadius );
 parcelRouter.get('/requests/:parcelId', getParcelWithDeliveryRequests);
 parcelRouter.get('/get-user-reviews', authenticate, getUserReviews);
