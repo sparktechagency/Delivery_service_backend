@@ -698,9 +698,9 @@ export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res
 
     // Parcels where user is sender
     const sendParcels = await ParcelRequest.find({ senderId: userId })
-      .populate("senderId", "fullName email mobileNumber phoneNumber role")
-      .populate("assignedDelivererId", "fullName email mobileNumber role")
-      .populate("deliveryRequests", "fullName email mobileNumber role")
+      .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role")
+      .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber avgRating reviews role")
+      .populate("deliveryRequests", "fullName email mobileNumber phoneNumber avgRating reviews role")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -711,9 +711,9 @@ export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res
       deliveryRequests: userId,
       senderId: { $ne: userId },
     })
-      .populate("senderId", "fullName email mobileNumber phoneNumber role")
-      .populate("assignedDelivererId", "fullName email mobileNumber role")
-      .populate("deliveryRequests", "fullName email mobileNumber role")
+      .populate("senderId", "fullName email mobileNumber phoneNumber role avgRating reviews")
+      .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role")
+      .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role")
       .sort({ createdAt: -1 })
       .lean();
 
