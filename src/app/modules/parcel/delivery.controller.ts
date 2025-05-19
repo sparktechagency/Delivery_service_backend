@@ -1003,7 +1003,7 @@ export const postReviewForUser = async (req: Request, res: Response, next: NextF
   try {
     const { parcelId, rating, review, targetUserId } = req.body;
 
-    if (!parcelId || !rating || !review || !targetUserId) {
+    if (!parcelId || !rating ||  !targetUserId) {
       throw new AppError("Parcel ID, rating, review, and target user ID are required", 400);
     }
 
@@ -1012,9 +1012,9 @@ export const postReviewForUser = async (req: Request, res: Response, next: NextF
       throw new AppError("Rating must be between 1 and 5", 400);
     }
 
-    if (review.trim().length > 500) {
-      throw new AppError("Review text cannot exceed 500 characters", 400);
-    }
+    // if (review.trim().length > 500) {
+    //   throw new AppError("Review text cannot exceed 500 characters", 400);
+    // }
 
     // Find the parcel by ID
     const parcel = await ParcelRequest.findById(parcelId);

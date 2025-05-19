@@ -3,6 +3,7 @@ export enum UserRole {
     DELIVERER = 'DELIVERER',
     ADMIN = 'ADMIN',
     RECCIVER = "RECCIVER",
+    recciver = "recciver"
   }
   
   export enum DeliveryType {

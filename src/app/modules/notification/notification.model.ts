@@ -38,6 +38,7 @@
 import mongoose from "mongoose";
 import moment from "moment-timezone";
 export interface NotificationData {
+  userId?: string;
   phoneNumber?: string;
   mobileNumber?: string;
   price?: number;
@@ -57,7 +58,7 @@ export interface NotificationData {
 
 
 const notificationSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true  },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
   message: { type: String, required: true },
   type: {
     type: String,

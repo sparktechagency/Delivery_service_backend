@@ -65,7 +65,6 @@ adminRouter.get('/order-details', authenticate, authorize(UserRole.ADMIN), getOr
 // Subscription Management
 adminRouter.post('/subscriptions', authenticate, authorize(UserRole.ADMIN), manageSubscriptions);
 
-
 //get all announcement admin
 adminRouter.get('/announcements', authenticate, authorize(UserRole.ADMIN), getAllAnnouncements);
 
