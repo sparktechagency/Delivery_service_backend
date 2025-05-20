@@ -508,7 +508,7 @@ if (!hasRequested) {
     if (deliverer?.fcmToken) {
       const delivererMessage = {
         notification: {
-          title: '${parcel.title}',
+          title: `${parcel.title}`,
           price: parcel.price || '',
           type: 'Accepted',
           body: `You have been assigned to deliver the parcel.`,
@@ -538,7 +538,7 @@ if (!hasRequested) {
     const notification = new Notification({
       message: `You have been assigned to deliver the parcel titled "${parcel.title}".`,
       type: 'Accepted',
-      title: '${parcel.title}',
+      title: `${parcel.title}`,
       description: parcel.description || '',
       price: parcel.price || '',
       requestId: parcel._id,
