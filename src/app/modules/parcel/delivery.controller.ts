@@ -831,74 +831,6 @@ export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next:
 };
 
 
-// export const updateParcelStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const { parcelId, status } = req.body;
-//     const delivererId = req.user?.id; // Delivery man's ID from the token
-
-//     if (!delivererId) throw new AppError('Unauthorized', 401);
-
-//     // Validate status
-//     if (![DeliveryStatus.IN_TRANSIT, DeliveryStatus.DELIVERED].includes(status)) {
-//       throw new AppError('Invalid status', 400);
-//     }
-
-//     const parcel = await ParcelRequest.findById(parcelId);
-//     if (!parcel) throw new AppError('Parcel not found', 404);
-
-//     // Check if the deliverer is the assigned one
-//     if (!parcel.assignedDelivererId || !parcel.assignedDelivererId.equals(delivererId)) {
-//       throw new AppError('You are not assigned to this parcel', 403);
-//     }
-
-//     // Find the user's current subscription
-//     const userSubscription = await Subscription.findOne({ 
-//       userId: delivererId, 
-//       expiryDate: { $gt: new Date() } 
-//     }).sort({ createdAt: -1 });
-
-//     // Find the user
-//     const user = await User.findById(delivererId);
-//     if (!user) throw new AppError('User not found', 404);
-
-//     // Check subscription limits
-//     if (status === DeliveryStatus.DELIVERED) {
-//       // If no active subscription, use default limits
-//       if (!userSubscription) {
-//         // Default Basic Plan Limit
-//         if (user.totalDelivered >= 20) {
-//           throw new AppError('Delivery limit reached. Upgrade your subscription.', 403);
-//         }
-//       } else {
-//         // Check against subscription plan's delivery limit
-//         if (user.totalDelivered >= userSubscription.deliveryLimit) {
-//           throw new AppError('Subscription delivery limit reached. Upgrade your plan.', 403);
-//         }
-//       }
-
-//       // Increment totalDelivered
-//       user.totalDelivered = (user.totalDelivered || 0) + 1;
-//       await user.save();
-//     }
-
-//     // Update parcel status
-//     parcel.status = status;
-//     await parcel.save();
-
-//     res.status(200).json({ 
-//       status: 'success', 
-//       message: `Parcel status updated to ${status}`, 
-//       data: parcel,
-//       deliveryLimit: {
-//         total: userSubscription ? userSubscription.deliveryLimit : 20,
-//         current: user.totalDelivered
-//       }
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 export const updateParcelStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId, status } = req.body;
@@ -919,18 +851,34 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response, next: 
       throw new AppError('You are not assigned to this parcel', 403);
     }
 
-    // Find the user who owns the parcel (sender)
-    const user = await User.findById(parcel.senderId);
-    if (!user) throw new AppError('User not found', 404);
+    // Find the sender user
+    const sender = await User.findById(parcel.senderId);
+    if (!sender) throw new AppError('Sender user not found', 404);
 
-    if (status === DeliveryStatus.DELIVERED) {
-      user.totalDelivered = (user.totalDelivered || 0) + 1;
-      user.totalEarning = (user.totalEarning || 0) + parcel.price;
-      user.monthlyEarnings = (user.monthlyEarnings || 0) + parcel.price;
-      user.totalSentParcels = (user.totalSentParcels || 0) + 1; 
-      await user.save();
-    }
-   
+    // Find the deliverer user
+    const deliverer = await User.findById(delivererId);
+    if (!deliverer) throw new AppError('Deliverer user not found', 404);
+
+if (status === DeliveryStatus.DELIVERED) {
+  // Find the deliverer user
+  const deliverer = await User.findById(delivererId);
+  console.log('Deliverer before update:', deliverer);
+  if (!deliverer) throw new AppError('Deliverer user not found', 404);
+
+  deliverer.totalDelivered = (deliverer.totalDelivered || 0) + 1;
+  deliverer.totalEarning = (deliverer.totalEarning || 0) + parcel.price;
+  deliverer.monthlyEarnings = (deliverer.monthlyEarnings || 0) + parcel.price;
+  
+  // console.log('Deliverer stats after increment:', {
+  //   totalDelivered: deliverer.totalDelivered,
+  //   totalEarning: deliverer.totalEarning,
+  //   monthlyEarnings: deliverer.monthlyEarnings,
+  // });
+
+  await deliverer.save();
+  console.log('Deliverer saved successfully');
+}
+
     parcel.status = status;
     await parcel.save();
 
@@ -943,8 +891,6 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response, next: 
     next(error);
   }
 };
-
-
 
 export const updateGlobalFreeDeliveries = async (req: Request, res: Response) => {
   try {

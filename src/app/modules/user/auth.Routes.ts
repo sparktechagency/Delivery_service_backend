@@ -20,7 +20,7 @@ router.post('/login-email',loginWithEmailOTP);
 router.post('/login-email',loginWithEmailOTP);
 router.post('/verify-login-otp', verifyLoginOTP);
 router.post('/google-auth', googleLoginOrRegister);
-router.delete('/user/:userId',authenticate, deleteProfile);
+router.delete('/user',authenticate, deleteProfile);
 
 
 

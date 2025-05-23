@@ -1,11 +1,9 @@
 import express from 'express';
 import { authenticate, authorize } from "../../middlewares/auth";
-// import upload from "../app/modules/";
 import { changeAdminPassword, createAdmin, deleteUser, getAdminProfile, getOrderDetails, getOrders, getParcelDetails, getParcelDetailsById, getReports, getUsers, holdUser, loginAdmin, manageSubscriptions, updateAdminProfile, } from "./admin.controller";
 import { UserRole } from "../../../types/enums";
 import multer from 'multer';
 import { assignFreeDeliveriesToUser, updateGlobalFreeDeliveries } from '../parcel/delivery.controller';
-// import { getSubscriptionRevenue } from './report.controller';
 import { getTransactionSummary } from './transection.controller';
 import { getMostUsedDeliveryType, getNewSubscribers, getNewUsers, getTotalCompletedOrders, getTotalOrders, getTotalOrdersNumber, getTotalRevenue, getTotalRevenueNumber, getTotalSubscribers, getTotalSubscribersNumber, getTotalSubscriptionRevenue, getTotalUsers, getTransactions, getTransactionsTotal, getUserRatingCounts, getUserStatistics } from './report.controller';
 import { getAllAnnouncements } from '../notification/notification.controller';
@@ -16,15 +14,12 @@ const fileFilter = (req: express.Request, file: Express.Multer.File, cb: multer.
   cb(null, true);
 };
 
-const storage = multer.memoryStorage(); // Store file in memory buffer
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 const adminRouter = express.Router();
 adminRouter.post('/create', authenticate, authorize(UserRole.ADMIN), upload.single('image'), createAdmin);
 adminRouter.post('/login', loginAdmin);
-// adminRouter.put('/profile/:id', authenticate, authorize(UserRole.ADMIN), upload.single('image'), updateAdminProfile);
-
-// Route to update admin profile (authenticate, authorize, upload image, then update profile)
 adminRouter.put('/profile/:id', authenticate, updateAdminProfile);
 adminRouter.put('/change-password', authenticate, authorize(UserRole.ADMIN), changeAdminPassword);
 adminRouter.delete('/user/:userId', authenticate, authorize(UserRole.ADMIN), deleteUser);

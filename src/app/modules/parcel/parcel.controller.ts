@@ -561,7 +561,7 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
       const { _id, ...rest } = parcel.toObject() as any; 
       return { _id, ...rest, isRequestedByMe: false };
     });
-
+    parcels.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     res.status(200).json({
       status: "success",
       data: reorderedParcels,
@@ -691,36 +691,112 @@ export const getAssignedAndRequestedParcels = async (req: AuthRequest, res: Resp
 };
 
 //all states parcel
+// export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const userId = req.user?.id;
+//     if (!userId) throw new AppError("Unauthorized", 401);
+
+//     // Parcels where user is sender (sendParcel)
+//     const sendParcels = await ParcelRequest.find({ senderId: userId })
+//       .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role")
+//       .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber avgRating reviews role")
+//       .populate("deliveryRequests", "fullName email mobileNumber phoneNumber avgRating reviews role")
+//       .sort({ createdAt: -1 }) // Sort by the most recent parcel
+//       .lean();
+
+//     sendParcels.forEach(p => ((p as any).typeParcel = "sendParcel"));
+
+//     // Parcels where user requested delivery (exclude parcels user sent) (deliveryRequest)
+//     const deliveryRequestParcels = await ParcelRequest.find({
+//       deliveryRequests: userId,
+//       senderId: { $ne: userId }, // Ensure user is not the sender
+//     })
+//       .populate("senderId", "fullName email mobileNumber phoneNumber role avgRating reviews")
+//       .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role")
+//       .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role")
+//       .sort({ createdAt: -1 }) // Sort by the most recent delivery request
+//       .lean();
+
+//     deliveryRequestParcels.forEach(p => ((p as any).typeParcel = "deliveryRequest"));
+
+//     // Combine both arrays (no duplicates possible due to senderId condition)
+//     const parcels = [...sendParcels, ...deliveryRequestParcels].map(parcel => {
+//       // Fallback for sender mobile number
+//       if (parcel.senderId && typeof parcel.senderId === "object" && parcel.senderId !== null) {
+//         if ("email" in parcel.senderId) {
+//           const mobileNumber =
+//             ("mobileNumber" in parcel.senderId ? parcel.senderId.mobileNumber : null) ||
+//             ("phoneNumber" in parcel.senderId ? parcel.senderId.phoneNumber : null) ||
+//             "";
+//           (parcel.senderId as any).mobileNumber = mobileNumber;
+//         }
+//       }
+
+//       // Limit deliveryRequests array length to 5 max
+//       if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
+//         parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
+//       }
+
+//       return parcel;
+//     });
+
+//     // Sort combined parcels to ensure the latest is at the top (sort by createdAt in descending order)
+//     parcels.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+//     res.status(200).json({
+//       status: "success",
+//       data: parcels,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     if (!userId) throw new AppError("Unauthorized", 401);
 
-    // Parcels where user is sender
+    // Parcels where user is the sender (sendParcel)
     const sendParcels = await ParcelRequest.find({ senderId: userId })
       .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role")
       .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber avgRating reviews role")
       .populate("deliveryRequests", "fullName email mobileNumber phoneNumber avgRating reviews role")
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1 }) // Sort by the most recent parcel
       .lean();
 
     sendParcels.forEach(p => ((p as any).typeParcel = "sendParcel"));
 
-    // Parcels where user requested delivery (exclude parcels user sent)
+    // Parcels where user requested delivery (deliveryRequest)
     const deliveryRequestParcels = await ParcelRequest.find({
-      deliveryRequests: userId,
+      deliveryRequests: userId,  
       senderId: { $ne: userId },
+      status: { $in: ['PENDING', 'REQUESTED'] }, // Only available parcels
     })
       .populate("senderId", "fullName email mobileNumber phoneNumber role avgRating reviews")
+      .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role")
+      .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role")
+      .sort({ createdAt: -1 }) // Sort by the most recent delivery request
+      .lean();
+
+    deliveryRequestParcels.forEach(p => ((p as any).typeParcel = "deliveryRequest"));
+
+    const assignedParcels = await ParcelRequest.find({
+      assignedDelivererId: userId,
+      status: { $ne: 'DELIVERED' }, 
+    })
+      .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role")
       .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role")
       .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role")
       .sort({ createdAt: -1 })
       .lean();
 
-    deliveryRequestParcels.forEach(p => ((p as any).typeParcel = "deliveryRequest"));
+    assignedParcels.forEach(p => ((p as any).typeParcel = "assignedParcel"));
 
-    // Combine both arrays (no duplicates possible due to senderId condition)
-    const parcels = [...sendParcels, ...deliveryRequestParcels].map(parcel => {
+    const parcels = [
+      ...sendParcels,
+      ...deliveryRequestParcels,
+      ...assignedParcels
+    ].map(parcel => {
       // Fallback for sender mobile number
       if (parcel.senderId && typeof parcel.senderId === "object" && parcel.senderId !== null) {
         if ("email" in parcel.senderId) {
@@ -740,6 +816,9 @@ export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res
       return parcel;
     });
 
+    // Sort combined parcels to ensure the latest is at the top (sort by createdAt in descending order)
+    parcels.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     res.status(200).json({
       status: "success",
       data: parcels,
@@ -748,50 +827,6 @@ export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res
     next(error);
   }
 };
-
-
-// export const getParcelsByRadius = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { latitude, longitude, radius, status } = req.body;
-//     if (isNaN(latitude) || isNaN(longitude) || isNaN(radius)) {
-//       throw new AppError('Latitude, longitude, and radius must be valid numbers', 400);
-//     }
-
-//     console.log(`Searching for parcels within ${radius} km of lat: ${latitude}, lon: ${longitude}`);
-
-//     const radiusInRadians = radius / 6371;
-
-//     const filter: any = {
-//       'pickupLocation.coordinates': {
-//         $geoWithin: {
-//           $centerSphere: [[longitude, latitude], radiusInRadians], 
-//         },
-//       },
-//     };
-
-//     filter.status = DeliveryStatus.PENDING;
-
-
-//     if (status && Object.values(DeliveryStatus).includes(status)) {
-//       filter.status = status;
-//     }
-
-//     const parcels = await ParcelRequest.find(filter);
-
-//     if (parcels.length === 0) {
-//       console.log('No parcels found within the specified radius.');
-//     } else {
-//       console.log(`Found ${parcels.length} parcels within the specified radius.`);
-//     }
-
-//     res.json({
-//       status: 'success',
-//       data: parcels,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 
 export const getParcelsByRadius = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -831,7 +866,7 @@ export const getParcelsByRadius = async (req: Request, res: Response, next: Next
     } else {
       console.log(`Found ${parcels.length} parcels within the specified radius.`);
     }
-
+    parcels.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     res.json({
       status: 'success',
       data: parcels,

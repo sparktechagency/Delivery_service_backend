@@ -1,4 +1,3 @@
-// admin.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { DeliveryType } from '../../../types/enums';
 import moment from 'moment';  
@@ -64,8 +63,7 @@ export const createAdmin = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-
-  export const loginAdmin = async (req: Request, res: Response, next: NextFunction) => {
+export const loginAdmin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { email, password } = req.body;
   
@@ -100,7 +98,7 @@ export const createAdmin = async (req: Request, res: Response, next: NextFunctio
     }
   };
 
-  export const changeAdminPassword = async (req: Request, res: Response, next: NextFunction) => {
+export const changeAdminPassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { currentPassword, newPassword, confirmPassword } = req.body;
       const adminId = req.user?.id;
@@ -161,7 +159,6 @@ export const updateAdminProfile = async (req: Request, res: Response, next: Next
       });
     }
 
-    // Update admin profile fields
     admin.fullName = name || admin.fullName;
     admin.email = email || admin.email;
     admin.dob = dob ? new Date(dob) : admin.dob;
@@ -169,17 +166,12 @@ export const updateAdminProfile = async (req: Request, res: Response, next: Next
     admin.postalCode = postalCode || admin.postalCode;
     admin.username = username || admin.username;
 
-    // Handle profile image upload
     if (req.files && (req.files as { [fieldname: string]: Express.Multer.File[] })['image']) {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const imagePath = '/uploads/image/' + files['image'][0].filename;  
       admin.image = imagePath;
     }
-
-    // Save the updated admin profile
     await admin.save();
-
-    // Return the updated admin profile excluding password hash
     const updatedAdmin = await Admin.findById(adminId).select('-passwordHash');
     res.status(200).json({
       status: "success",
@@ -304,91 +296,6 @@ export const getOrders = async (req: Request, res: Response, next: NextFunction)
     }
   };
 
-// export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const page = parseInt(req.query.page as string) || 1;
-//     const limit = 10;
-//     const skip = (page - 1) * limit;
-//     const { filterType, sortBy, sortOrder } = req.query;
-
-//     console.log("🔍 Fetching users with pagination, rating, earnings, and sorting...");
-
-//     // Build filter criteria
-//     let filter: any = {};
-
-//     // Filter by highest or lowest rating
-//     if (filterType === "rating") {
-//       // If filterType is 'rating', we will just sort by highest or lowest rating
-//       // No need to check for specific rating values, just use the default behavior (highest or lowest)
-//     }
-
-//     // Filter by highest or lowest earnings
-//     if (filterType === "earning") {
-//       // Same logic as for rating, just filter by highest or lowest earning
-//     }
-
-//     // Handle sorting logic
-//     let sortCriteria: any = {};
-//     if (sortBy === "rating") {
-//       sortCriteria["avgRating"] = sortOrder === "desc" ? -1 : 1;  // Sort by avgRating (desc/asc)
-//     } else if (sortBy === "earning") {
-//       sortCriteria["totalEarning"] = sortOrder === "desc" ? -1 : 1;  // Sort by totalEarning (desc/asc)
-//     } else {
-//       // Default sorting by highest rating if no sortBy is provided
-//       sortCriteria["avgRating"] = -1;  // Default sorting by highest rating
-//     }
-
-//     console.log('Filter Criteria:', filter);
-//     console.log('Sort Criteria:', sortCriteria);
-
-//     // Fetch users with pagination, filter, and sorting
-//     const users = await User.find(filter)
-//       .skip(skip)
-//       .limit(limit)
-//       .select('fullName email mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt reviews')
-//       .lean();
-
-//     // Calculate the average rating for each user
-//     users.forEach((user) => {
-//       if (user.reviews && user.reviews.length > 0) {
-//         const totalRating = user.reviews.reduce((sum, review) => sum + review.rating, 0);
-//         const avgRating = totalRating / user.reviews.length;
-//         user.avgRating = parseFloat(avgRating.toFixed(2));  // Convert to a number with two decimals
-//       } else {
-//         user.avgRating = 0;  // No rating available
-//       }
-//     });
-
-//     // Sort users based on the specified sort criteria
-//     const sortedUsers = users.sort((a: any, b: any) => {
-//       if (sortBy === 'rating') {
-//         return sortOrder === 'desc' ? b.avgRating - a.avgRating : a.avgRating - b.avgRating;
-//       } else if (sortBy === 'earning') {
-//         return sortOrder === 'desc' ? b.totalEarning - a.totalEarning : a.totalEarning - b.totalEarning;
-//       }
-//       return 0;  // Default: no sorting if sortBy is not specified
-//     });
-
-//     // Get the total count of users for pagination purposes
-//     const totalUsers = await User.countDocuments(filter);
-//     const totalPages = Math.ceil(totalUsers / limit);
-
-//     // Respond with the data and pagination info
-//     res.json({
-//       status: 'success',
-//       data: {
-//         users: sortedUsers,
-//         totalUsers,
-//         currentPage: page,
-//         totalPages
-//       }
-//     });
-//   } catch (error) {
-//     console.error("❌ Error fetching users:", error);
-//     res.status(500).json({ status: "error", message: "Internal Server Error" });
-//   }
-// };
-
 export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -511,9 +418,7 @@ export const getUserData = async (req: Request, res: Response, next: NextFunctio
       next(error); 
     }
   };
-  
-
-export const holdUser = async (req: Request, res: Response, next: NextFunction) => {
+  export const holdUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId } = req.body;
     const user = await User.findById(userId);
@@ -526,7 +431,6 @@ export const holdUser = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-
 export const getReports = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const reports = await Report.find().populate('user');
@@ -535,7 +439,6 @@ export const getReports = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
-
 
 export const manageSubscriptions = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -658,7 +561,6 @@ export const getParcelDetails = async (req: Request, res: Response, next: NextFu
     next(error);
   }
 };
-
 
 interface DeliveryTimes {
   [DeliveryType.TRUCK]: { totalTime: number, count: number };
@@ -796,8 +698,6 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
     next(error); 
   }
 };
-
-
 
 export const getParcelDetailsById = async (req: Request, res: Response, next: NextFunction) => {
   try {
