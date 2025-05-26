@@ -1,8 +1,10 @@
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 import { SenderType, SubscriptionType, UserRole } from '../../../types/enums';
 import { ParcelRequest, ParcelRequestDocument } from '../parcel/ParcelRequest.model'; 
+import { IUser } from '../../../types/interfaces';
 
 export interface UserDocument extends Document {
+   user: IUser;
   _id: Types.ObjectId;
   fullName: string;
   country: string;

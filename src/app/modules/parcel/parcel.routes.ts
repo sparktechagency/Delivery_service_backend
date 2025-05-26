@@ -16,7 +16,7 @@ parcelRouter.post('/availableByRadius', authenticate,getParcelsByRadius );
 parcelRouter.get('/requests/:parcelId', getParcelWithDeliveryRequests);
 parcelRouter.get('/get-user-reviews', authenticate, getUserReviews);
 parcelRouter.put("/assign", authenticate, assignDeliveryMan);
-parcelRouter.put("/cancel-assignment", authenticate, cancelAssignedDeliveryMan);
+parcelRouter.post("/cancel-assignment", authenticate, cancelAssignedDeliveryMan);
 parcelRouter.put('/remove-request',authenticate, removeDeliveryRequest )
 parcelRouter.post('/delivery',authenticate, updateParcelStatus )
 parcelRouter.get('/get-request-deliver', authenticate, getAssignedAndRequestedParcels);

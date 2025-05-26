@@ -1,7 +1,7 @@
 
 
 
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types, ObjectId } from 'mongoose';
 import { DeliveryStatus, DeliveryType, SenderType } from '../../../types/enums';
 
 import moment from 'moment-timezone';
@@ -55,6 +55,7 @@ parcelRequestSchema.index({ deliveryLocation: '2dsphere' });
 
 export const ParcelRequest = mongoose.model('ParcelRequest', parcelRequestSchema);
 export type ParcelRequestDocument = Document & {
+   _id: string | ObjectId;
   senderId: Types.ObjectId;
   receiverId: Types.ObjectId;
   description: { type: string; required: false; default: string; };

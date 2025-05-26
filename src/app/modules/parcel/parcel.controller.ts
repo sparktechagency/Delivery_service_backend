@@ -261,34 +261,6 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     }
 
 
-    // ✅ Store in DB for all users
-    // for (const userId of userIds) {
-    //   await Notification.create({
-    //     // userId,
-    //     userId: new mongoose.Types.ObjectId(userId),
-    //     message: notificationMessage,
-    //     type: 'send_parcel',
-    //     title,
-    //     parcelId: parcel._id,
-    //     price,
-    //     phoneNumber,
-    //     description,
-    //     deliveryStartTime,
-    //     deliveryEndTime,
-    //     pickupLocation: {
-    //       latitude: pickupCoordinates.latitude,
-    //       longitude: pickupCoordinates.longitude,
-    //     },
-    //     deliveryLocation: {
-    //       latitude: deliveryCoordinates.latitude,
-    //       longitude: deliveryCoordinates.longitude,
-    //     },
-    //     isRead: false,
-    //   });
-
-      
-    // }
-
 
 
     for (const userId of userIds) {
@@ -549,19 +521,58 @@ export const deleteParcelRequest = async (req: Request, res: Response, next: Nex
   }
 };
 
-export const getAvailableParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const parcels = await ParcelRequest.find({ status: DeliveryStatus.PENDING })
-      .select('title description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType senderType status deliveryRequests name price phoneNumber createdAt updatedAt images') 
-      .populate("senderId", "fullName email mobileNumber profileImage role")
-      .sort({ createdAt: -1 });
+// export const getAvailableParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const parcels = await ParcelRequest.find({ status: DeliveryStatus.PENDING })
+//       .select('title description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType senderType status deliveryRequests name price phoneNumber createdAt updatedAt images') 
+//       .populate("senderId", "fullName email mobileNumber profileImage role")
+//       .sort({ createdAt: -1 });
       
 
+//     const reorderedParcels = parcels.map(parcel => {
+//       const { _id, ...rest } = parcel.toObject() as any; 
+//       return { _id, ...rest, isRequestedByMe: false };
+//     });
+//     parcels.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+//     res.status(200).json({
+//       status: "success",
+//       data: reorderedParcels,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+export const getAvailableParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return next(new AppError("Unauthorized", 401));
+    }
+    const userId = req.user.id;
+    
+    let parcels = await ParcelRequest.find({
+      status: DeliveryStatus.PENDING,
+    })
+    .select('title description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType senderType status deliveryRequests name price phoneNumber createdAt updatedAt images') 
+    .populate("senderId", "fullName email mobileNumber profileImage role")
+    .sort({ createdAt: -1 });
+
+    // Filter out parcels with null senderId AND current user's parcels
+    parcels = parcels.filter(parcel => {
+      // Check if senderId exists and is populated
+      if (!parcel.senderId || !parcel.senderId._id) {
+        return false; // Exclude parcels with null/missing senderId
+      }
+      
+      // Exclude current user's parcels
+      return parcel.senderId._id.toString() !== userId.toString();
+    });
+
     const reorderedParcels = parcels.map(parcel => {
-      const { _id, ...rest } = parcel.toObject() as any; 
+      const { _id, ...rest } = parcel.toObject() as any;
       return { _id, ...rest, isRequestedByMe: false };
     });
-    parcels.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     res.status(200).json({
       status: "success",
       data: reorderedParcels,
@@ -570,7 +581,6 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
     next(error);
   }
 };
-
 
 export const getUserParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

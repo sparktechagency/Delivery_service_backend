@@ -11,6 +11,8 @@ import { Subscription } from '../../models/subscription.model';
 import { Notification } from '../notification/notification.model';
 import admin from "firebase-admin";
 import { Body } from 'twilio/lib/twiml/MessagingResponse';
+import DeviceToken from '../user/fcm.token.model';
+import moment from 'moment';
 
 
 // export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -208,40 +210,81 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
       parcel.status = DeliveryStatus.REQUESTED;
       await parcel.save();
 
-      // 🚀 Notification Logic
-      const senderUser = await User.findById(parcel.senderId);
-      if (senderUser?.fcmToken) {
-        const senderMessage = {
-          notification: {
-            type: 'delivery_request',
-            title: '${parcel.title}',
-            price: parcel.price || '',
-            body: `${user.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} "${user.fullName}"`,
-            mobileNumber: user.mobileNumber || 'Unknown Number',
-            image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-            AvgRating: user.avgRating || 0,
-            name: senderUser.fullName || '',
-            deliveryStartTime: parcel.deliveryStartTime,
-            deliveryEndTime: parcel.deliveryEndTime,
-            pickupLocation: {
-              latitude: parcel.pickupLocation?.coordinates[1],
-              longitude: parcel.pickupLocation?.coordinates[0]
-            },
-            deliveryLocation: {
-              latitude: parcel.deliveryLocation?.coordinates[1],
-              longitude: parcel.deliveryLocation?.coordinates[0]
-            }
-          },
-          token: senderUser.fcmToken,
-        };
+       await User.findByIdAndUpdate(parcel.senderId, {
+      $push: {
+        RecciveOrders: {
+          parcelId: parcel._id,
+          pickupLocation: parcel.pickupLocation?.coordinates
+            ? `${parcel.pickupLocation.coordinates[1]},${parcel.pickupLocation.coordinates[0]}`
+            : "",
+          deliveryLocation: parcel.deliveryLocation?.coordinates
+            ? `${parcel.deliveryLocation.coordinates[1]},${parcel.deliveryLocation.coordinates[0]}`
+            : "",
+          price: parcel.price,
+          title: parcel.title,
+          description: parcel.description,
+          senderType: parcel.senderType,
+          deliveryType: parcel.deliveryType,
+          deliveryStartTime: parcel.deliveryStartTime,
+          deliveryEndTime: parcel.deliveryEndTime,
+        },
+      },
+      $inc: { totalReceivedParcels: 1 },
+    });
+    
+     const sender = await User.findById(parcel.senderId);
 
-        try {
-          await admin.messaging().send(senderMessage);
-          console.log('Push notification sent to sender.');
-        } catch (err) {
-          console.error('Error sending push notification to sender:', err);
-        }
+    // Fix role enum spelling if necessary
+    if (sender && sender.role === UserRole.SENDER) {
+      sender.role = UserRole.RECCIVER; 
+      await sender.save();
+    }
+
+    // Fetch sender for notification meta info
+    const deliverer = await User.findById(parcel.assignedDelivererId);
+
+    // ✅ Get FCM token from DeviceToken collection (like in createParcelRequest)
+    const deviceToken = await DeviceToken.findOne({
+      userId: parcel.senderId,
+      fcmToken: { $exists: true, $ne: '' }
+    });
+
+    // ✅ Send push notification if token exists
+    if (deviceToken?.fcmToken) {
+      const notificationMessage = `Requested to deliver "${parcel.title}".`;
+      
+      const pushPayload = {
+        notification: {
+          title: parcel.title,
+          body: notificationMessage,
+        },
+        data: {
+          type: 'delivery_request',
+          title: parcel.title,
+          message: notificationMessage,
+          parcelId: parcel._id.toString(),
+          price: String(parcel.price || ''),
+          description: parcel.description || '',
+          phoneNumber: parcel.phoneNumber || '',
+          deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
+          deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
+          pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
+          pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
+          deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
+          deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
+        },
+        token: deviceToken.fcmToken,
+      };
+
+      try {
+        await admin.messaging().send(pushPayload);
+        console.log(`✅ Push notification sent to assigned deliverer: ${deviceToken.fcmToken}`);
+      } catch (err) {
+        console.error(`❌ Push notification failed to deliverer ${deviceToken.fcmToken}:`, err);
       }
+    } else {
+      console.log(`⚠️ No FCM token found for deliverer: ${parcel.senderId}`);
+    }
 
       const notification = new Notification({
         message: `${user.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
@@ -250,7 +293,7 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
         description: parcel.description || '',
         price: parcel.price || '',
         requestId: parcel._id,
-        userId: senderUser?._id,
+        userId: user?._id,
         image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
         AvgRating: user.avgRating || 0,
         SenderName: user.fullName || '',
@@ -281,7 +324,147 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
   }
 };
 
+// export const removeDeliveryRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const { parcelId, delivererId } = req.body;
+//     const userId = req.user?.id;
 
+//     if (!userId) throw new AppError("Unauthorized", 401);
+
+//     const parcel = await ParcelRequest.findById(parcelId);
+//     if (!parcel) throw new AppError("Parcel not found", 404);
+
+//     if (parcel.senderId.toString() !== userId) {
+//       throw new AppError("Only the sender can remove delivery requests", 403);
+//     }
+//     const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
+//     if (!parcel.deliveryRequests.includes(delivererObjectId)) {
+//       throw new AppError("This delivery man has not requested the parcel", 400);
+//     }
+
+
+//     parcel.deliveryRequests = parcel.deliveryRequests.filter(
+//       (requesterId) => requesterId.toString() !== delivererObjectId.toString()
+//     );
+
+//     if (parcel.deliveryRequests.length === 0 && parcel.status === DeliveryStatus.REQUESTED) {
+//       parcel.status = DeliveryStatus.PENDING;
+//     }
+
+// await parcel.save();
+
+// // Find the user whose delivery request is being removed
+// const RequestUser = await User.findById(delivererId);
+
+// await User.findByIdAndUpdate(parcel.deliveryRequests.map((requesterId) => requesterId.toString()), delivererObjectId, {
+//   $push: {
+//     RecciveOrders: {
+//       parcelId: parcel._id,
+//       pickupLocation: parcel.pickupLocation?.coordinates
+//         ? `${parcel.pickupLocation.coordinates[1]},${parcel.pickupLocation.coordinates[0]}`
+//         : "",
+//       deliveryLocation: parcel.deliveryLocation?.coordinates
+//         ? `${parcel.deliveryLocation.coordinates[1]},${parcel.deliveryLocation.coordinates[0]}`
+//         : "",
+//       price: parcel.price,
+//       title: parcel.title,
+//       description: parcel.description,
+//       senderType: parcel.senderType,
+//       deliveryType: parcel.deliveryType,
+//       deliveryStartTime: parcel.deliveryStartTime,
+//       deliveryEndTime: parcel.deliveryEndTime,
+//     },
+//   },
+//   $inc: { totalReceivedParcels: 1 },
+// });
+
+// const deliverer = await User.findById(delivererId);
+//  if (deliverer && deliverer.role === UserRole.SENDER) {
+//       deliverer.role = UserRole.RECCIVER; 
+//       await deliverer.save();
+//     }
+
+//     // Fetch requester for notification meta info
+//     const requester = await User.findById(parcel.receiverId);
+
+//     // ✅ Get FCM token from DeviceToken collection (like in createParcelRequest)
+//     const deviceToken = await DeviceToken.findOne({
+//       userId: parcel.senderId,
+//       fcmToken: { $exists: true, $ne: '' }
+//     });
+
+//     // ✅ Send push notification if token exists
+//     if (deviceToken?.fcmToken) {
+//       const notificationMessage = `You have been Rejected to deliver Requested Parcel "${parcel.title}".`;
+      
+//       const pushPayload = {
+//         notification: {
+//           title: parcel.title,
+//           body: notificationMessage,
+//         },
+//         data: {
+//           type: 'Rejected-Delivery',
+//           title: parcel.title,
+//           message: notificationMessage,
+//           parcelId: parcel._id.toString(),
+//           price: String(parcel.price || ''),
+//           description: parcel.description || '',
+//           phoneNumber: parcel.phoneNumber || '',
+//           deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
+//           deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
+//           pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
+//           pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
+//           deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
+//           deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
+//         },
+//         token: deviceToken.fcmToken,
+//       };
+
+//       try {
+//         await admin.messaging().send(pushPayload);
+//         console.log(`✅ Push notification sent to the Reqested User: ${deviceToken.fcmToken}`);
+//       } catch (err) {
+//         console.error(`❌ Push notification failed to the Reqested User ${deviceToken.fcmToken}:`, err);
+//       }
+//     } else {
+//       console.log(`⚠️ No FCM token found for the Reqested User: ${delivererId}`);
+//     }
+// const notification = new Notification({
+//   message: `${RequestUser?.role === 'sender' ? 'A deliverer has requested has been removed' : 'A sender has removed'} you removed to this delivery parcel titled "${parcel.title}".`,
+//   type: 'Rejected',
+//   title: `"${parcel.title} "`,
+//   description: parcel.description || '',
+//   parcelTitle: parcel.title || '',
+//   price: parcel.price || '',
+//   requestId: parcel._id,
+//   userId: RequestUser?._id,
+//   image: RequestUser?.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+//   AvgRating: RequestUser?.avgRating || 0,
+//   SenderName: RequestUser?.fullName || '',
+//   mobileNumber: RequestUser?.mobileNumber || ' ',
+//   deliveryStartTime: parcel.deliveryStartTime,
+//   deliveryEndTime: parcel.deliveryEndTime,
+//   pickupLocation: {
+//     latitude: parcel.pickupLocation?.coordinates[1],
+//     longitude: parcel.pickupLocation?.coordinates[0]
+//   },
+//   deliveryLocation: {
+//     latitude: parcel.deliveryLocation?.coordinates[1],
+//     longitude: parcel.deliveryLocation?.coordinates[0]
+//   }
+  
+// });
+
+// await notification.save();
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "Delivery request removed successfully",
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 export const removeDeliveryRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId, delivererId } = req.body;
@@ -295,12 +478,13 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
     if (parcel.senderId.toString() !== userId) {
       throw new AppError("Only the sender can remove delivery requests", 403);
     }
+
     const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
     if (!parcel.deliveryRequests.includes(delivererObjectId)) {
       throw new AppError("This delivery man has not requested the parcel", 400);
     }
 
-
+    // Remove the delivery request
     parcel.deliveryRequests = parcel.deliveryRequests.filter(
       (requesterId) => requesterId.toString() !== delivererObjectId.toString()
     );
@@ -311,53 +495,82 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
 
     await parcel.save();
 
-    //notification
-    const RequestUser = await User.findById(parcel.receiverId);
-    if (RequestUser?.fcmToken) {
-      const senderMessage = {
+    // Find the user whose delivery request is being removed
+    const requestedUser = await User.findById(delivererId);
+    if (!requestedUser) {
+      throw new AppError("Requested user not found", 404);
+    }
+
+    // ✅ Get FCM token for the DELIVERER (not sender) - they should be notified of rejection
+    const deviceToken = await DeviceToken.findOne({
+      userId: requestToDeliver, // ✅ Fixed: notify the deliverer, not sender
+      fcmToken: { $exists: true, $ne: '' }
+    });
+
+    console.log(`🔍 Looking for FCM token for deliverer: ${delivererId}`);
+    console.log(`📱 Found device token:`, deviceToken ? 'Yes' : 'No');
+
+    // ✅ Send push notification to deliverer if token exists
+    if (deviceToken?.fcmToken) {
+      const notificationMessage = `Your delivery request for "${parcel.title}" has been rejected.`;
+      
+      const pushPayload = {
         notification: {
-          title: '${parcel.title}',
-          price: parcel.price || '',
-          type: 'Rejected',
-          body: `${RequestUser?.role === 'sender' ? 'A deliverer has requested has been removed' : 'A sender has removed'} you removed to this delivery parcel titled "${parcel.title}".`,
-          mobileNumber: RequestUser.mobileNumber || 'Unknown Number',
-          image:RequestUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-          AvgRating: RequestUser.avgRating || 0,
-          deliveryStartTime: parcel.deliveryStartTime,
-          deliveryEndTime: parcel.deliveryEndTime,
-          pickupLocation: {
-            latitude: parcel.pickupLocation?.coordinates[1],
-            longitude: parcel.pickupLocation?.coordinates[0]
-          },
-          deliveryLocation: {
-            latitude: parcel.deliveryLocation?.coordinates[1],
-            longitude: parcel.deliveryLocation?.coordinates[0]
-          }
+          title: `Request Rejected`,
+          body: notificationMessage,
         },
-        token: RequestUser.fcmToken,
+        data: {
+          type: 'Rejected-Delivery',
+          title: parcel.title,
+          message: notificationMessage,
+          parcelId: parcel._id.toString(),
+          price: String(parcel.price || ''),
+          description: parcel.description || '',
+          phoneNumber: parcel.phoneNumber || '',
+          deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
+          deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
+          pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
+          pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
+          deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
+          deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
+        },
+        token: deviceToken.fcmToken,
       };
 
       try {
-        await admin.messaging().send(senderMessage);
-        console.log('Push notification sent to sender.');
+        await admin.messaging().send(pushPayload);
+        console.log(`✅ Push notification sent to rejected deliverer: ${deviceToken.fcmToken}`);
       } catch (err) {
-        console.error('Error sending push notification to sender:', err);
+        console.error(`❌ Push notification failed to deliverer ${deviceToken.fcmToken}:`, err);
+        
+        // ✅ Handle invalid FCM tokens
+        if (typeof err === 'object' && err !== null && 'code' in err && (err as any).code === 'messaging/registration-token-not-registered') {
+          console.log(`🗑️ Removing invalid FCM token for user ${delivererId}`);
+          // Remove the invalid token from database
+          await DeviceToken.deleteOne({ 
+            userId: delivererId, 
+            fcmToken: deviceToken.fcmToken 
+          });
+        }
       }
+    } else {
+      console.log(`⚠️ No FCM token found for deliverer: ${delivererId}`);
     }
 
+    // ✅ Create notification for the rejected deliverer
     const notification = new Notification({
-      message: `${RequestUser?.role === 'sender' ? 'A deliverer has requested has been removed' : 'A sender has removed'} you removed to this delivery parcel titled "${parcel.title}".`,
+      message: `Your delivery request for parcel "${parcel.title}" has been rejected by the sender.`,
       type: 'Rejected',
-      title: `"${parcel.title} "`,
+      title: `Request Rejected`,
       description: parcel.description || '',
       parcelTitle: parcel.title || '',
       price: parcel.price || '',
       requestId: parcel._id,
-      userId: RequestUser?._id,
-      image: RequestUser?.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-      AvgRating: RequestUser?.avgRating || 0,
-      SenderName: RequestUser?.fullName || '',
-      mobileNumber: RequestUser?.mobileNumber || ' ',
+      userId: requestedUser._id, // ✅ Notify the deliverer
+      image: requestedUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+      AvgRating: requestedUser.avgRating || 0,
+      SenderName: requestedUser.fullName || '',
+      mobileNumber: requestedUser.mobileNumber || '',
       deliveryStartTime: parcel.deliveryStartTime,
       deliveryEndTime: parcel.deliveryEndTime,
       pickupLocation: {
@@ -367,8 +580,10 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
       deliveryLocation: {
         latitude: parcel.deliveryLocation?.coordinates[1],
         longitude: parcel.deliveryLocation?.coordinates[0]
-      }
-      
+      },
+      isRead: false,
+      createdAt: new Date(),
+      localCreatedAt: moment().tz('Asia/Dhaka').format('YYYY-MM-DD hh:mm A')
     });
 
     await notification.save();
@@ -378,74 +593,10 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
       message: "Delivery request removed successfully",
     });
   } catch (error) {
+    console.error('Error in removeDeliveryRequest:', error);
     next(error);
   }
 };
-
-
-// export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const { parcelId, delivererId } = req.body;
-//     const userId = req.user?.id;
-
-//     if (!userId) throw new AppError("Unauthorized", 401);
-
-//     const parcel = await ParcelRequest.findById(parcelId);
-//     if (!parcel) throw new AppError("Parcel not found", 404);
-
-//     // Ensure only the sender can assign a delivery man
-//     if (parcel.senderId.toString() !== userId) {
-//       throw new AppError("Only the sender can assign a delivery man", 403);
-//     }
-
-//     const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
-
-//     // Ensure the selected delivery man has requested the parcel
-//     if (!parcel.deliveryRequests.includes(delivererObjectId)) {
-//       throw new AppError("The selected delivery man has not requested this parcel", 400);
-//     }
-
-//     // ✅ Assign the delivery man and update status to "IN_TRANSIT"
-//     parcel.assignedDelivererId = delivererObjectId;
-//     parcel.status = DeliveryStatus.IN_TRANSIT;
-//     parcel.deliveryRequests = [];
-//     await parcel.save();
-
-//     await User.findByIdAndUpdate(delivererId, {
-//       $push: {
-//         RecciveOrders: {
-//           parcelId: parcel._id,
-//           pickupLocation: parcel.pickupLocation?.coordinates ? 
-//             `${parcel.pickupLocation.coordinates[1]},${parcel.pickupLocation.coordinates[0]}` : "",
-//           deliveryLocation: parcel.deliveryLocation?.coordinates ? 
-//             `${parcel.deliveryLocation.coordinates[1]},${parcel.deliveryLocation.coordinates[0]}` : "",
-//           price: parcel.price,
-//           title: parcel.title,
-//           description: parcel.description,
-//           senderType: parcel.senderType,
-//           deliveryType: parcel.deliveryType,
-//           deliveryStartTime: parcel.deliveryStartTime,
-//           deliveryEndTime: parcel.deliveryEndTime,
-//         }
-//       },
-//       $inc: { totalReceivedParcels: 1 }
-//     });
-    
-//     // ✅ Automatically update the assigned user's role to `RECEIVER` if they are currently `SENDER`
-//     const deliverer = await User.findById(delivererId);
-//     if (deliverer && deliverer.role === UserRole.SENDER) {
-//       deliverer.role = UserRole.recciver;
-//       await deliverer.save();
-//     }
-
-//     res.status(200).json({
-//       status: "success",
-//       message: "Delivery man assigned successfully",
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 
 export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -461,30 +612,34 @@ export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: N
       throw new AppError("Only the sender can assign a delivery man", 403);
     }
 
-const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
+    const delivererObjectId = new mongoose.Types.ObjectId(delivererId);
 
-// Check if any of the ObjectIds in deliveryRequests match the deliverer's ID
-const hasRequested = parcel.deliveryRequests.some(requestId => 
-  requestId.toString() === delivererObjectId.toString()
-);
+    // Check if deliverer has requested the parcel
+    const hasRequested = parcel.deliveryRequests?.some(requestId =>
+      requestId.toString() === delivererObjectId.toString()
+    );
 
-if (!hasRequested) {
-  throw new AppError("The selected delivery man has not requested this parcel", 400);
-}
+    if (!hasRequested) {
+      throw new AppError("The selected delivery man has not requested this parcel", 400);
+    }
 
+    // Assign deliverer and update status
     parcel.assignedDelivererId = delivererObjectId;
     parcel.status = DeliveryStatus.IN_TRANSIT;
     parcel.deliveryRequests = [];
     await parcel.save();
 
+    // Update deliverer's received orders
     await User.findByIdAndUpdate(delivererId, {
       $push: {
         RecciveOrders: {
           parcelId: parcel._id,
-          pickupLocation: parcel.pickupLocation?.coordinates ? 
-            `${parcel.pickupLocation.coordinates[1]},${parcel.pickupLocation.coordinates[0]}` : "",
-          deliveryLocation: parcel.deliveryLocation?.coordinates ? 
-            `${parcel.deliveryLocation.coordinates[1]},${parcel.deliveryLocation.coordinates[0]}` : "",
+          pickupLocation: parcel.pickupLocation?.coordinates
+            ? `${parcel.pickupLocation.coordinates[1]},${parcel.pickupLocation.coordinates[0]}`
+            : "",
+          deliveryLocation: parcel.deliveryLocation?.coordinates
+            ? `${parcel.deliveryLocation.coordinates[1]},${parcel.deliveryLocation.coordinates[0]}`
+            : "",
           price: parcel.price,
           title: parcel.title,
           description: parcel.description,
@@ -492,79 +647,101 @@ if (!hasRequested) {
           deliveryType: parcel.deliveryType,
           deliveryStartTime: parcel.deliveryStartTime,
           deliveryEndTime: parcel.deliveryEndTime,
-        }
+        },
       },
-      $inc: { totalReceivedParcels: 1 }
+      $inc: { totalReceivedParcels: 1 },
     });
 
     const deliverer = await User.findById(delivererId);
 
+    // Fix role enum spelling if necessary
     if (deliverer && deliverer.role === UserRole.SENDER) {
-      deliverer.role = UserRole.RECCIVER;
+      deliverer.role = UserRole.RECCIVER; 
       await deliverer.save();
     }
 
-    // 🚀 Start Notification Logic here
-    if (deliverer?.fcmToken) {
-      const delivererMessage = {
-        notification: {
-          title: `${parcel.title}`,
-          price: parcel.price || '',
-          type: 'Accepted',
-          body: `You have been assigned to deliver the parcel.`,
-          deliveryStartTime: parcel.deliveryStartTime,
-          deliveryEndTime: parcel.deliveryEndTime,
-          pickupLocation: {
-            latitude: parcel.pickupLocation?.coordinates[1],
-            longitude: parcel.pickupLocation?.coordinates[0],
-          },
-          deliveryLocation: {
-            latitude: parcel.deliveryLocation?.coordinates[1],
-            longitude: parcel.deliveryLocation?.coordinates[0],
-          }
+    // Fetch sender for notification meta info
+    const sender = await User.findById(parcel.senderId);
 
+    // ✅ Get FCM token from DeviceToken collection (like in createParcelRequest)
+    const deviceToken = await DeviceToken.findOne({
+      userId: delivererId,
+      fcmToken: { $exists: true, $ne: '' }
+    });
+
+    // ✅ Send push notification if token exists
+    if (deviceToken?.fcmToken) {
+      const notificationMessage = `You have been assigned to deliver the parcel "${parcel.title}".`;
+      
+      const pushPayload = {
+        notification: {
+          title: parcel.title,
+          body: notificationMessage,
         },
-        token: deliverer.fcmToken,
+        data: {
+          type: 'Accepted',
+          title: parcel.title,
+          message: notificationMessage,
+          parcelId: parcel._id.toString(),
+          price: String(parcel.price || ''),
+          description: parcel.description || '',
+          phoneNumber: parcel.phoneNumber || '',
+          deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
+          deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
+          pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
+          pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
+          deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
+          deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
+        },
+        token: deviceToken.fcmToken,
       };
 
       try {
-        await admin.messaging().send(delivererMessage);
-        console.log('Push notification sent to assigned deliverer.');
+        await admin.messaging().send(pushPayload);
+        console.log(`✅ Push notification sent to assigned deliverer: ${deviceToken.fcmToken}`);
       } catch (err) {
-        console.error('Error sending push notification to deliverer:', err);
+        console.error(`❌ Push notification failed to deliverer ${deviceToken.fcmToken}:`, err);
       }
+    } else {
+      console.log(`⚠️ No FCM token found for deliverer: ${delivererId}`);
     }
 
+    // Save notification to DB
     const notification = new Notification({
       message: `You have been assigned to deliver the parcel titled "${parcel.title}".`,
       type: 'Accepted',
-      title: `${parcel.title}`,
+      title: parcel.title,
       description: parcel.description || '',
       price: parcel.price || '',
       requestId: parcel._id,
       userId: deliverer?._id,
-      SenderName: (await User.findById(parcel.senderId))?.fullName || 'Unknown Sender',
+      mobileNumber: sender?.mobileNumber,
+      phoneNumber: parcel?.phoneNumber,
+      SenderName: sender?.fullName || 'Unknown Sender',
       role: deliverer?.role,
       deliveryStartTime: parcel.deliveryStartTime,
       deliveryEndTime: parcel.deliveryEndTime,
       pickupLocation: {
-        latitude: parcel.pickupLocation?.coordinates[1],        
+        latitude: parcel.pickupLocation?.coordinates[1],
         longitude: parcel.pickupLocation?.coordinates[0],
       },
       deliveryLocation: {
-        latitude: parcel.deliveryLocation?.coordinates[1],        
+        latitude: parcel.deliveryLocation?.coordinates[1],
         longitude: parcel.deliveryLocation?.coordinates[0],
-      }
+      },
+      isRead: false,
+      createdAt: new Date(),
+      localCreatedAt: moment().tz('Asia/Dhaka').format('YYYY-MM-DD hh:mm A')
     });
 
     await notification.save();
-    // 🚀 End Notification Logic
 
     res.status(200).json({
       status: "success",
       message: "Delivery man assigned successfully",
     });
   } catch (error) {
+    console.error('Error in assignDeliveryMan:', error);
     next(error);
   }
 };
@@ -586,7 +763,7 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
 
     // Revert parcel status to `PENDING` and clear assigned delivery man
     parcel.status = DeliveryStatus.PENDING;
-    parcel.assignedDelivererId = null; 
+    parcel.assignedDelivererId; 
     await parcel.save();
 
   
@@ -594,40 +771,59 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
     await parcel.save();
     // 🚀 End Notification Logi
     const senderUser = await User.findById(parcel.senderId);
+    
 
-    if (senderUser?.fcmToken) {
-      const senderMessage = {
+    // Fix role enum spelling if necessary
+    if (senderUser && senderUser.role === UserRole.SENDER) {
+      senderUser.role = UserRole.RECCIVER; 
+      await senderUser.save();
+    }
+
+    // Fetch sender for notification meta info
+    const sender = await User.findById(parcel.senderId);
+
+    // ✅ Get FCM token from DeviceToken collection (like in createParcelRequest)
+    const deviceToken = await DeviceToken.findOne({
+      userId: senderUser?._id,
+      fcmToken: { $exists: true, $ne: '' }
+    });
+
+    if (deviceToken?.fcmToken) {
+      const notificationMessage = `You have been assigned to deliver the parcel "${parcel.title}".`;
+      
+      const pushPayload = {
         notification: {
-          type: 'Cancelled',
-          title: '${parcel.title}',
-          body: `${senderUser.role === 'sender' ? 'A delivery Has been cancelled' : 'A user has cancelled'} your request to deliver title "${parcel.title}".`,
-          mobileNumber: senderUser.mobileNumber || 'Unknown Number',
-          image:senderUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-          AvgRating: senderUser.avgRating || 0,
-          deliveryStartTime: parcel.deliveryStartTime,
-          deliveryEndTime: parcel.deliveryEndTime,
-          pickupLocation: {
-            latitude: parcel.pickupLocation?.coordinates[1],
-            longitude: parcel.pickupLocation?.coordinates[0]          
-          },
-          deliveryLocation: {
-            latitude: parcel.deliveryLocation?.coordinates[1],
-            longitude: parcel.deliveryLocation?.coordinates[0]          
-          }
-
-
-
+          title: parcel.title,
+          body: notificationMessage,
         },
-        token: senderUser.fcmToken,
+        data: {
+          type: 'Accepted',
+          title: parcel.title,
+          message: notificationMessage,
+          parcelId: parcel._id.toString(),
+          price: String(parcel.price || ''),
+          description: parcel.description || '',
+          phoneNumber: parcel.phoneNumber || '',
+          deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
+          deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
+          pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
+          pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
+          deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
+          deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
+        },
+        token: deviceToken.fcmToken,
       };
 
       try {
-        await admin.messaging().send(senderMessage);
-        console.log('Push notification sent to sender.');
+        await admin.messaging().send(pushPayload);
+        console.log(`✅ Push notification sent to assigned deliverer: ${deviceToken.fcmToken}`);
       } catch (err) {
-        console.error('Error sending push notification to sender:', err);
+        console.error(`❌ Push notification failed to deliverer ${deviceToken.fcmToken}:`, err);
       }
+    } else {
+      console.log(`⚠️ No FCM token found for deliverer: ${senderUser?._id}`);
     }
+    
 
     const notification = new Notification({
       message: `${senderUser?.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
@@ -666,7 +862,6 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
   }
 };
 
-//delivery man can cancel the delivery man
 export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId } = req.body;
@@ -678,7 +873,7 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
     if (!parcel) throw new AppError("Parcel not found", 404);
 
     // Ensure only the delivery man can cancel the delivery man
-    if (!parcel.deliveryId || parcel.deliveryId.toString() !== userId) {
+    if (!parcel.assignedDelivererId || parcel.assignedDelivererId.toString() !== userId) {
       throw new AppError("Only the DeliveryMan can cancel the assigned Parcel", 403);
     }
 
@@ -744,6 +939,7 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
     });
 
     await notification.save();
+    
 
     res.status(200).json({
       status: "success",
