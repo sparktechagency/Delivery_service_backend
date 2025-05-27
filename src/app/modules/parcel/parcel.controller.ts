@@ -248,19 +248,38 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       },
     };
 
-    for (const token of fcmTokens) {
-      try {
-        await admin.messaging().send({
-          ...pushPayload,
-          token: token.fcmToken,
-        });
-        console.log(`✅ Sent push to ${token.fcmToken}`);
-      } catch (err) {
-        console.error(`❌ Push failed to ${token.fcmToken}:`, err);
-      }
+    // for (const token of fcmTokens) {
+    //   try {
+    //     await admin.messaging().send({
+    //       ...pushPayload,
+    //       token: token.fcmToken,
+    //     });
+    //     console.log(`✅ Sent push to ${token.fcmToken}`);
+    //   } catch (err) {
+    //     console.error(`❌ Push failed to ${token.fcmToken}:`, err);
+    //   }
+    // }
+
+for (const token of fcmTokens) {
+  try {
+    await admin.messaging().send({
+      ...pushPayload,
+      token: token.fcmToken,
+    });
+    console.log(`✅ Sent push to ${token.fcmToken}`);
+  } catch (err: any) {
+    console.error(`❌ Push failed to ${token.fcmToken}:`, err);
+
+    // Remove invalid tokens automatically
+    if (
+      err.code === 'messaging/registration-token-not-registered' ||
+      err.code === 'messaging/mismatched-credential'
+    ) {
+      await DeviceToken.deleteOne({ fcmToken: token.fcmToken });
+      console.log(`🗑️ Removed invalid token: ${token.fcmToken}`);
     }
-
-
+  }
+}
 
 
     for (const userId of userIds) {
