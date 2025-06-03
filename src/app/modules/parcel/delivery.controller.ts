@@ -227,6 +227,7 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
           deliveryType: parcel.deliveryType,
           deliveryStartTime: parcel.deliveryStartTime,
           deliveryEndTime: parcel.deliveryEndTime,
+          Images: parcel.images,
         },
       },
       $inc: { totalReceivedParcels: 1 },
@@ -272,6 +273,7 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
           pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
           deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
           deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
+          image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
         },
         token: deviceToken.fcmToken,
       };
@@ -308,7 +310,9 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
         deliveryLocation: {
           latitude: parcel.deliveryLocation?.coordinates[1],
           longitude: parcel.deliveryLocation?.coordinates[0]
-        }
+        },
+        Images: parcel.images,
+        user: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
       });
 
       await notification.save();

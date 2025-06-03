@@ -787,9 +787,9 @@ export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res
 
     // Parcels where user is the sender (sendParcel)
     const sendParcels = await ParcelRequest.find({ senderId: userId })
-      .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role")
-      .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber avgRating reviews role")
-      .populate("deliveryRequests", "fullName email mobileNumber phoneNumber avgRating reviews role")
+      .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role image")
+      .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber avgRating reviews role image")
+      .populate("deliveryRequests", "fullName email mobileNumber phoneNumber avgRating reviews role image")
       .sort({ createdAt: -1 }) // Sort by the most recent parcel
       .lean();
 
@@ -801,9 +801,9 @@ export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res
       senderId: { $ne: userId },
       status: { $in: ['PENDING', 'REQUESTED'] }, // Only available parcels
     })
-      .populate("senderId", "fullName email mobileNumber phoneNumber role avgRating reviews")
-      .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role")
-      .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role")
+      .populate("senderId", "fullName email mobileNumber phoneNumber role avgRating reviews image")
+      .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role image")
+      .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role image")
       .sort({ createdAt: -1 }) // Sort by the most recent delivery request
       .lean();
 
@@ -813,9 +813,9 @@ export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res
       assignedDelivererId: userId,
       status: { $ne: 'DELIVERED' }, 
     })
-      .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role")
-      .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role")
-      .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role")
+      .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role image")
+      .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role image")
+      .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role image")
       .sort({ createdAt: -1 })
       .lean();
 
