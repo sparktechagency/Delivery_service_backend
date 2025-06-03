@@ -19,6 +19,7 @@ import { createNotification, sendPushNotification } from '../notification/notifi
 import { Server } from "socket.io"; 
 import DeviceToken from '../user/fcm.token.model';
 import PushNotification from '../notification/push.notification.model';
+let io: Server | null = null;
 
 // export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
@@ -132,7 +133,6 @@ const getCoordinates = async (location: string) => {
   }
 };
 
-let io: Server | null = null;
 
 export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
   try {

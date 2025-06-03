@@ -19,15 +19,85 @@ import { UserActivity } from './user.activity.model';
 import DeviceToken from './fcm.token.model';
 
 
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here'; 
+
+
+// export const register = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { fullName, mobileNumber, country,email, fcmToken, deviceId, deviceType = 'android' } = req.body;
+
+//     if (!mobileNumber) {
+//       throw new AppError("Mobile number is required", 400);
+//     }
+//      if (fcmToken && !deviceId) {
+//       throw new AppError('deviceId is required when providing fcmToken', 400);
+//     }
+//     const formattedNumber = formatPhoneNumber(mobileNumber);
+
+//     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+//     if (existingUser) {
+//       throw new AppError("Mobile number already registered", 400);
+//     }
+
+//     const user = await User.create({ fullName,country, mobileNumber: formattedNumber, email, isVerified: false });
+//       await OTPVerification.deleteMany({ mobileNumber: formattedNumber });
+
+//     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+//     console.log("🔹 Generated OTP (Plain):", otpCode);
+//     await OTPVerification.create({
+//       userId: user._id,
+//       mobileNumber: formattedNumber,
+//       otpCode,
+//       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+//     });
+//  // Store FCM token only if both fcmToken and deviceId are provided
+//         if (fcmToken && deviceId) {
+//           // Check if this device token already exists
+//           const existingToken = await DeviceToken.findOne({
+//             userId: user._id,
+//             deviceId: deviceId
+//           });
+    
+//           if (existingToken) {
+//             // Update existing token
+//             existingToken.fcmToken = fcmToken;
+//             existingToken.deviceType = deviceType;
+//             await existingToken.save();
+//             console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+//           } else {
+//             // Create new device token
+//             await DeviceToken.create({
+//               userId: user._id,
+//               fcmToken,
+//               deviceId,
+//               deviceType
+//             });
+//             console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+//           }
+//         }
+
+//     // Send OTP via AWS SNS
+//     await sendOTP(formattedNumber, otpCode);
+
+//     res.status(201).json({
+//       status: "success",
+//       message: "User registered successfully. Please verify your mobile number.",
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { fullName, mobileNumber, country } = req.body;
+    const { fullName, mobileNumber, country,email, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
     if (!mobileNumber) {
       throw new AppError("Mobile number is required", 400);
     }
-
+     if (fcmToken && !deviceId) {
+      throw new AppError('deviceId is required when providing fcmToken', 400);
+    }
     const formattedNumber = formatPhoneNumber(mobileNumber);
 
     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
@@ -35,22 +105,54 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       throw new AppError("Mobile number already registered", 400);
     }
 
-    const user = await User.create({ fullName,country, mobileNumber: formattedNumber });
+    const user = await User.create({ fullName, country, mobileNumber: formattedNumber, email, isVerified: true });
+      // await OTPVerification.deleteMany({ mobileNumber: formattedNumber });
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    await OTPVerification.create({
-      userId: user._id,
-      mobileNumber: formattedNumber,
-      otpCode,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    });
+    // const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // console.log("🔹 Generated OTP (Plain):", otpCode);
+    // await OTPVerification.create({
+    //   userId: user._id,
+    //   mobileNumber: formattedNumber,
+    //   otpCode,
+    //   expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    // });
+ // Store FCM token only if both fcmToken and deviceId are provided
+        if (fcmToken && deviceId) {
+          // Check if this device token already exists
+          const existingToken = await DeviceToken.findOne({
+            userId: user._id,
+            deviceId: deviceId
+          });
+    
+          if (existingToken) {
+            // Update existing token
+            existingToken.fcmToken = fcmToken;
+            existingToken.deviceType = deviceType;
+            await existingToken.save();
+            console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+          } else {
+            // Create new device token
+            await DeviceToken.create({
+              userId: user._id,
+              fcmToken,
+              deviceId,
+              deviceType
+            });
+            console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+          }
+        }
 
     // Send OTP via AWS SNS
-    await sendOTP(formattedNumber, otpCode);
-
+    // await sendOTP(formattedNumber, otpCode);
+    const payload: JWTPayload = {
+      id: user._id.toString(),
+      role: user.role as UserRole,
+    };
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
     res.status(201).json({
       status: "success",
-      message: "User registered successfully. Please verify your mobile number.",
+      message: "User registered  successfully.",
+      token,
     });
   } catch (error) {
     next(error);
@@ -89,45 +191,103 @@ export const verifyOTP = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
-export const login = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { mobileNumber, fcmToken } = req.body;
+// export const login = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { mobileNumber, fcmToken } = req.body;
 
-    if (!mobileNumber) {
-      throw new AppError('Mobile number is required', 400);
-    }
+//     if (!mobileNumber) {
+//       throw new AppError('Mobile number is required', 400);
+//     }
 
-    const formattedNumber = formatPhoneNumber(mobileNumber);
-    const user = await User.findOne({ mobileNumber: formattedNumber });
+//     const formattedNumber = formatPhoneNumber(mobileNumber);
+//     const user = await User.findOne({ mobileNumber: formattedNumber });
 
-    if (!user || !user.isVerified) {
-      throw new AppError('Invalid credentials or unverified account', 401);
-    }
+//     if (!user || !user.isVerified) {
+//       throw new AppError('Invalid credentials or unverified account', 401);
+//     }
 
-    if (fcmToken) {
-      user.fcmToken = fcmToken;
-      await user.save();
-    }
+//     if (fcmToken) {
+//       user.fcmToken = fcmToken;
+//       await user.save();
+//     }
     
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    await OTPVerification.create({
-      userId: user._id,
-      mobileNumber: formattedNumber,
-      otpCode,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    });
+//     // const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+//     // await OTPVerification.create({
+//     //   userId: user._id,
+//     //   mobileNumber: formattedNumber,
+//     //   otpCode,
+//     //   expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+//     // });
 
-    await sendOTP(formattedNumber, otpCode);
+//     // await sendOTP(formattedNumber, otpCode);
 
-    res.json({
-      status: 'success',
-      message: 'OTP sent for login verification.',
+//     res.json({
+//       status: 'success',
+//       // message: 'OTP sent for login verification.',
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+export const login = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const {  mobileNumber, fcmToken, deviceId, deviceType = 'android' } = req.body;
+
+    if (!mobileNumber) {
+      throw new AppError("Mobile number is required", 400);
+    }
+    if (fcmToken && !deviceId) {
+      throw new AppError('deviceId is required when providing fcmToken', 400);
+    }
+    const formattedNumber = formatPhoneNumber(mobileNumber);
+
+    const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+    if (!existingUser) {
+      return res.status(404).json({
+        status: "fail",
+        message: "User not found"
+      });
+    }
+    if (fcmToken && deviceId) {
+      const existingToken = await DeviceToken.findOne({
+        userId: existingUser._id,
+        deviceId: deviceId
+      });
+
+      if (existingToken) {
+        existingToken.fcmToken = fcmToken;
+        existingToken.deviceType = deviceType;
+        await existingToken.save();
+        console.log(`Updated FCM token for user ${existingUser._id}, device ${deviceId}`);
+      } else {
+        await DeviceToken.create({
+          userId: existingUser._id,
+          fcmToken,
+          deviceId,
+          deviceType
+        });
+        console.log(`Created new FCM token for user ${existingUser._id}, device ${deviceId}`);
+      }
+    }
+
+    const payload: JWTPayload = {
+      id: existingUser._id.toString(),
+      role: existingUser.role as UserRole,
+    };
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+
+    res.status(200).json({
+      status: "success",
+      message: "User logged in successfully.",
+      token,
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 export const verifyLoginOTPNumber = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -530,7 +690,7 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
   }
 };
 
-const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here'; 
+
 
 export const googleLoginOrRegister = async (req: Request, res: Response, next: NextFunction) => {
   try {

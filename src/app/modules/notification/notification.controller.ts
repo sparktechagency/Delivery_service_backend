@@ -163,125 +163,7 @@ import PushNotification from "./push.notification.model";
   };
 
 
-// export const sendPushNotification = async (
-//   userIds: string[],
-//   notification: { title: string; body: string },
-//   data: Record<string, string>
-// ) => {
-//   try {
-//     if (!userIds || userIds.length === 0) {
-//       console.log('No users to send push notifications to');
-//       return;
-//     }
 
-//     console.log(`Fetching device tokens for users: ${userIds}`);
-    
-//     // Find device tokens for the specified users - ensure we're getting valid tokens
-//     const deviceTokens = await DeviceToken.find({
-//       userId: { $in: userIds },
-//       fcmToken: { $exists: true, $ne: '' }
-//     }).select('fcmToken userId');
-    
-//     console.log(`Found ${deviceTokens.length} valid FCM tokens for ${userIds.length} users`);
-    
-//     if (deviceTokens.length === 0) {
-//       console.log('No valid FCM tokens found, skipping push notifications');
-//       return;
-//     }
-
-//     // Validate tokens before sending
-//     const validTokens = deviceTokens.filter(dt => 
-//       dt.fcmToken && dt.fcmToken.length > 10 && dt.fcmToken.indexOf(' ') === -1
-//     );
-    
-//     if (validTokens.length !== deviceTokens.length) {
-//       console.log(`Filtered out ${deviceTokens.length - validTokens.length} invalid tokens`);
-//     }
-
-//     // Map each token to a message with proper payload formatting
-//     const messages = validTokens.map(token => ({
-//       notification: {
-//         title: notification.title,
-//         body: notification.body
-//       },
-//       data: data,
-//       token: token.fcmToken,
-//       android: {
-//         priority: "high" as "high",
-//         notification: {
-//           sound: 'default',
-//           priority: "high" as "high", 
-//           channelId: 'default-channel'
-//         }
-//       },
-//       apns: {
-//         payload: {
-//           aps: {
-//             contentAvailable: true,
-//             sound: 'default',
-//             badge: 1
-//           }
-//         },
-//         headers: {
-//           "apns-priority": "10"
-//         }
-//       }
-//     }));
-
-//     if (messages.length === 0) {
-//       console.log('No valid messages to send');
-//       return;
-//     }
-
-//     // Send messages in batches to avoid hitting FCM limits
-//     const batchSize = 500;
-//     let successCount = 0;
-//     let failureCount = 0;
-
-//     for (let i = 0; i < messages.length; i += batchSize) {
-//       const batch = messages.slice(i, i + batchSize);
-//       try {
-//         // Use individual sends with Promise.all since sendAll has type issues
-//         const sendPromises = batch.map(message => admin.messaging().send(message, true));
-//         const results = await Promise.all(sendPromises.map(p => p.catch(e => e)));
-        
-//         const batchSuccesses = results.filter(r => !(r instanceof Error)).length;
-//         const batchFailures = results.filter(r => r instanceof Error).length;
-        
-//         successCount += batchSuccesses;
-//         failureCount += batchFailures;
-        
-//         console.log(`Batch ${Math.floor(i / batchSize) + 1}: Sent ${batchSuccesses} successful, ${batchFailures} failed notifications`);
-        
-//         // Log specific errors for debugging
-//         results.forEach((result, idx) => {
-//           if (result instanceof Error) {
-//             console.error(`Failed to send notification to token ${validTokens[i + idx]?.fcmToken?.substring(0, 10)}...: `, 
-//               result.message);
-            
-//             // Check for token issues that require cleanup
-//             if (result.message && (
-//                 result.message.includes('registration-token-not-registered') || 
-//                 result.message.includes('invalid-registration-token'))) {
-//               const tokenToRemove = validTokens[i + idx];
-//               // Schedule token removal asynchronously
-//               DeviceToken.deleteOne({ fcmToken: tokenToRemove.fcmToken }).catch(err => {
-//                 console.error('Error removing invalid token:', err);
-//               });
-//             }
-//           }
-//         });
-//       } catch (batchError) {
-//         failureCount += batch.length;
-//         console.error(`Error sending batch ${Math.floor(i / batchSize) + 1}:`, batchError);
-//       }
-//     }
-
-//     console.log(`Push notification stats: ${successCount} succeeded, ${failureCount} failed`);
-//   } catch (error) {
-//     console.error('Error sending push notifications:', error);
-//   }
-// };
 export const sendPushNotification = async (
   userIds: string[],
   notification: { title: string; body: string },
@@ -710,7 +592,37 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
   }
 };
 
+//unread notifications
+export const getUnreadNotifications = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'User not authenticated'
+      });
+    }
 
+    const count = await Notification.countDocuments({
+      userId,
+      isRead: false
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        unreadCount: count
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching unread notifications count:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch unread notifications count'
+    });
+    next(error);
+  }
+};
 
 export const markAllNotificationsAsRead = async (req: Request, res: Response, next: NextFunction) => {
   try {

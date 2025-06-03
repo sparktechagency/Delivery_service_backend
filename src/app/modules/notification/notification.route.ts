@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { getNotifications, getParcelNotifications, markAllNotificationsAsRead, sendAnnouncement, sendRadiusNotification,updateNotificationStatus,viewNotifications } from './notification.controller';
+import { getNotifications, getParcelNotifications, getUnreadNotifications, markAllNotificationsAsRead, sendAnnouncement, sendRadiusNotification,updateNotificationStatus,viewNotifications } from './notification.controller';
 import { authenticate, authorize } from '../../middlewares/auth';
 import { UserRole } from '../../../types/enums';
 
@@ -11,6 +11,7 @@ NotificationRoute.post('/parcel/create/notify-radius', authenticate, sendRadiusN
 NotificationRoute.get('/', authenticate,viewNotifications);
 NotificationRoute.get('/all-notification', authenticate,getNotifications);
 NotificationRoute.get('/parcelNotify', authenticate,getParcelNotifications);
+NotificationRoute.get('/unread', authenticate,getUnreadNotifications);
 NotificationRoute.patch('/update-status', authenticate,updateNotificationStatus);
 NotificationRoute.patch('/mark-read', authenticate, markAllNotificationsAsRead );
 

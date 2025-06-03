@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.post('/register', register);
 router.post('/verify-otp', verifyOTP);
-router.post('/login', login);
+router.post('/login', login); // Login with phone number
 router.post('/login-otp', verifyLoginOTPNumber);
 // router.post('/forgot-password', forgotPassword);
 // router.post('/reset-password', resetPassword);
