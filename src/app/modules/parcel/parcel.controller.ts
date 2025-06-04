@@ -21,101 +21,6 @@ import DeviceToken from '../user/fcm.token.model';
 import PushNotification from '../notification/push.notification.model';
 let io: Server | null = null;
 
-// export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { pickupLocation, deliveryLocation, deliveryStartTime, deliveryEndTime, senderType, deliveryType, price, name, phoneNumber, title, description } = req.body;
-//     const userId = req.user?.id; // Extract user ID from the authenticated user
-
-//     let images: string[] = [];
-//     if (req.files && Array.isArray(req.files)) {
-//       // For debugging
-//       console.log(`📸 Received ${(req.files as Express.Multer.File[]).length} files`);
-//       (req.files as Express.Multer.File[]).forEach((file, index) => {
-//         console.log(`📸 File ${index + 1}:`, file.filename, file.path);
-//       });
-      
-//       // Store URLs instead of just filenames for better frontend accessibility
-//       images = (req.files as Express.Multer.File[]).map(file => `/uploads/parcels/${file.filename}`);
-//       console.log("📸 Processed image paths:", images);
-//     } else {
-//       console.log("⚠️ No files received in request");
-//     }
-
-//     // 1. Unauthorized Access Check
-//     if (!userId) {
-//       throw new AppError("Unauthorized", 401);
-//     }
-
-//     // 2. Validation of Required Fields
-//     if (!pickupLocation || !deliveryLocation || !deliveryStartTime || !deliveryEndTime || !senderType || !deliveryType || !price || !name || !phoneNumber || !title) {
-//       throw new AppError("Missing required fields", 400);
-//     }
-
-//     // 3. Validate senderType from enum
-//     if (!Object.values(SenderType).includes(senderType as SenderType)) {
-//       throw new AppError(`Invalid senderType. Allowed values: ${Object.values(SenderType).join(", ")}`, 400);
-//     }
-
-//     // 4. Find the User
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       throw new AppError("User not found", 404);
-//     }
-
-//     // 5. Handle Free Deliveries (optional)
-//     if (user.freeDeliveries > 0) {
-//       user.freeDeliveries -= 1;
-//       await user.save();
-//     }
-
-//     // 6. Create the Parcel Request
-//     const parcel = await ParcelRequest.create({
-//       senderId: userId,
-//       pickupLocation,
-//       deliveryLocation,
-//       deliveryStartTime,
-//       deliveryEndTime,
-//       senderType,
-//       deliveryType,
-//       price,
-//       name,
-//       phoneNumber,
-//       title,
-//       description,
-//       images,
-//       status: DeliveryStatus.PENDING,
-//     });
-
-//     // 7. Return Response
-//     const fullParcel = await ParcelRequest.findById(parcel._id).populate("senderId", "fullName email mobileNumber name phoneNumber image");
-
-//     res.status(201).json({
-//       status: "success",
-//       data: fullParcel,
-//     });
-//   } catch (error) {
-//     // Catch all other errors (e.g., database issues)
-//     if (error instanceof AppError) {
-//       // Known errors (AppError)
-//       res.status(error.statusCode).json({
-//         status: "error",
-//         message: error.message,
-//       });
-//     } else {
-//       // Unknown errors (server issues)
-//       console.error("Internal Server Error:", error);
-//       res.status(500).json({
-//         status: "error",
-//         message: "Internal Server Error. Please try again later.",
-//       });
-//     }
-//     next(error);  // Pass the error to the next middleware (optional)
-//   }
-// };
-
-
-
-// Function to get coordinates using Google Maps Geocoding API
 const getCoordinates = async (location: string) => {
   try {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY; 
@@ -134,7 +39,7 @@ const getCoordinates = async (location: string) => {
 };
 
 
-export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
+export const createParcelRequest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const {
       pickupLocation,
@@ -248,17 +153,6 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       },
     };
 
-    // for (const token of fcmTokens) {
-    //   try {
-    //     await admin.messaging().send({
-    //       ...pushPayload,
-    //       token: token.fcmToken,
-    //     });
-    //     console.log(`✅ Sent push to ${token.fcmToken}`);
-    //   } catch (err) {
-    //     console.error(`❌ Push failed to ${token.fcmToken}:`, err);
-    //   }
-    // }
 
 for (const token of fcmTokens) {
   try {
@@ -318,7 +212,7 @@ for (const token of fcmTokens) {
     .populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage')
     
 
-    return res.status(201).json({
+     res.status(201).json({
       status: 'success',
       data: fullParcel,
     });
@@ -332,181 +226,23 @@ for (const token of fcmTokens) {
   }
 };
 
-// export const createParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const {
-//       pickupLocation,
-//       deliveryLocation,
-//       deliveryStartTime,
-//       deliveryEndTime,
-//       senderType,
-//       deliveryType,
-//       price,
-//       name,
-//       phoneNumber,
-//       title,
-//       description,
-//     } = req.body;
 
-//     // Ensure parcels upload directory exists
-//     const parcelsDir = path.join(process.cwd(), 'uploads', 'parcels');
-//     if (!fs.existsSync(parcelsDir)) {
-//       fs.mkdirSync(parcelsDir, { recursive: true });
-//     }
-
-//     // Handle images if uploaded
-//     let images: string[] = [];
-//     if (req.files && typeof req.files === 'object') {
-//       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-//       if (files.image && Array.isArray(files.image)) {
-//         images = files.image.map((file: Express.Multer.File) => `/uploads/image/${file.filename}`);
-//       }
-//     }
-
-//     // Get coordinates for pickup and delivery
-//     const pickupCoordinates = await getCoordinates(pickupLocation);
-//     const deliveryCoordinates = await getCoordinates(deliveryLocation);
-
-//     // Create parcel request document
-//     const parcel = await ParcelRequest.create({
-//       senderId: req.user?.id,
-//       pickupLocation: {
-//         type: 'Point',
-//         coordinates: [pickupCoordinates.longitude, pickupCoordinates.latitude],
-//       },
-//       deliveryLocation: {
-//         type: 'Point',
-//         coordinates: [deliveryCoordinates.longitude, deliveryCoordinates.latitude],
-//       },
-//       deliveryStartTime,
-//       deliveryEndTime,
-//       senderType,
-//       deliveryType,
-//       price,
-//       title,
-//       description,
-//       images,
-//       name,
-//       phoneNumber,
-//       status: 'PENDING',
-//     });
-
-//     // Update sender's SendOrders and counters
-//     await User.findByIdAndUpdate(req.user?.id, {
-//       $push: {
-//         SendOrders: {
-//           parcelId: parcel._id,
-//           pickupLocation,
-//           deliveryLocation,
-//           price,
-//           title,
-//           phoneNumber,
-//           description,
-//           senderType,
-//           deliveryType,
-//           deliveryStartTime,
-//           deliveryEndTime,
-//         },
-//       },
-//       $inc: { totalSentParcels: 1, totalOrders: 1 },
-//     });
-
-//     // Fetch sender full name
-//     const sender = await User.findById(req.user?.id).select('fullName');
-//     if (!sender) throw new Error('Sender not found');
-
-//     // Get all users to notify (verified, not sender, notifications enabled)
-//     const usersToNotify = await User.find({
-//       isVerified: true,
-//       _id: { $ne: req.user?.id },
-//       notificationStatus: true,
-//     }).select('_id');
-
-//     const userIds = usersToNotify.map(user => user._id.toString());
-
-//     // Compose notification message
-//     const notificationMessage = `A new parcel "${title}" created by "${sender.fullName}".`;
-
-//     // Create notifications in DB for all users (in parallel, with filtering/deduplication)
-//     await createNotification(
-//       userIds,
-//       notificationMessage,
-//       'send_parcel',
-//       title,
-//       {
-//         parcelId: parcel._id.toString(),
-//         price,
-//         phoneNumber,
-//         description,
-//         name,
-//       },
-//       pickupLocation,
-//       { latitude: pickupCoordinates.latitude, longitude: pickupCoordinates.longitude },
-//       deliveryLocation,
-//       { latitude: deliveryCoordinates.latitude, longitude: deliveryCoordinates.longitude }
-//     );
-
-//     // Prepare push notification payload
-//     const pushPayloadData = {
-//       type: 'send_parcel',
-//       title,
-//       message: notificationMessage,
-//       parcelId: parcel._id.toString(),
-//       price: String(price),
-//       description: description || '',
-//       phoneNumber: phoneNumber || '',
-//       deliveryStartTime,
-//       deliveryEndTime,
-//       pickupLatitude: String(pickupCoordinates.latitude),
-//       pickupLongitude: String(pickupCoordinates.longitude),
-//       deliveryLatitude: String(deliveryCoordinates.latitude),
-//       deliveryLongitude: String(deliveryCoordinates.longitude),
-//     };
-
-//     // Send push notifications to users with notifications enabled
-//     await sendPushNotification(
-//       userIds,
-//       { title, body: notificationMessage },
-//       pushPayloadData
-//     );
-
-//     console.log(`🔔 Notifications sent and push delivered to ${userIds.length} users`);
-
-//     // Populate parcel with sender info to return
-//     const fullParcel = await ParcelRequest.findById(parcel._id)
-//       .populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage');
-
-//     return res.status(201).json({
-//       status: 'success',
-//       data: fullParcel,
-//     });
-
-//   } catch (error) {
-//     console.error('❌ Error in createParcelRequest:', error);
-//     res.status(500).json({
-//       status: 'error',
-//       message: 'Failed to create parcel request',
-//     });
-//     next(error);
-//   }
-// };
-
-
-export const deleteParcelRequest = async (req: Request, res: Response, next: NextFunction) => {
+export const deleteParcelRequest = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const { parcelId } = req.params;
     
     const parcel = await ParcelRequest.findById(parcelId);
     
     if (!parcel) {
-      return res.status(404).json({
+       res.status(404).json({
         status: 'error',
         message: 'Parcel not found',
       });
+      return;
     }
 
     if (parcel.status === 'IN_TRANSIT' || parcel.status === 'DELIVERED') {
-      return res.status(400).json({
+       res.status(400).json({
         status: 'error',
         message: 'Your parcel is already in transit or delivered. Please remove the delivery man first before deleting the parcel.',
       });
@@ -525,7 +261,7 @@ export const deleteParcelRequest = async (req: Request, res: Response, next: Nex
         message: 'Parcel deleted successfully',
       });
     } else {
-      return res.status(400).json({
+       res.status(400).json({
         status: 'error',
         message: 'Cannot delete the parcel as its status is not pending or requested.',
       });
@@ -539,28 +275,6 @@ export const deleteParcelRequest = async (req: Request, res: Response, next: Nex
     next(error);
   }
 };
-
-// export const getAvailableParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const parcels = await ParcelRequest.find({ status: DeliveryStatus.PENDING })
-//       .select('title description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType senderType status deliveryRequests name price phoneNumber createdAt updatedAt images') 
-//       .populate("senderId", "fullName email mobileNumber profileImage role")
-//       .sort({ createdAt: -1 });
-      
-
-//     const reorderedParcels = parcels.map(parcel => {
-//       const { _id, ...rest } = parcel.toObject() as any; 
-//       return { _id, ...rest, isRequestedByMe: false };
-//     });
-//     parcels.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-//     res.status(200).json({
-//       status: "success",
-//       data: reorderedParcels,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 
 export const getAvailableParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -1126,7 +840,7 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
 
 
 
-export const getUserReviews = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     
@@ -1142,7 +856,7 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
     const reviews = user.reviews;
 
     if (reviews.length === 0) {
-      return res.status(200).json({
+       res.status(200).json({
         status: "success",
         message: "No reviews found",
         data: [],
@@ -1260,7 +974,7 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
 //     });
 //   }
 // };
-export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction) => {
+export const getFilteredParcels =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Debugging: Check the user ID
     console.log("Logged-in user ID:", req.user?.id); // Add this line to verify the user ID
@@ -1271,14 +985,14 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     const lng = parseFloat(longitude as string);
 
     if (isNaN(lat)) {
-      return res.status(400).json({
+       res.status(400).json({
         status: 'error',
         message: 'Invalid latitude value. Please provide a valid number for latitude.',
       });
     }
 
     if (isNaN(lng)) {
-      return res.status(400).json({
+       res.status(400).json({
         status: 'error',
         message: 'Invalid longitude value. Please provide a valid number for longitude.',
       });
@@ -1328,7 +1042,7 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
         nearbyDeliveryQuery.deliveryType = { $in: validTypes };
       }
     } else if (deliveryType) {
-      return res.status(400).json({
+       res.status(400).json({
         status: 'error',
         message: `Invalid delivery type: ${deliveryType}. Please select a valid delivery type.`,
       });
@@ -1348,7 +1062,7 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     const allNearbyParcels = [...nearbyPickupParcels, ...nearbyDeliveryParcels];
 
     if (allNearbyParcels.length === 0) {
-      return res.status(404).json({
+       res.status(404).json({
         status: 'error',
         message: `No parcels found with delivery type: ${deliveryType || 'any'}.`,
       });

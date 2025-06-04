@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import Stripe from "stripe";
 import { User } from "../user/user.model";  // Import User model
 import { SubscriptionType } from "../../../types/enums";
@@ -124,7 +124,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || " ", {
 }; */
 
 
-const stripeWebhook = async (req: Request, res: Response) => {
+const stripeWebhook =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   let event: Stripe.Event | undefined;
 
   try {
@@ -136,11 +136,11 @@ const stripeWebhook = async (req: Request, res: Response) => {
     );
   } catch (error) {
     // Ensure we only send the response once
-    return res.status(400).send(`Webhook signature verification failed. ${error}`);
+     res.status(400).send(`Webhook signature verification failed. ${error}`);
   }
 
   if (!event) {
-    return res.status(500).send(`Invalid event received!`);
+     res.status(500).send(`Invalid event received!`);
   }
 
   const eventType = event?.type;
@@ -165,10 +165,10 @@ const stripeWebhook = async (req: Request, res: Response) => {
         break;
 
       default:
-        return res.status(500).send(`Unhandled event type: ${eventType}`);
+         res.status(500).send(`Unhandled event type: ${eventType}`);
     }
   } catch (error) {
-    return res.status(500).send(`Error handling event: ${error}`);
+     res.status(500).send(`Error handling event: ${error}`);
   }
   res.sendStatus(200);
 };

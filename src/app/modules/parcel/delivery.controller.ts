@@ -1092,12 +1092,12 @@ if (status === DeliveryStatus.DELIVERED) {
   }
 };
 
-export const updateGlobalFreeDeliveries = async (req: Request, res: Response) => {
+export const updateGlobalFreeDeliveries = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { freeDeliveries } = req.body;
 
     if (freeDeliveries === undefined) {
-      return res.status(400).json({ message: "Free deliveries value is required" });
+       res.status(400).json({ message: "Free deliveries value is required" });
     }
 
     // Update all users with the new freeDeliveries value
@@ -1113,16 +1113,16 @@ export const updateGlobalFreeDeliveries = async (req: Request, res: Response) =>
 };
 
 //Admin Assign single or multiple user free delivery
-export const assignFreeDeliveriesToUser = async (req: Request, res: Response) => {
+export const assignFreeDeliveriesToUser =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userIds, freeDeliveries } = req.body;
 
     if (!userIds || userIds.length === 0) {
-      return res.status(400).json({ message: "User IDs are required" });
+       res.status(400).json({ message: "User IDs are required" });
     }
 
     if (freeDeliveries === undefined) {
-      return res.status(400).json({ message: "Free deliveries value is required" });
+       res.status(400).json({ message: "Free deliveries value is required" });
     }
 
     // Assign free deliveries to specific users
@@ -1133,7 +1133,7 @@ export const assignFreeDeliveriesToUser = async (req: Request, res: Response) =>
 
     // Use `modifiedCount` instead of `nModified`
     if (updatedUsers.modifiedCount === 0) {
-      return res.status(404).json({ message: "No users found with the provided IDs" });
+       res.status(404).json({ message: "No users found with the provided IDs" });
     }
 
     res.status(200).json({

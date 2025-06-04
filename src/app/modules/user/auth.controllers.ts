@@ -231,7 +231,7 @@ export const verifyOTP = async (req: Request, res: Response, next: NextFunction)
 //   }
 // };
 
-export const login = async (req: Request, res: Response, next: NextFunction) => {
+export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const {  mobileNumber, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
@@ -245,10 +245,11 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
     if (!existingUser) {
-      return res.status(404).json({
+       res.status(404).json({
         status: "fail",
         message: "User not found"
       });
+      return;
     }
     if (fcmToken && deviceId) {
       const existingToken = await DeviceToken.findOne({
@@ -692,7 +693,7 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
 
 
 
-export const googleLoginOrRegister = async (req: Request, res: Response, next: NextFunction) => {
+export const googleLoginOrRegister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { googleId, fullName, email, profileImage, fcmToken, deviceId, deviceType = 'android'  } = req.body;
 
@@ -745,7 +746,7 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
 
       const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '20d' });
 
-      return res.status(201).json({
+       res.status(201).json({
         status: 'success',
         message: 'User registered successfully with Google.',
         data: {
@@ -757,7 +758,7 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
 
     const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '20d' });
 
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       message: 'User logged in successfully with Google.',
       data: {
@@ -768,9 +769,9 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
   } catch (error) {
     console.error('Error during Google login or registration:', error); 
     if (error instanceof AppError) {
-      return res.status(error.statusCode).json({ status: 'error', message: error.message });
+       res.status(error.statusCode).json({ status: 'error', message: error.message });
     }
-    return res.status(500).json({
+     res.status(500).json({
       status: 'error',
       message: 'Internal Server Error. Please try again later.',
     });

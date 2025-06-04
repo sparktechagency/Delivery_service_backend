@@ -37,7 +37,7 @@ const parseQueryParamToNumber = (param: string | undefined): number | undefined 
   return undefined;
 };
 
-export const getTotalRevenue = async (req: Request, res: Response, next: NextFunction) => {
+export const getTotalRevenue =async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -61,7 +61,7 @@ export const getTotalRevenue = async (req: Request, res: Response, next: NextFun
         });
         totalRevenueSum += monthRevenue;
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByMonth,
         total: totalRevenueSum,  
@@ -85,7 +85,7 @@ export const getTotalRevenue = async (req: Request, res: Response, next: NextFun
         });
         totalRevenueSum += dayRevenue; 
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByDay,
         total: totalRevenueSum, 
@@ -98,7 +98,7 @@ export const getTotalRevenue = async (req: Request, res: Response, next: NextFun
         { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
       ]);
       const dayRevenue = totalRevenue[0]?.totalRevenue || 0;
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: [
           {
@@ -116,7 +116,7 @@ export const getTotalRevenue = async (req: Request, res: Response, next: NextFun
       { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
     ]);
     const todayRevenue = totalRevenue[0]?.totalRevenue || 0;
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -131,7 +131,7 @@ export const getTotalRevenue = async (req: Request, res: Response, next: NextFun
   }
 };
 
-export const getTotalRevenueNumber = async (req: Request, res: Response, next: NextFunction) => {
+export const getTotalRevenueNumber =async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     // Total Revenue for the entire database without any date filtering
     const totalRevenue = await Order.aggregate([
@@ -141,7 +141,7 @@ export const getTotalRevenueNumber = async (req: Request, res: Response, next: N
 
     const totalRevenueSum = totalRevenue[0]?.totalRevenue || 0;  // Ensure there's no undefined value
 
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -157,7 +157,7 @@ export const getTotalRevenueNumber = async (req: Request, res: Response, next: N
 };
 
 
-export const getTotalSubscriptionRevenue = async (req: Request, res: Response, next: NextFunction) => {
+export const getTotalSubscriptionRevenue = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -179,7 +179,7 @@ export const getTotalSubscriptionRevenue = async (req: Request, res: Response, n
           y: totalRevenue[0]?.totalRevenue || 0, // Total subscription revenue for that month
         });
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByMonth,
       });
@@ -200,7 +200,7 @@ export const getTotalSubscriptionRevenue = async (req: Request, res: Response, n
           y: totalRevenue[0]?.totalRevenue || 0, // Total revenue for that day
         });
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByDay,
       });
@@ -212,7 +212,7 @@ export const getTotalSubscriptionRevenue = async (req: Request, res: Response, n
         { $match: { expiryDate: { $gte: startDate, $lte: endDate } } },
         { $group: { _id: null, totalRevenue: { $sum: '$price' } } }
       ]);
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: [
           {
@@ -322,7 +322,7 @@ export const getTotalSubscriptionRevenue = async (req: Request, res: Response, n
 
 // Controller: New Users API
 
-export const getTotalUsers = async (req: Request, res: Response, next: NextFunction) => {
+export const getTotalUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -343,7 +343,7 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
         });
         totalUsersSum += totalUsers; // Add to total sum
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByMonth,
         total: totalUsersSum,  // Dynamically calculated total
@@ -364,7 +364,7 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
         });
         totalUsersSum += totalUsers; // Add to total sum
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByDay,
         total: totalUsersSum,  // Dynamically calculated total
@@ -374,7 +374,7 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
     // If year, month, and day are all selected, return data for that specific day
     if (year && month && day) {
       const totalUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: [
           {
@@ -388,7 +388,7 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
 
     // Default case: Return total users count for today
     const totalUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -403,7 +403,7 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-export const getNewUsers = async (req: Request, res: Response, next: NextFunction) => {
+export const getNewUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -422,7 +422,7 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
           y: newUsers, // Total new users for that month
         });
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByMonth,
       });
@@ -440,7 +440,7 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
           y: newUsers, // Total new users for that day
         });
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByDay,
       });
@@ -449,7 +449,7 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
     // If year, month, and day are all selected, return data for that specific day
     if (year && month && day) {
       const newUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: [
           {
@@ -551,7 +551,7 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
 //     next(error);
 //   }
 // };
-export const getTotalSubscribers = async (req: Request, res: Response, next: NextFunction) => {
+export const getTotalSubscribers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -572,7 +572,7 @@ export const getTotalSubscribers = async (req: Request, res: Response, next: Nex
         });
         totalSubscribersSum += totalSubscribers || 0; // Add to total sum
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByMonth,
         total: totalSubscribersSum,  // Dynamically calculated total
@@ -593,7 +593,7 @@ export const getTotalSubscribers = async (req: Request, res: Response, next: Nex
         });
         totalSubscribersSum += totalSubscribers || 0; // Add to total sum
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByDay,
         total: totalSubscribersSum,  // Dynamically calculated total
@@ -603,7 +603,7 @@ export const getTotalSubscribers = async (req: Request, res: Response, next: Nex
     // If year, month, and day are all selected, return data for that specific day
     if (year && month && day) {
       const totalSubscribers = await User.countDocuments({ isSubscribed: true, createdAt: { $gte: startDate, $lte: endDate } });
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: [
           {
@@ -617,7 +617,7 @@ export const getTotalSubscribers = async (req: Request, res: Response, next: Nex
 
     // Default case: Return total subscribers count for today
     const totalSubscribers = await User.countDocuments({ isSubscribed: true, createdAt: { $gte: startDate, $lte: endDate } });
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -631,12 +631,12 @@ export const getTotalSubscribers = async (req: Request, res: Response, next: Nex
     next(error);
   }
 };
-export const getTotalSubscribersNumber = async (req: Request, res: Response, next: NextFunction) => {
+export const getTotalSubscribersNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Total Subscribers for the entire database where 'isSubscribed' is true
     const totalSubscribers = await User.countDocuments({ isSubscribed: true });
 
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -652,7 +652,7 @@ export const getTotalSubscribersNumber = async (req: Request, res: Response, nex
 };
 
 
-export const getNewSubscribers = async (req: Request, res: Response, next: NextFunction) => {
+export const getNewSubscribers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -673,7 +673,7 @@ export const getNewSubscribers = async (req: Request, res: Response, next: NextF
           y: newSubscribers || 0, 
         });
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByMonth,
       });
@@ -693,7 +693,7 @@ export const getNewSubscribers = async (req: Request, res: Response, next: NextF
           y: newSubscribers || 0, 
         });
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByDay,
       });
@@ -704,7 +704,7 @@ export const getNewSubscribers = async (req: Request, res: Response, next: NextF
         isSubscribed: true,
         subscriptionStartDate: { $gte: startDate, $lte: endDate }
       });
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: [
           {
@@ -719,7 +719,7 @@ export const getNewSubscribers = async (req: Request, res: Response, next: NextF
       isSubscribed: true,
       subscriptionStartDate: { $gte: startDate, $lte: endDate }
     });
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -811,7 +811,7 @@ export const getNewSubscribers = async (req: Request, res: Response, next: NextF
 //   }
 // };
 
-export const getTotalOrders = async (req: Request, res: Response, next: NextFunction) => {
+export const getTotalOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -832,7 +832,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
         totalOrdersSum += totalOrders || 0;
       }
 
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByMonth,
         total: totalOrdersSum, 
@@ -853,7 +853,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
         totalOrdersSum += totalOrders || 0; 
       }
 
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByDay,
         total: totalOrdersSum, 
@@ -862,7 +862,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
 
     if (year && month && day) {
       const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: [
           {
@@ -875,7 +875,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
     }
 
     const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -891,11 +891,11 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
 };
 
 
-export const getTotalOrdersNumber = async (req: Request, res: Response, next: NextFunction) => {
+export const getTotalOrdersNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const totalOrders = await Order.countDocuments({});
 
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -913,7 +913,7 @@ export const getTotalOrdersNumber = async (req: Request, res: Response, next: Ne
 
 
 // Controller: Total Completed Orders API
-export const getTotalCompletedOrders = async (req: Request, res: Response, next: NextFunction) => {
+export const getTotalCompletedOrders =async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -935,7 +935,7 @@ export const getTotalCompletedOrders = async (req: Request, res: Response, next:
           y: totalCompletedOrders || 0, // Total completed orders for that month
         });
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByMonth,
       });
@@ -956,7 +956,7 @@ export const getTotalCompletedOrders = async (req: Request, res: Response, next:
           y: totalCompletedOrders || 0, // Total completed orders for that day
         });
       }
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByDay,
       });
@@ -968,7 +968,7 @@ export const getTotalCompletedOrders = async (req: Request, res: Response, next:
         status: 'delivered',
         date: { $gte: startDate, $lte: endDate }
       });
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: [
           {
@@ -1096,7 +1096,7 @@ export const getTotalCompletedOrders = async (req: Request, res: Response, next:
 //   }
 // };
 
-export const getTransactions = async (req: Request, res: Response, next: NextFunction) => {
+export const getTransactions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -1124,7 +1124,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
         totalTransactionsSum += totalTransactions || 0; // Add to total sum
       }
 
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByMonth,
         total: totalTransactionsSum,  // Dynamically calculated total
@@ -1152,7 +1152,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
         totalTransactionsSum += totalTransactions || 0; // Add to total sum
       }
 
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: dataByDay,
         total: totalTransactionsSum,  // Dynamically calculated total
@@ -1166,7 +1166,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
         createdAt: { $gte: startDate, $lte: endDate }
       });
 
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         data: [
           {
@@ -1184,7 +1184,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
       createdAt: { $gte: startDate, $lte: endDate }
     });
 
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -1198,14 +1198,14 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
     next(error);
   }
 };
-export const getTransactionsTotal = async (req: Request, res: Response, next: NextFunction) => {
+export const getTransactionsTotal = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     // Total Transactions for the entire database, filtering by 'accepted' or 'delivered' status
     const totalTransactions = await ParcelRequest.countDocuments({
       status: { $in: ['accepted', 'delivered'] }
     });
 
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       data: [
         {
@@ -1221,7 +1221,7 @@ export const getTransactionsTotal = async (req: Request, res: Response, next: Ne
 };
 
 
-export const getMostUsedDeliveryType = async (req: Request, res: Response, next: NextFunction) => {
+export const getMostUsedDeliveryType = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     console.log("🔄 getMostUsedDeliveryType called");
 
@@ -1242,7 +1242,7 @@ export const getMostUsedDeliveryType = async (req: Request, res: Response, next:
     console.log("📊 Delivery type counts:", JSON.stringify(deliveryTypeCounts, null, 2));
 
     if (deliveryTypeCounts.length === 0) {
-      return res.status(404).json({
+       res.status(404).json({
         status: "error",
         message: "No parcel requests found."
       });
@@ -1265,7 +1265,7 @@ export const getMostUsedDeliveryType = async (req: Request, res: Response, next:
   }
 };
 
-export const getUserRatingCounts = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserRatingCounts = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     console.log("🔄 getUserRatingCounts called");
 
@@ -1288,7 +1288,7 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
     console.log("📊 User rating counts:", JSON.stringify(ratingCounts, null, 2));
 
     if (ratingCounts.length === 0) {
-      return res.status(404).json({
+       res.status(404).json({
         status: "error",
         message: "No users found with reviews."
       });
@@ -1350,7 +1350,7 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
 //   }
 // };
 
-export const getUserStatistics = async (req: Request, res: Response) => {
+export const getUserStatistics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { status, page = 1, limit = 10, day, month, year } = req.query;
 
@@ -1417,7 +1417,7 @@ export const getUserStatistics = async (req: Request, res: Response) => {
 
     console.log("Active User Details:", activeUserDetails); // Debugging log for active users
 
-    return res.json({
+     res.json({
       totalUsers,
       activeUsers: activeUserDetails.length, // Active users count
       activeUserDetails, // Active user details
@@ -1425,7 +1425,7 @@ export const getUserStatistics = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching user statistics', error);
-    return res.status(500).json({ message: 'Error fetching user statistics' });
+     res.status(500).json({ message: 'Error fetching user statistics' });
   }
 };
 

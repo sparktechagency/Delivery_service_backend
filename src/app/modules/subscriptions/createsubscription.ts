@@ -63,7 +63,7 @@ import { GlobalTrial } from "./trial.model";
 //   }
 // };
 
-export const createGlobalSubscriptionPlan = async (req: Request, res: Response) => {
+export const createGlobalSubscriptionPlan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { 
       type, 
@@ -79,13 +79,13 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response) 
     } = req.body;
 
     if (!version) {
-      return res.status(400).json({ message: "Subscription version is required." });
+       res.status(400).json({ message: "Subscription version is required." });
     }
 
     // Check if a plan with the same type and version already exists
     const existingPlan = await GlobalSubscription.findOne({ type, version });
     if (existingPlan) {
-      return res.status(400).json({ message: `The subscription plan '${type}' with version '${version}' already exists` });
+       res.status(400).json({ message: `The subscription plan '${type}' with version '${version}' already exists` });
     }
 
     const newSubscriptionPlan = new GlobalSubscription({
@@ -164,19 +164,19 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response) 
 // ✅ Admin Can Update Global Subscription Plan Price and Description
 
 
-export const assignUserSubscription = async (req: Request, res: Response) => {
+export const assignUserSubscription =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId, subscriptionType } = req.body; // Assuming userId and subscriptionType are provided
 
     if (!userId || !subscriptionType) {
-      return res.status(400).json({ message: "User ID and subscription type are required" });
+       res.status(400).json({ message: "User ID and subscription type are required" });
     }
 
     // Find the global trial setting
     const globalTrialSetting = await GlobalTrial.findOne();
 
     if (!globalTrialSetting || !globalTrialSetting.trialActive) {
-      return res.status(400).json({
+       res.status(400).json({
         message: "Global trial is not active"
       });
     }
@@ -208,12 +208,12 @@ export const assignUserSubscription = async (req: Request, res: Response) => {
   }
 };
 
-export const setGlobalTrialPeriod = async (req: Request, res: Response) => {
+export const setGlobalTrialPeriod = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { trialPeriod } = req.body; // Accept trialPeriod from admin input
 
     if (!trialPeriod || trialPeriod <= 0) {
-      return res.status(400).json({ message: "Trial period must be a positive number" });
+       res.status(400).json({ message: "Trial period must be a positive number" });
     }
 
     // Update the global trial setting
@@ -242,13 +242,13 @@ export const setGlobalTrialPeriod = async (req: Request, res: Response) => {
   }
 };
 
-export const getGlobalTrialDetailsForAdmin = async (req: Request, res: Response) => {
+export const getGlobalTrialDetailsForAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     // Fetch the global trial setting
     const globalTrialSetting = await GlobalTrial.findOne();
 
     if (!globalTrialSetting) {
-      return res.status(404).json({ message: "Global trial setting not found" });
+       res.status(404).json({ message: "Global trial setting not found" });
     }
 
     // Calculate the trial end date by adding the trial period to the trial start date
@@ -261,7 +261,7 @@ export const getGlobalTrialDetailsForAdmin = async (req: Request, res: Response)
 
     // If the trial period has expired
     if (currentDate >= trialEndDate) {
-      return res.status(200).json({
+       res.status(200).json({
         message: "Global trial period has ended",
         trialStartDate: trialStartDate,
         trialEndDate: trialEndDate,
@@ -285,7 +285,7 @@ export const getGlobalTrialDetailsForAdmin = async (req: Request, res: Response)
   }
 };
 
-export const updateSubscriptionById = async (req: Request, res: Response) => {
+export const updateSubscriptionById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params; 
     const { type, price, freeParcels, description, deliveryLimit, expiryDate } = req.body; // Extract the fields to update
@@ -296,7 +296,7 @@ export const updateSubscriptionById = async (req: Request, res: Response) => {
     const subscription = await Subscription.findById(id);
 
     if (!subscription) {
-      return res.status(404).json({
+       res.status(404).json({
         message: `Subscription with ID '${id}' not found.`
       });
     }
@@ -328,13 +328,13 @@ export const updateSubscriptionById = async (req: Request, res: Response) => {
 
 
 // ✅ Get All Global Subscription Plans
-export const getAllGlobalSubscriptions = async (req: Request, res: Response) => {
+export const getAllGlobalSubscriptions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Retrieve all global subscription plans
     const globalSubscriptions = await GlobalSubscription.find();
 
     if (globalSubscriptions.length === 0) {
-      return res.status(200).json({ 
+       res.status(200).json({ 
         message: "No global subscription plans found.",
         data: globalSubscriptions
        });
@@ -427,21 +427,22 @@ export const updateEarnings = async (req: Request, res: Response) => {
 };
 
 // Ensure checkSubscription is correctly exported in the middleware file (auth.ts)
-export const checkSubscription = async (req: Request, res: Response, next: NextFunction) => {
+export const checkSubscription =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId } = req.body;
 
     const user = await User.findById(userId); // Assuming you're passing userId in the body
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+       res.status(404).json({ message: "User not found" });
+      return;
     }
 
     if (user.freeDeliveries <= 0 && !user.isSubscribed) {
       // Auto-disable profile if no free deliveries and not subscribed
       user.isRestricted = true;
       await user.save();
-      return res.status(400).json({ message: "Your free deliveries are over. Please upgrade your profile." });
+       res.status(400).json({ message: "Your free deliveries are over. Please upgrade your profile." });
     }
 
     next(); // Continue to next middleware or endpoint if subscription is valid
@@ -451,7 +452,7 @@ export const checkSubscription = async (req: Request, res: Response, next: NextF
   }
 };
 
-export const deleteSubscriptionById = async (req: Request, res: Response) => {
+export const deleteSubscriptionById = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     // Extract the subscription ID from the request parameters
     const { id } = req.params;  // Assuming the subscription ID is passed as a URL parameter
@@ -463,7 +464,7 @@ export const deleteSubscriptionById = async (req: Request, res: Response) => {
     const subscriptionToDelete = await Subscription.findById(id);
 
     if (!subscriptionToDelete) {
-      return res.status(404).json({
+       res.status(404).json({
         message: `Subscription with ID '${id}' not found.`
       });
     }

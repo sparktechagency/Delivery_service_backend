@@ -266,11 +266,11 @@ export const reviewAdminUpdates = async (req: Request, res: Response, next: Next
     }
   };
 
-export const getOrders = async (req: Request, res: Response, next: NextFunction) => {
+export const getOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
     try {
       if (mongoose.connection.readyState !== 1) {
         console.error("❌ MongoDB not connected");
-        return res.status(500).json({ status: "error", message: "Database connection error" });
+         res.status(500).json({ status: "error", message: "Database connection error" });
       }
   
       const { orderId, status } = req.query;
@@ -278,7 +278,7 @@ export const getOrders = async (req: Request, res: Response, next: NextFunction)
   
       if (orderId) {
         if (!mongoose.Types.ObjectId.isValid(orderId as string)) {
-          return res.status(400).json({ status: "error", message: "Invalid order ID" });
+           res.status(400).json({ status: "error", message: "Invalid order ID" });
         }
         filter.orderId = orderId;
       }
@@ -373,7 +373,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
 };
 
 
-export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
+export const deleteUser = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const userIdToDelete = req.params.userId;
 
@@ -384,7 +384,7 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
 
     await User.findByIdAndDelete(userIdToDelete);
 
-    return res.status(200).json({
+     res.status(200).json({
       status: 'success',
       message: 'User deleted successfully',
     });
@@ -392,12 +392,12 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
-export const getUserData = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.id;  
   
       if (!userId) {
-        return res.status(401).json({
+         res.status(401).json({
           status: "error",
           message: "Unauthorized"
         });
@@ -514,7 +514,7 @@ export const manageSubscriptions = async (req: Request, res: Response, next: Nex
 //   }
 // };
 
-export const getParcelDetails = async (req: Request, res: Response, next: NextFunction) => {
+export const getParcelDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
 
@@ -541,7 +541,7 @@ export const getParcelDetails = async (req: Request, res: Response, next: NextFu
     const totalPages = Math.ceil(totalParcels / limitNumber);
 
     if (parcels.length === 0) {
-      return res.status(200).json({
+       res.status(200).json({
         data: [],
       });
     }
@@ -572,7 +572,7 @@ interface DeliveryTimes {
   [DeliveryType.AIRPLANE]: { totalTime: number, count: number };
 }
 
-export const getOrderDetails = async (req: Request, res: Response, next: NextFunction) => {
+export const getOrderDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const { status, page = 1, limit = 10, day, month, year } = req.query;
 
@@ -607,7 +607,7 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
       if (Object.values(DeliveryStatus).includes(statusUpperCase as DeliveryStatus)) {
         filter.status = statusUpperCase; 
       } else {
-        return res.status(400).json({
+         res.status(400).json({
           status: 'error',
           message: 'Invalid status value provided'
         });
@@ -630,7 +630,7 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
       .lean();
 
     if (parcels.length === 0) {
-      return res.status(404).json({
+       res.status(404).json({
         status: 'error',
         message: 'No parcels found'
       });
@@ -699,7 +699,7 @@ export const getOrderDetails = async (req: Request, res: Response, next: NextFun
   }
 };
 
-export const getParcelDetailsById = async (req: Request, res: Response, next: NextFunction) => {
+export const getParcelDetailsById =async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const { parcelId } = req.params;  
 
@@ -726,7 +726,7 @@ export const getParcelDetailsById = async (req: Request, res: Response, next: Ne
       .lean();
 
     if (!parcel) {
-      return res.status(404).json({
+       res.status(404).json({
         status: 'error',
         message: `Parcel with ID '${parcelId}' not found.`
       });

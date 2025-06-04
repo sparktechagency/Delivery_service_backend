@@ -78,6 +78,7 @@ export interface AuthRequest extends Request {
 
 
 //admin working
+
 export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
@@ -161,10 +162,6 @@ export const authorize = (...roles: UserRole[]) => {
 // };
 
 
-
-
-
-
 export const generateTokens = (userId: string, role: UserRole) => {
   const accessToken = jwt.sign({ id: userId, role }, config.jwtSecret, { expiresIn: '24h' });
   const refreshToken = jwt.sign({ id: userId }, config.jwtSecret, { expiresIn: '7d' });
@@ -175,94 +172,3 @@ export const generateTokens = (userId: string, role: UserRole) => {
   return { accessToken, refreshToken };
 };
 
-
-
-// export const updateProfileMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     console.log("📄 Received Body:", req.body);  // Log form data
-//     console.log("📂 Received File:", req.file);  // Log file data
-
-//     const userId = req.user?.id;  
-//     const { name, email, facebook, instagram, whatsapp } = req.body;  // Extract form data fields
-
-//     if (!userId) {
-//       return res.status(401).json({
-//         status: "error",
-//         message: "Unauthorized"
-//       });
-//     }
-
-//     // Find the user by ID
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       return res.status(404).json({
-//         status: "error",
-//         message: "User not found"
-//       });
-//     }
-
-//     // Update the user's fields
-//     if (name) user.fullName = name;
-//     if (email) user.email = email;
-//     if (facebook) user.facebook = facebook;
-//     if (instagram) user.instagram = instagram;
-//     if (whatsapp) user.whatsapp = whatsapp;
-
-//     if (req.file) {
-//       user.profileImage = `/uploads/profiles/${req.file.filename}`;
-     
-//     }
-
-//     await user.save();
-
-//     const updatedUser = await User.findById(userId).select('-passwordHash');
-
-//     res.status(200).json({
-//       status: "success",
-//       message: "Profile updated successfully",
-//       data: updatedUser,
-//     });
-//   } catch (error: any) {
-//     console.error("❌ Error Updating Profile:", error);
-//     res.status(500).json({
-//       status: "error",
-//       message: error.message || "An error occurred while updating profile"
-//     });
-//   }
-// };
-
-// export const checkUserSubscription = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const userId = req.user?.id;
-
-//     if (!userId) {
-//       return res.status(401).json({
-//         status: "error",
-//         message: "Unauthorized"
-//       });
-//     }
-
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       return res.status(404).json({
-//         status: "error",
-//         message: "User not found"
-//       });
-//     }
-
-//     if (!user.isSubscribed) {
-//       return res.status(403).json({
-//         status: "error",
-//         message: "Subscription required"
-//       });
-//     }
-
-//     next();
-//   } catch (error: any) {
-//     console.error("❌ Error Checking Subscription:", error);
-//     res.status(500).json({
-//       status: "error",
-//       message: error.message || "An error occurred while checking subscription"
-//     });
-//   }
-// };

@@ -127,6 +127,7 @@ app.post('/api/save-fcm-token', async (req, res) => {
     res.status(500).json({ message: 'Failed to save FCM token' });
   }
 });
+
 const SocketPort = process.env.SocketPort || "5000";
 const server = createServer(app);
 const io = new Server(server);

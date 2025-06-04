@@ -232,12 +232,13 @@ export const getSingleProfile = async (req: AuthRequest, res: Response, next: Ne
     const userObj = user.toObject();
 
     // Remove the fields you don't want to expose
-    if (userObj?.RecciveOrders !== undefined) {
-      delete userObj.RecciveOrders;
-    }
-    if (userObj?.SendOrders !== undefined) {
-      delete userObj?.SendOrders;
-    }
+if (userObj.RecciveOrders !== undefined) {
+  delete userObj.RecciveOrders;
+}
+if (userObj.SendOrders !== undefined) {
+  delete userObj.SendOrders;
+}
+
 
     const earningsData = {
       totalEarnings: user.totalEarning || 0,
@@ -297,7 +298,7 @@ export const deleteProfile = async (req: AuthRequest, res: Response, next: NextF
   } 
 };
 
-export const getRemainingSubscriptionTrialDays = async (req: Request, res: Response) => {
+export const getRemainingSubscriptionTrialDays =async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const { userId } = req.params;
 
@@ -305,12 +306,13 @@ export const getRemainingSubscriptionTrialDays = async (req: Request, res: Respo
     const userSubscription = await UserSubscription.findOne({ userId });
 
     if (!userSubscription) {
-      return res.status(404).json({ message: "User subscription not found" });
+       res.status(404).json({ message: "User subscription not found" });
+       return;
     }
 
     // Check if the user is in the trial period
     if (!userSubscription.isTrial) {
-      return res.status(400).json({ message: "User is not in a trial period" });
+       res.status(400).json({ message: "User is not in a trial period" });
     }
 
     // Calculate remaining trial days
@@ -319,7 +321,7 @@ export const getRemainingSubscriptionTrialDays = async (req: Request, res: Respo
 
     // If the trial period has expired
     if (currentDate >= expiryDate) {
-      return res.status(200).json({
+       res.status(200).json({
         message: "Trial period has ended",
         trialPeriod: userSubscription.expiryDate ? userSubscription.expiryDate : 0,
         remainingDays: 0

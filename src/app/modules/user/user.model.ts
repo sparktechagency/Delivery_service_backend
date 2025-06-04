@@ -31,8 +31,9 @@ export interface UserDocument extends Document {
   totalSentParcels: number;
   totalReceivedParcels: number;
 
-  // Using ParcelRequestDocument as the type for parcelId
-  RecciveOrders: Array<{
+
+
+  RecciveOrders?: Array<{
     parcelId: ParcelRequestDocument; // ParcelRequestDocument is used here
     pickupLocation: string;
     deliveryLocation: string;
@@ -45,8 +46,8 @@ export interface UserDocument extends Document {
     deliveryEndTime: Date;
   }>;
 
-  SendOrders: Array<{
-    parcelId: ParcelRequestDocument; // ParcelRequestDocument is used here
+  SendOrders?: Array<{
+    parcelId: ParcelRequestDocument; 
     pickupLocation: string;
     deliveryLocation: string;
     price: number;

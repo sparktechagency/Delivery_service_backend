@@ -40,7 +40,7 @@ import PushNotification from "./push.notification.model";
 
 
  
-  export const viewNotifications = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  export const viewNotifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.id;
       const { excludeTypes, page = 1, limit = 10 } = req.query;
@@ -76,7 +76,7 @@ import PushNotification from "./push.notification.model";
       // Get user info
       const user = await User.findById(userId).select('fullName');
       if (!user) {
-        return res.status(404).json({
+         res.status(404).json({
           status: 'error',
           message: 'User not found',
         });
@@ -426,11 +426,11 @@ export const createNotification = async (
 /**
  * Get all non-parcel notifications for a user
  */
-export const getNotifications = async (req: Request, res: Response, next: NextFunction) => {
+export const getNotifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({
+       res.status(401).json({
         status: 'error',
         message: 'User not authenticated'
       });
@@ -490,11 +490,11 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
   }
 };
 
-export const getParcelNotifications = async (req: Request, res: Response, next: NextFunction) => {
+export const getParcelNotifications = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({
+       res.status(401).json({
         status: 'error',
         message: 'User not authenticated'
       });
@@ -503,15 +503,16 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
     // Check if user has notifications enabled
     const user = await User.findById(userId).select('notificationStatus');
     if (!user) {
-      return res.status(404).json({
+       res.status(404).json({
         status: 'error',
         message: 'User not found'
       });
+      return;
     }
     
     // If notificationStatus is false, don't show any notifications
     if (!user.notificationStatus) {
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         message: 'Notifications are disabled for this user.',
         data: {
@@ -534,7 +535,7 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
    
 
         if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-          return res.status(401).json({ status: 'error', message: 'Invalid or missing user ID' });
+           res.status(401).json({ status: 'error', message: 'Invalid or missing user ID' });
         }
 
         const userObjectId = new mongoose.Types.ObjectId(userId);
@@ -555,7 +556,7 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
       console.log(`Found ${parcelNotifications.length} notifications for user ${userId}`);
     // Handle case when there are no notifications
     if (parcelNotifications.length === 0) {
-      return res.status(200).json({
+       res.status(200).json({
         status: 'success',
         message: 'No parcel-related notifications found.',
         data: {
@@ -593,11 +594,11 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
 };
 
 //unread notifications
-export const getUnreadNotifications = async (req: Request, res: Response, next: NextFunction) => {
+export const getUnreadNotifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({
+       res.status(401).json({
         status: 'error',
         message: 'User not authenticated'
       });
@@ -624,12 +625,12 @@ export const getUnreadNotifications = async (req: Request, res: Response, next: 
   }
 };
 
-export const markAllNotificationsAsRead = async (req: Request, res: Response, next: NextFunction) => {
+export const markAllNotificationsAsRead =async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const userId = req.user?.id;  
 
     if (!userId) {
-      return res.status(401).json({
+       res.status(401).json({
         status: 'error',
         message: 'User not authenticated',
       });
@@ -641,7 +642,7 @@ export const markAllNotificationsAsRead = async (req: Request, res: Response, ne
     );
 
     if (result.modifiedCount === 0) {
-      return res.status(404).json({
+       res.status(404).json({
         status: 'error',
         message: 'No unread notifications found to mark as read',
       });
@@ -660,19 +661,19 @@ export const markAllNotificationsAsRead = async (req: Request, res: Response, ne
     next(error);
   }
 };
-export const updateNotificationStatus = async (req: Request, res: Response, next: NextFunction) => {
+export const updateNotificationStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { notificationStatus } = req.body; 
     if (!userId) {
-      return res.status(401).json({
+       res.status(401).json({
         status: 'error',
         message: 'User not authenticated'
       });
     }
 
     if (typeof notificationStatus !== 'boolean') {
-      return res.status(400).json({
+       res.status(400).json({
         status: 'error',
         message: 'notificationStatus should be a boolean value'
       });
@@ -685,7 +686,7 @@ export const updateNotificationStatus = async (req: Request, res: Response, next
     ).select('notificationStatus');
 
     if (!user) {
-      return res.status(404).json({
+       res.status(404).json({
         status: 'error',
         message: 'User not found'
       });

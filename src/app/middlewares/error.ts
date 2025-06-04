@@ -9,14 +9,14 @@ export class AppError extends Error {
   }
 }
 
-export const errorHandler = (
+export const errorHandler = async (
   err: Error,
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
+     res.status(err.statusCode).json({
       status: 'error',
       message: err.message
     });
