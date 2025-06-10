@@ -112,6 +112,10 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.get('/', (req, res) => {
+  console.log('Server is beep beep');
+  res.send('Server is beep beep');
+});
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 app.post('/api/save-fcm-token', async (req, res) => {
@@ -127,6 +131,7 @@ app.post('/api/save-fcm-token', async (req, res) => {
     res.status(500).json({ message: 'Failed to save FCM token' });
   }
 });
+
 
 const SocketPort = process.env.SocketPort || "5000";
 const server = createServer(app);

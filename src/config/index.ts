@@ -44,9 +44,9 @@ export const connectDB = async () => {
 export const config = {
   jwtSecret: process.env.JWT_SECRET || 'your_jwt_secret',
   twilio: {
-    accountSid: process.env.TWILIO_ACCOUNT_SID || 'your_twilio_sid',
-    authToken: process.env.TWILIO_AUTH_TOKEN || 'your_twilio_auth_token',
-    verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID || 'your_twilio_verify_service_sid',
+    twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || 'your_twilio_sid',
+    twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || 'your_twilio_auth_token',
+    twilioServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID || 'your_twilio_verify_service_sid',
   },
   stripe: {
     webhook_secret: process.env.STRIPE_WEBHOOK_SECRET
@@ -55,6 +55,7 @@ export const config = {
     user: process.env.EMAIL_USER || 'azizulhoq4305@gmail.com',
     password: process.env.EMAIL_PASSWORD || 'igidksaeqbnfqkeh',
   },
+
 };
 
 

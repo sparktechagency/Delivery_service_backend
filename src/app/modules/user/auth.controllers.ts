@@ -17,9 +17,250 @@ import { emailHelper } from '../../../util/mailer/mailer';
 import { formatPhoneNumber } from "../../../util/formatPhoneNumber";
 import { UserActivity } from './user.activity.model';
 import DeviceToken from './fcm.token.model';
-
+import { twilioClient, twilioServiceSid } from '../../../util/twilio'; 
 
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here'; 
+
+// twilo implementation
+// const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
+//   try {
+//     const verification = await twilioClient.verify.v2
+//       .services(twilioServiceSid)
+//       .verifications.create({
+//         to: mobileNumber,
+//         channel: 'sms'
+//       });
+//     return verification.sid;
+//   } catch (error) {
+//     throw new AppError('Failed to send OTP', 500);
+//   }
+// };
+
+// // Helper function to verify OTP via Twilio
+// const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<boolean> => {
+//   try {
+//     const verificationCheck = await twilioClient.verify.v2
+//       .services(twilioServiceSid)
+//       .verificationChecks.create({
+//         to: mobileNumber,
+//         code: otpCode
+//       });
+//     return verificationCheck.status === 'approved';
+//   } catch (error) {
+//     throw new AppError('OTP verification failed', 400);
+//   }
+// };
+
+// export const register = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { fullName, mobileNumber, country, email, fcmToken, deviceId, deviceType = 'android' } = req.body;
+
+//     if (!mobileNumber) {
+//       throw new AppError("Mobile number is required", 400);
+//     }
+//     if (fcmToken && !deviceId) {
+//       throw new AppError('deviceId is required when providing fcmToken', 400);
+//     }
+//     const formattedNumber = formatPhoneNumber(mobileNumber);
+
+//     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+//     if (existingUser) {
+//       throw new AppError("Mobile number already registered", 400);
+//     }
+
+//     const user = await User.create({ 
+//       fullName, 
+//       country, 
+//       mobileNumber: formattedNumber, 
+//       email, 
+//       isVerified: false 
+//     });
+
+//     // Send OTP via Twilio
+//     await sendTwilioOTP(formattedNumber);
+
+//     // Store FCM token only if both fcmToken and deviceId are provided
+//     if (fcmToken && deviceId) {
+//       const existingToken = await DeviceToken.findOne({
+//         userId: user._id,
+//         deviceId: deviceId
+//       });
+
+//       if (existingToken) {
+//         existingToken.fcmToken = fcmToken;
+//         existingToken.deviceType = deviceType;
+//         await existingToken.save();
+//         console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+//       } else {
+//         await DeviceToken.create({
+//           userId: user._id,
+//           fcmToken,
+//           deviceId,
+//           deviceType
+//         });
+//         console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+//       }
+//     }
+
+//     res.status(201).json({
+//       status: "success",
+//       message: "User registered successfully. Please verify OTP to complete registration.",
+//       userId: user._id
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+// export const verifyOTP = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { mobileNumber, otpCode } = req.body;
+
+//     if (!mobileNumber || !otpCode) {
+//       throw new AppError('Mobile number and OTP code are required', 400);
+//     }
+
+//     const formattedNumber = formatPhoneNumber(mobileNumber);
+
+//     // Verify OTP with Twilio
+//     const isValidOTP = await verifyTwilioOTP(formattedNumber, otpCode);
+//     if (!isValidOTP) {
+//       throw new AppError('Invalid or expired OTP', 400);
+//     }
+
+//     const user = await User.findOne({ mobileNumber: formattedNumber });
+//     if (!user) {
+//       throw new AppError('User not found', 404);
+//     }
+
+//     await User.findByIdAndUpdate(user._id, { isVerified: true });
+
+//     const payload: JWTPayload = {
+//       id: user._id.toString(),
+//       role: user.role as UserRole,
+//     };
+//     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+
+//     res.json({
+//       status: 'success',
+//       message: 'Mobile number verified successfully',
+//       token,
+//       user: {
+//         id: user._id,
+//         fullName: user.fullName,
+//         mobileNumber: user.mobileNumber,
+//         role: user.role,
+//       }
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+// export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+//   try {
+//     const { mobileNumber, fcmToken, deviceId, deviceType = 'android' } = req.body;
+
+//     if (!mobileNumber) {
+//       throw new AppError("Mobile number is required", 400);
+//     }
+//     if (fcmToken && !deviceId) {
+//       throw new AppError('deviceId is required when providing fcmToken', 400);
+//     }
+//     const formattedNumber = formatPhoneNumber(mobileNumber);
+
+//     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+//     if (!existingUser) {
+//       res.status(404).json({
+//         status: "fail",
+//         message: "User not found"
+//       });
+//       return;
+//     }
+
+//     // Send OTP via Twilio
+//     await sendTwilioOTP(formattedNumber);
+
+//     // Store FCM token only if both fcmToken and deviceId are provided
+//     if (fcmToken && deviceId) {
+//       const existingToken = await DeviceToken.findOne({
+//         userId: existingUser._id,
+//         deviceId: deviceId
+//       });
+
+//       if (existingToken) {
+//         existingToken.fcmToken = fcmToken;
+//         existingToken.deviceType = deviceType;
+//         await existingToken.save();
+//         console.log(`Updated FCM token for user ${existingUser._id}, device ${deviceId}`);
+//       } else {
+//         await DeviceToken.create({
+//           userId: existingUser._id,
+//           fcmToken,
+//           deviceId,
+//           deviceType
+//         });
+//         console.log(`Created new FCM token for user ${existingUser._id}, device ${deviceId}`);
+//       }
+//     }
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "OTP sent successfully. Please verify to complete login.",
+//       userId: existingUser._id
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+// export const verifyLoginOTPNumber = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { mobileNumber, otpCode } = req.body;
+
+//     if (!mobileNumber || !otpCode) {
+//       throw new AppError('Mobile number and OTP code are required', 400);
+//     }
+
+//     const formattedNumber = formatPhoneNumber(mobileNumber);
+
+//     // Verify OTP with Twilio
+//     const isValidOTP = await verifyTwilioOTP(formattedNumber, otpCode);
+//     if (!isValidOTP) {
+//       throw new AppError('Invalid or expired OTP', 400);
+//     }
+
+//     const user = await User.findOne({ mobileNumber: formattedNumber });
+
+//     if (!user) {
+//       throw new AppError('User not found', 404);
+//     }
+
+//     const payload: JWTPayload = {
+//       id: user._id.toString(),
+//       role: user.role as UserRole,
+//     };
+//     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+
+//     res.json({
+//       status: 'success',
+//       data: {
+//         token,
+//         user: {
+//           id: user._id,
+//           fullName: user.fullName,
+//           mobileNumber: user.mobileNumber,
+//           role: user.role,
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+
+//end twilo otp verification
 
 
 // export const register = async (req: Request, res: Response, next: NextFunction) => {
