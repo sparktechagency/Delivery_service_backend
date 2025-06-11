@@ -77,7 +77,7 @@ export interface AuthRequest extends Request {
 
 
 
-//admin working
+// admin working
 
 export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -128,27 +128,10 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 //   };
 // };
 
-export const authorize = (...roles: UserRole[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    const userRole = req.user?.role;  // No need to convert to uppercase
-    const allowedRoles = roles; // Keep the roles as they are
-
-    console.log("🔹 User Role from Token:", userRole);
-    console.log("🔹 Allowed Roles:", allowedRoles);
-
-    if (!userRole || !allowedRoles.includes(userRole)) {
-      throw new AppError('Unauthorized', 403);
-    }
-
-    next();
-  };
-};
-
-
 // export const authorize = (...roles: UserRole[]) => {
 //   return (req: AuthRequest, res: Response, next: NextFunction) => {
-//     const userRole = req.user?.role?.toUpperCase(); // Normalize role case
-//     const allowedRoles = roles.map(role => role.toUpperCase()); // Normalize allowed roles
+//     const userRole = req.user?.role;  // No need to convert to uppercase
+//     const allowedRoles = roles; // Keep the roles as they are
 
 //     console.log("🔹 User Role from Token:", userRole);
 //     console.log("🔹 Allowed Roles:", allowedRoles);
@@ -156,10 +139,27 @@ export const authorize = (...roles: UserRole[]) => {
 //     if (!userRole || !allowedRoles.includes(userRole)) {
 //       throw new AppError('Unauthorized', 403);
 //     }
-    
+
 //     next();
 //   };
 // };
+
+
+export const authorize = (...roles: UserRole[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userRole = req.user?.role?.toUpperCase(); // Normalize role case
+    const allowedRoles = roles.map(role => role.toUpperCase()); // Normalize allowed roles
+
+    console.log("🔹 User Role from Token:", userRole);
+    console.log("🔹 Allowed Roles:", allowedRoles);
+
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      throw new AppError('Unauthorized', 403);
+    }
+    
+    next();
+  };
+};
 
 
 export const generateTokens = (userId: string, role: UserRole) => {

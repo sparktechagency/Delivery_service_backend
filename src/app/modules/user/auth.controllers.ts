@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import 'dotenv/config'; // Ensure environment variables are loaded
+import 'dotenv/config';
 import nodemailer from 'nodemailer';
-import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';  // Correct import for AWS SDK v3
+import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { sendOTP } from "../../../util/awsSNS";
 import bcrypt from 'bcryptjs';
 // import bcrypt from "bcrypt";
@@ -21,7 +21,7 @@ import { twilioClient, twilioServiceSid } from '../../../util/twilio';
 
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here'; 
 
-// twilo implementation
+// // twilo implementation
 // const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
 //   try {
 //     const verification = await twilioClient.verify.v2
@@ -37,6 +37,7 @@ const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here';
 // };
 
 // // Helper function to verify OTP via Twilio
+
 // const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<boolean> => {
 //   try {
 //     const verificationCheck = await twilioClient.verify.v2
@@ -432,40 +433,58 @@ export const verifyOTP = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
-// export const login = async (req: Request, res: Response, next: NextFunction) => {
+// export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 //   try {
-//     const { mobileNumber, fcmToken } = req.body;
+//     const {  mobileNumber, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
 //     if (!mobileNumber) {
-//       throw new AppError('Mobile number is required', 400);
+//       throw new AppError("Mobile number is required", 400);
 //     }
-
+//     if (fcmToken && !deviceId) {
+//       throw new AppError('deviceId is required when providing fcmToken', 400);
+//     }
 //     const formattedNumber = formatPhoneNumber(mobileNumber);
-//     const user = await User.findOne({ mobileNumber: formattedNumber });
 
-//     if (!user || !user.isVerified) {
-//       throw new AppError('Invalid credentials or unverified account', 401);
+//     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+//     if (!existingUser) {
+//        res.status(404).json({
+//         status: "fail",
+//         message: "User not found"
+//       });
+//       return;
+//     }
+//     if (fcmToken && deviceId) {
+//       const existingToken = await DeviceToken.findOne({
+//         userId: existingUser._id,
+//         deviceId: deviceId
+//       });
+
+//       if (existingToken) {
+//         existingToken.fcmToken = fcmToken;
+//         existingToken.deviceType = deviceType;
+//         await existingToken.save();
+//         console.log(`Updated FCM token for user ${existingUser._id}, device ${deviceId}`);
+//       } else {
+//         await DeviceToken.create({
+//           userId: existingUser._id,
+//           fcmToken,
+//           deviceId,
+//           deviceType
+//         });
+//         console.log(`Created new FCM token for user ${existingUser._id}, device ${deviceId}`);
+//       }
 //     }
 
-//     if (fcmToken) {
-//       user.fcmToken = fcmToken;
-//       await user.save();
-//     }
-    
+//     const payload: JWTPayload = {
+//       id: existingUser._id.toString(),
+//       role: existingUser.role as UserRole,
+//     };
+//     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
 
-//     // const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-//     // await OTPVerification.create({
-//     //   userId: user._id,
-//     //   mobileNumber: formattedNumber,
-//     //   otpCode,
-//     //   expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-//     // });
-
-//     // await sendOTP(formattedNumber, otpCode);
-
-//     res.json({
-//       status: 'success',
-//       // message: 'OTP sent for login verification.',
+//     res.status(200).json({
+//       status: "success",
+//       message: "User logged in successfully.",
+//       token,
 //     });
 //   } catch (error) {
 //     next(error);
@@ -529,8 +548,6 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     next(error);
   }
 };
-
-
 export const verifyLoginOTPNumber = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { mobileNumber, otpCode } = req.body;
@@ -670,7 +687,6 @@ export const registerWithEmail = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
-
 
 export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {

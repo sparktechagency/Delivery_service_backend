@@ -584,13 +584,15 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
       }
     });
   } catch (error) {
-    console.error('Error fetching parcel notifications:', error);
+  console.error('Error fetching parcel notifications:', error);
+  
+  if (!res.headersSent) {
     res.status(500).json({
       status: 'error',
       message: 'Failed to fetch parcel notifications'
     });
-    next(error);
   }
+}
 };
 
 //unread notifications
