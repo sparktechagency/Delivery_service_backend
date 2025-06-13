@@ -17,40 +17,307 @@ import { emailHelper } from '../../../util/mailer/mailer';
 import { formatPhoneNumber } from "../../../util/formatPhoneNumber";
 import { UserActivity } from './user.activity.model';
 import DeviceToken from './fcm.token.model';
-import { twilioClient, twilioServiceSid } from '../../../util/twilio'; 
 
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here'; 
 
-// // twilo implementation
-// const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
-//   try {
-//     const verification = await twilioClient.verify.v2
-//       .services(twilioServiceSid)
-//       .verifications.create({
-//         to: mobileNumber,
-//         channel: 'sms'
-//       });
-//     return verification.sid;
-//   } catch (error) {
-//     throw new AppError('Failed to send OTP', 500);
-//   }
-// };
 
-// // Helper function to verify OTP via Twilio
+const twilioClient = twilio(config.twilio.twilioAccountSid, config.twilio.twilioAuthToken);
+const twilioServiceSid = config.twilio.twilioServiceSid;
 
-// const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<boolean> => {
-//   try {
-//     const verificationCheck = await twilioClient.verify.v2
-//       .services(twilioServiceSid)
-//       .verificationChecks.create({
-//         to: mobileNumber,
-//         code: otpCode
-//       });
-//     return verificationCheck.status === 'approved';
-//   } catch (error) {
-//     throw new AppError('OTP verification failed', 400);
-//   }
-// };
+const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
+  try {
+    
+    // Validate config
+    if (!config.twilio.twilioAccountSid || !config.twilio.twilioAuthToken || !twilioServiceSid) {
+      throw new Error('Missing Twilio configuration');
+    }
+    
+    const verification = await twilioClient.verify.v2
+      .services(twilioServiceSid)
+      .verifications.create({
+        to: mobileNumber,
+        channel: 'sms'
+      });
+    
+    return verification.sid;
+  } catch (error: any) {
+
+    
+    // Provide more specific error messages
+    if (error.code === 20003) {
+      throw new AppError('Authentication Error: Invalid Twilio credentials', 500);
+    }
+    if (error.code === 20404) {
+      throw new AppError('Twilio Service not found: Invalid Service SID', 500);
+    }
+    if (error.code === 60200) {
+      throw new AppError('Invalid phone number format', 400);
+    }
+    
+    throw new AppError(`Failed to send OTP: ${error.message}`, 500);
+  }
+};
+
+const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<boolean> => {
+  try {
+    
+    const verificationCheck = await twilioClient.verify.v2
+      .services(twilioServiceSid)
+      .verificationChecks.create({
+        to: mobileNumber,
+        code: otpCode
+      });
+    
+    return verificationCheck.status === 'approved';
+  } catch (error: any) {
+  
+    throw new AppError('OTP verification failed', 400);
+  }
+};
+
+export const register = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log('=== REGISTER DEBUG ===');
+    console.log('Request body:', req.body);
+    
+    const { fullName, mobileNumber, country, email, fcmToken, deviceId, deviceType = 'android' } = req.body;
+
+    if (!mobileNumber) {
+      throw new AppError("Mobile number is required", 400);
+    }
+    
+    if (fcmToken && !deviceId) {
+      throw new AppError('deviceId is required when providing fcmToken', 400);
+    }
+    
+    let formattedNumber: string;
+    try {
+      formattedNumber = formatPhoneNumber(mobileNumber);
+      // console.log('Original number:', mobileNumber);
+      // console.log('Formatted number:', formattedNumber);
+    } catch (formatError: any) {
+      console.error('Phone formatting error:', formatError.message);
+      throw new AppError(`Invalid phone number: ${formatError.message}`, 400);
+    }
+
+    const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+    if (existingUser) {
+      throw new AppError("Mobile number already registered", 400);
+    }
+
+    const user = await User.create({ 
+      fullName, 
+      country, 
+      mobileNumber: formattedNumber, 
+      email, 
+      isVerified: false 
+    });
+    console.log('User created:', user._id);
+
+    // Send OTP via Twilio
+    // console.log('Attempting to send OTP...');
+    await sendTwilioOTP(formattedNumber);
+    console.log('OTP sent successfully');
+
+    // Store FCM token only if both fcmToken and deviceId are provided
+    if (fcmToken && deviceId) {
+      const existingToken = await DeviceToken.findOne({
+        userId: user._id,
+        deviceId: deviceId
+      });
+
+      if (existingToken) {
+        existingToken.fcmToken = fcmToken;
+        existingToken.deviceType = deviceType;
+        await existingToken.save();
+        console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+      } else {
+        await DeviceToken.create({
+          userId: user._id,
+          fcmToken,
+          deviceId,
+          deviceType
+        });
+        console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+      }
+    }
+
+    console.log('About to send success response...');
+    res.status(201).json({
+      status: "success",
+      message: "User registered successfully. Please verify OTP to complete registration.",
+      userId: user._id
+    });
+
+  } catch (error) {
+
+    next(error);
+  }
+};
+
+export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    
+    const { mobileNumber, fcmToken, deviceId, deviceType = 'android' } = req.body;
+
+    if (!mobileNumber) {
+      throw new AppError("Mobile number is required", 400);
+    }
+    
+    if (fcmToken && !deviceId) {
+      throw new AppError('deviceId is required when providing fcmToken', 400);
+    }
+    
+    let formattedNumber: string;
+    try {
+      formattedNumber = formatPhoneNumber(mobileNumber);
+      console.log('Original number:', mobileNumber);
+      console.log('Formatted number:', formattedNumber);
+    } catch (formatError: any) {
+      console.error('Phone formatting error:', formatError.message);
+      throw new AppError(`Invalid phone number: ${formatError.message}`, 400);
+    }
+
+    const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+    if (!existingUser) {
+      throw new AppError("User not found", 404);
+    }
+    console.log('User found:', existingUser._id);
+
+    // Send OTP via Twilio
+    console.log('Attempting to send OTP...');
+    await sendTwilioOTP(formattedNumber);
+    console.log('OTP sent successfully');
+
+    // Store FCM token only if both fcmToken and deviceId are provided
+    if (fcmToken && deviceId) {
+      const existingToken = await DeviceToken.findOne({
+        userId: existingUser._id,
+        deviceId: deviceId
+      });
+
+      if (existingToken) {
+        existingToken.fcmToken = fcmToken;
+        existingToken.deviceType = deviceType;
+        await existingToken.save();
+        console.log(`Updated FCM token for user ${existingUser._id}, device ${deviceId}`);
+      } else {
+        await DeviceToken.create({
+          userId: existingUser._id,
+          fcmToken,
+          deviceId,
+          deviceType
+        });
+        console.log(`Created new FCM token for user ${existingUser._id}, device ${deviceId}`);
+      }
+    }
+
+    console.log('About to send success response...');
+    res.status(200).json({
+      status: "success",
+      message: "OTP sent successfully. Please verify to complete login.",
+      userId: existingUser._id
+    });
+    console.log('Success response sent');
+    console.log('================');
+  } catch (error) {
+    console.error('=== LOGIN ERROR ===');
+    console.error('Error in login:', error);
+    console.error('================');
+    next(error);
+  }
+};
+
+export const verifyOTP = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { mobileNumber, otpCode } = req.body;
+
+    if (!mobileNumber || !otpCode) {
+      throw new AppError('Mobile number and OTP code are required', 400);
+    }
+
+    const formattedNumber = formatPhoneNumber(mobileNumber);
+
+    // Verify OTP with Twilio
+    const isValidOTP = await verifyTwilioOTP(formattedNumber, otpCode);
+    if (!isValidOTP) {
+      throw new AppError('Invalid or expired OTP', 400);
+    }
+
+    const user = await User.findOne({ mobileNumber: formattedNumber });
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    await User.findByIdAndUpdate(user._id, { isVerified: true });
+
+    const payload = {
+      id: user._id.toString(),
+      role: user.role,
+    };
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+
+    res.json({
+      status: 'success',
+      message: 'Mobile number verified successfully',
+      token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        mobileNumber: user.mobileNumber,
+        role: user.role,
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyLoginOTPNumber = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { mobileNumber, otpCode } = req.body;
+
+    if (!mobileNumber || !otpCode) {
+      throw new AppError('Mobile number and OTP code are required', 400);
+    }
+
+    const formattedNumber = formatPhoneNumber(mobileNumber);
+
+    // Verify OTP with Twilio
+    const isValidOTP = await verifyTwilioOTP(formattedNumber, otpCode);
+    if (!isValidOTP) {
+      throw new AppError('Invalid or expired OTP', 400);
+    }
+
+    const user = await User.findOne({ mobileNumber: formattedNumber });
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    const payload = {
+      id: user._id.toString(),
+      role: user.role,
+    };
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+
+    res.json({
+      status: 'success',
+      data: {
+        token,
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          mobileNumber: user.mobileNumber,
+          role: user.role,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 // export const register = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
@@ -112,6 +379,8 @@ const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here';
 //     next(error);
 //   }
 // };
+
+
 
 // export const verifyOTP = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
@@ -329,109 +598,168 @@ const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here';
 //     next(error);
 //   }
 // };
+// last
+// export const register = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { fullName, mobileNumber, country,email, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
-export const register = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { fullName, mobileNumber, country,email, fcmToken, deviceId, deviceType = 'android' } = req.body;
+//     if (!mobileNumber) {
+//       throw new AppError("Mobile number is required", 400);
+//     }
+//      if (fcmToken && !deviceId) {
+//       throw new AppError('deviceId is required when providing fcmToken', 400);
+//     }
+//     const formattedNumber = formatPhoneNumber(mobileNumber);
 
-    if (!mobileNumber) {
-      throw new AppError("Mobile number is required", 400);
-    }
-     if (fcmToken && !deviceId) {
-      throw new AppError('deviceId is required when providing fcmToken', 400);
-    }
-    const formattedNumber = formatPhoneNumber(mobileNumber);
+//     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+//     if (existingUser) {
+//       throw new AppError("Mobile number already registered", 400);
+//     }
 
-    const existingUser = await User.findOne({ mobileNumber: formattedNumber });
-    if (existingUser) {
-      throw new AppError("Mobile number already registered", 400);
-    }
+//     const user = await User.create({ fullName, country, mobileNumber: formattedNumber, email, isVerified: true });
+//       // await OTPVerification.deleteMany({ mobileNumber: formattedNumber });
 
-    const user = await User.create({ fullName, country, mobileNumber: formattedNumber, email, isVerified: true });
-      // await OTPVerification.deleteMany({ mobileNumber: formattedNumber });
-
-    // const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    // console.log("🔹 Generated OTP (Plain):", otpCode);
-    // await OTPVerification.create({
-    //   userId: user._id,
-    //   mobileNumber: formattedNumber,
-    //   otpCode,
-    //   expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    // });
- // Store FCM token only if both fcmToken and deviceId are provided
-        if (fcmToken && deviceId) {
-          // Check if this device token already exists
-          const existingToken = await DeviceToken.findOne({
-            userId: user._id,
-            deviceId: deviceId
-          });
+//     // const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+//     // console.log("🔹 Generated OTP (Plain):", otpCode);
+//     // await OTPVerification.create({
+//     //   userId: user._id,
+//     //   mobileNumber: formattedNumber,
+//     //   otpCode,
+//     //   expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+//     // });
+//  // Store FCM token only if both fcmToken and deviceId are provided
+//         if (fcmToken && deviceId) {
+//           // Check if this device token already exists
+//           const existingToken = await DeviceToken.findOne({
+//             userId: user._id,
+//             deviceId: deviceId
+//           });
     
-          if (existingToken) {
-            // Update existing token
-            existingToken.fcmToken = fcmToken;
-            existingToken.deviceType = deviceType;
-            await existingToken.save();
-            console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
-          } else {
-            // Create new device token
-            await DeviceToken.create({
-              userId: user._id,
-              fcmToken,
-              deviceId,
-              deviceType
-            });
-            console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
-          }
-        }
+//           if (existingToken) {
+//             // Update existing token
+//             existingToken.fcmToken = fcmToken;
+//             existingToken.deviceType = deviceType;
+//             await existingToken.save();
+//             console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+//           } else {
+//             // Create new device token
+//             await DeviceToken.create({
+//               userId: user._id,
+//               fcmToken,
+//               deviceId,
+//               deviceType
+//             });
+//             console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+//           }
+//         }
 
-    // Send OTP via AWS SNS
-    // await sendOTP(formattedNumber, otpCode);
-    const payload: JWTPayload = {
-      id: user._id.toString(),
-      role: user.role as UserRole,
-    };
-    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
-    res.status(201).json({
-      status: "success",
-      message: "User registered  successfully.",
-      token,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+//     // Send OTP via AWS SNS
+//     // await sendOTP(formattedNumber, otpCode);
+//     const payload: JWTPayload = {
+//       id: user._id.toString(),
+//       role: user.role as UserRole,
+//     };
+//     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+//     res.status(201).json({
+//       status: "success",
+//       message: "User registered  successfully.",
+//       token,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
-export const verifyOTP = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { mobileNumber, otpCode } = req.body;
+// export const verifyOTP = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { mobileNumber, otpCode } = req.body;
 
-    if (!mobileNumber || !otpCode) {
-      throw new AppError('Mobile number and OTP code are required', 400);
-    }
+//     if (!mobileNumber || !otpCode) {
+//       throw new AppError('Mobile number and OTP code are required', 400);
+//     }
 
-    const formattedNumber = formatPhoneNumber(mobileNumber);
+//     const formattedNumber = formatPhoneNumber(mobileNumber);
 
-    const verification = await OTPVerification.findOne({
-      mobileNumber: formattedNumber,
-      otpCode,
-      expiresAt: { $gt: new Date() },
-    });
+//     const verification = await OTPVerification.findOne({
+//       mobileNumber: formattedNumber,
+//       otpCode,
+//       expiresAt: { $gt: new Date() },
+//     });
 
-    if (!verification) {
-      throw new AppError('Invalid or expired OTP', 400);
-    }
+//     if (!verification) {
+//       throw new AppError('Invalid or expired OTP', 400);
+//     }
 
-    await User.findByIdAndUpdate(verification.userId, { isVerified: true });
-    await OTPVerification.deleteOne({ _id: verification._id });
+//     await User.findByIdAndUpdate(verification.userId, { isVerified: true });
+//     await OTPVerification.deleteOne({ _id: verification._id });
 
-    res.json({
-      status: 'success',
-      message: 'Mobile number verified successfully',
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+//     res.json({
+//       status: 'success',
+//       message: 'Mobile number verified successfully',
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+
+// // export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// //   try {
+// //     const {  mobileNumber, fcmToken, deviceId, deviceType = 'android' } = req.body;
+
+// //     if (!mobileNumber) {
+// //       throw new AppError("Mobile number is required", 400);
+// //     }
+// //     if (fcmToken && !deviceId) {
+// //       throw new AppError('deviceId is required when providing fcmToken', 400);
+// //     }
+// //     const formattedNumber = formatPhoneNumber(mobileNumber);
+
+// //     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+// //     if (!existingUser) {
+// //        res.status(404).json({
+// //         status: "fail",
+// //         message: "User not found"
+// //       });
+// //       return;
+// //     }
+// //     if (fcmToken && deviceId) {
+// //       const existingToken = await DeviceToken.findOne({
+// //         userId: existingUser._id,
+// //         deviceId: deviceId
+// //       });
+
+// //       if (existingToken) {
+// //         existingToken.fcmToken = fcmToken;
+// //         existingToken.deviceType = deviceType;
+// //         await existingToken.save();
+// //         console.log(`Updated FCM token for user ${existingUser._id}, device ${deviceId}`);
+// //       } else {
+// //         await DeviceToken.create({
+// //           userId: existingUser._id,
+// //           fcmToken,
+// //           deviceId,
+// //           deviceType
+// //         });
+// //         console.log(`Created new FCM token for user ${existingUser._id}, device ${deviceId}`);
+// //       }
+// //     }
+
+// //     const payload: JWTPayload = {
+// //       id: existingUser._id.toString(),
+// //       role: existingUser.role as UserRole,
+// //     };
+// //     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+
+// //     res.status(200).json({
+// //       status: "success",
+// //       message: "User logged in successfully.",
+// //       token,
+// //     });
+// //   } catch (error) {
+// //     next(error);
+// //   }
+// // };
 
 // export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 //   try {
@@ -490,110 +818,52 @@ export const verifyOTP = async (req: Request, res: Response, next: NextFunction)
 //     next(error);
 //   }
 // };
+// export const verifyLoginOTPNumber = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const { mobileNumber, otpCode } = req.body;
 
-export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const {  mobileNumber, fcmToken, deviceId, deviceType = 'android' } = req.body;
+//     if (!mobileNumber || !otpCode) {
+//       throw new AppError('Mobile number and OTP code are required', 400);
+//     }
 
-    if (!mobileNumber) {
-      throw new AppError("Mobile number is required", 400);
-    }
-    if (fcmToken && !deviceId) {
-      throw new AppError('deviceId is required when providing fcmToken', 400);
-    }
-    const formattedNumber = formatPhoneNumber(mobileNumber);
+//     const formattedNumber = formatPhoneNumber(mobileNumber);
+//     const verification = await OTPVerification.findOne({
+//       mobileNumber: formattedNumber,
+//       otpCode,
+//       expiresAt: { $gt: new Date() },
+//     });
 
-    const existingUser = await User.findOne({ mobileNumber: formattedNumber });
-    if (!existingUser) {
-       res.status(404).json({
-        status: "fail",
-        message: "User not found"
-      });
-      return;
-    }
-    if (fcmToken && deviceId) {
-      const existingToken = await DeviceToken.findOne({
-        userId: existingUser._id,
-        deviceId: deviceId
-      });
+//     if (!verification) {
+//       throw new AppError('Invalid or expired OTP', 400);
+//     }
 
-      if (existingToken) {
-        existingToken.fcmToken = fcmToken;
-        existingToken.deviceType = deviceType;
-        await existingToken.save();
-        console.log(`Updated FCM token for user ${existingUser._id}, device ${deviceId}`);
-      } else {
-        await DeviceToken.create({
-          userId: existingUser._id,
-          fcmToken,
-          deviceId,
-          deviceType
-        });
-        console.log(`Created new FCM token for user ${existingUser._id}, device ${deviceId}`);
-      }
-    }
+//     const user = await User.findOne({ mobileNumber: formattedNumber });
 
-    const payload: JWTPayload = {
-      id: existingUser._id.toString(),
-      role: existingUser.role as UserRole,
-    };
-    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
+//     if (!user) {
+//       throw new AppError('User not found', 404);
+//     }
 
-    res.status(200).json({
-      status: "success",
-      message: "User logged in successfully.",
-      token,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-export const verifyLoginOTPNumber = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { mobileNumber, otpCode } = req.body;
+//     const token = jwt.sign({ id: user._id.toString(), role: user.role }, process.env.JWT_SECRET!, { expiresIn: '20d' });
 
-    if (!mobileNumber || !otpCode) {
-      throw new AppError('Mobile number and OTP code are required', 400);
-    }
+//     await OTPVerification.deleteOne({ _id: verification._id });
 
-    const formattedNumber = formatPhoneNumber(mobileNumber);
-    const verification = await OTPVerification.findOne({
-      mobileNumber: formattedNumber,
-      otpCode,
-      expiresAt: { $gt: new Date() },
-    });
-
-    if (!verification) {
-      throw new AppError('Invalid or expired OTP', 400);
-    }
-
-    const user = await User.findOne({ mobileNumber: formattedNumber });
-
-    if (!user) {
-      throw new AppError('User not found', 404);
-    }
-
-    const token = jwt.sign({ id: user._id.toString(), role: user.role }, process.env.JWT_SECRET!, { expiresIn: '20d' });
-
-    await OTPVerification.deleteOne({ _id: verification._id });
-
-    res.json({
-      status: 'success',
-      data: {
-        token,
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          mobileNumber: user.mobileNumber,
-          role: user.role,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
+//     res.json({
+//       status: 'success',
+//       data: {
+//         token,
+//         user: {
+//           id: user._id,
+//           fullName: user.fullName,
+//           mobileNumber: user.mobileNumber,
+//           role: user.role,
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+//last
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
