@@ -150,7 +150,7 @@ io.on("connection", (socket: any) => {
 
 server.listen(SocketPort, () => {
   // console.log(`🚀 Server & Socket.io running on http://10.0.70.208:${PORT}`);
-  console.log(`🚀 Server & Socket.io running on http://10.0.70.208:${SocketPort}`);
+  console.log(`🚀 Server & Socket.io running:${SocketPort}`);
 });
 
 // Error handling
