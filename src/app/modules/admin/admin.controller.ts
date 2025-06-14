@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { DeliveryType } from '../../../types/enums';
 import moment from 'moment';  
-interface AdminRequest extends Request {
-  admin?: {
-    id: string;
-  };
-}
+// interface AdminRequest extends Request {
+//   admin?: {
+//     id: string;
+//   };
+// }
 import bcrypt from 'bcryptjs';
 import { Admin } from './admin.model';
 import { AppError } from '../../middlewares/error';
@@ -58,6 +58,7 @@ export const createAdmin = async (req: Request, res: Response, next: NextFunctio
       message: 'Admin created successfully',
       data: admin
     });
+    return;
   } catch (error) {
     next(error);
   }
@@ -544,6 +545,7 @@ export const getParcelDetails = async (req: Request, res: Response, next: NextFu
        res.status(200).json({
         data: [],
       });
+      return;
     }
 
     res.status(200).json({
@@ -557,6 +559,7 @@ export const getParcelDetails = async (req: Request, res: Response, next: NextFu
         limit: limitNumber
       }
     });
+    return;
   } catch (error) {
     next(error);
   }

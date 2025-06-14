@@ -37,7 +37,8 @@ const parseQueryParamToNumber = (param: string | undefined): number | undefined 
   return undefined;
 };
 
-export const getTotalRevenue =async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
+
+export const getTotalRevenue = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
@@ -47,49 +48,49 @@ export const getTotalRevenue =async (req: Request, res: Response, next: NextFunc
 
     if (year && !month) {
       const dataByMonth = [];
-      let totalRevenueSum = 0; 
-      for (let month = 1; month <= 12; month++) {
-        const { startDate, endDate } = getDateRange(year, month);
+      let totalRevenueSum = 0;
+
+      for (let m = 1; m <= 12; m++) {
+        const { startDate, endDate } = getDateRange(year, m);
         const totalRevenue = await Order.aggregate([
           { $match: { date: { $gte: startDate, $lte: endDate } } },
           { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
         ]);
         const monthRevenue = totalRevenue[0]?.totalRevenue || 0;
-        dataByMonth.push({
-          x: month,
-          y: monthRevenue,
-        });
+        dataByMonth.push({ x: m, y: monthRevenue });
         totalRevenueSum += monthRevenue;
       }
-       res.status(200).json({
+
+      res.status(200).json({
         status: 'success',
         data: dataByMonth,
-        total: totalRevenueSum,  
+        total: totalRevenueSum,
       });
+      return;
     }
 
     if (year && month && !day) {
-      const daysInMonth = new Date(year, month, 0).getDate(); 
+      const daysInMonth = new Date(year, month, 0).getDate();
       const dataByDay = [];
-      let totalRevenueSum = 0;  
-      for (let day = 1; day <= daysInMonth; day++) {
-        const { startDate, endDate } = getDateRange(year, month, day);
+      let totalRevenueSum = 0;
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const { startDate, endDate } = getDateRange(year, month, d);
         const totalRevenue = await Order.aggregate([
           { $match: { date: { $gte: startDate, $lte: endDate } } },
           { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
         ]);
         const dayRevenue = totalRevenue[0]?.totalRevenue || 0;
-        dataByDay.push({
-          x: day, 
-          y: dayRevenue, 
-        });
-        totalRevenueSum += dayRevenue; 
+        dataByDay.push({ x: d, y: dayRevenue });
+        totalRevenueSum += dayRevenue;
       }
-       res.status(200).json({
+
+      res.status(200).json({
         status: 'success',
         data: dataByDay,
-        total: totalRevenueSum, 
+        total: totalRevenueSum,
       });
+      return;
     }
 
     if (year && month && day) {
@@ -98,34 +99,39 @@ export const getTotalRevenue =async (req: Request, res: Response, next: NextFunc
         { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
       ]);
       const dayRevenue = totalRevenue[0]?.totalRevenue || 0;
-       res.status(200).json({
+
+      res.status(200).json({
         status: 'success',
         data: [
           {
-            x: day, 
-            y: dayRevenue, 
+            x: day,
+            y: dayRevenue,
           },
         ],
-        total: dayRevenue, 
+        total: dayRevenue,
       });
+      return;
     }
 
-    // Default case: Return total revenue count for the entire date range (today by default)
+    // Default: revenue for current day
     const totalRevenue = await Order.aggregate([
       { $match: { date: { $gte: startDate, $lte: endDate } } },
       { $group: { _id: null, totalRevenue: { $sum: '$bill' } } }
     ]);
     const todayRevenue = totalRevenue[0]?.totalRevenue || 0;
-     res.status(200).json({
+
+    res.status(200).json({
       status: 'success',
       data: [
         {
-          x: new Date().getDate(), // Today's day
-          y: todayRevenue, // Total revenue for today
+          x: new Date().getDate(),
+          y: todayRevenue,
         },
       ],
-      total: todayRevenue,  // Dynamically calculated total
+      total: todayRevenue,
     });
+    return;
+
   } catch (error) {
     next(error);
   }
@@ -145,11 +151,11 @@ export const getTotalRevenueNumber =async (req: Request, res: Response, next: Ne
       status: 'success',
       data: [
         {
-          x: 'Total', // Label indicating this is the total for the entire database
-          y: totalRevenueSum, // Total revenue for the entire database
+          x: 'Total', 
+          y: totalRevenueSum, 
         },
       ],
-      total: totalRevenueSum,  // Dynamically calculated total for the entire database
+      total: totalRevenueSum,  
     });
   } catch (error) {
     next(error);
@@ -338,8 +344,8 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
         const { startDate, endDate } = getDateRange(year, month);
         const totalUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
         dataByMonth.push({
-          x: month, // Month number (1 to 12)
-          y: totalUsers, // Total users for that month
+          x: month,
+          y: totalUsers,
         });
         totalUsersSum += totalUsers; // Add to total sum
       }
@@ -458,19 +464,20 @@ export const getNewUsers = async (req: Request, res: Response, next: NextFunctio
           },
         ],
       });
+      return;
     }
 
-    // Default case: Return new users count for the entire date range (today by default)
     const newUsers = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
     res.status(200).json({
       status: 'success',
       data: [
         {
-          x: new Date().getDate(), // Today's day
-          y: newUsers, // Total new users for today
+          x: new Date().getDate(),
+          y: newUsers, 
         },
       ],
     });
+    return;
   } catch (error) {
     next(error);
   }
@@ -1315,6 +1322,7 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
       status: "success",
       data: userRatings
     });
+    return;
   } catch (error) {
     console.error("❌ Error in getUserRatingCounts:", error);
     next(error);
@@ -1460,6 +1468,6 @@ export const getUserRatingsStatistics = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching user ratings statistics', error);
-    return res.status(500).json({ message: 'Error fetching user ratings statistics' });
+    res.status(500).json({ message: 'Error fetching user ratings statistics' });
   }
 };

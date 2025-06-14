@@ -1,15 +1,12 @@
 
-
-
 import mongoose, { Schema, Document, Types, ObjectId } from 'mongoose';
 import { DeliveryStatus, DeliveryType, SenderType } from '../../../types/enums';
 
-import moment from 'moment-timezone';
-
-// Define timezone validation function
-const validateTimeZone = (timezone: string) => {
-  return moment.tz.names().includes(timezone);
-};
+// // Define timezone validation function
+// const validateTimeZone = (timezone: string) => {
+//    moment.tz.names().includes(timezone);
+//    return moment.tz.zone(timezone) !== null;
+// };
 
 const parcelRequestSchema = new Schema({
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

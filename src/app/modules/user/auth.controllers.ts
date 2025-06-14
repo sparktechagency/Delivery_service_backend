@@ -1,6 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import 'dotenv/config';
 import nodemailer from 'nodemailer';
+
+// Extend Express Request interface to include registeredUserId
+declare module 'express-serve-static-core' {
+  interface Request {
+    registeredUserId?: string;
+  }
+}
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { sendOTP } from "../../../util/awsSNS";
 import bcrypt from 'bcryptjs';
@@ -75,10 +82,90 @@ const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<b
   }
 };
 
+// export const register = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     // console.log('=== REGISTER DEBUG ===');
+//     // console.log('Request body:', req.body);
+    
+//     const { fullName, mobileNumber, country, email, fcmToken, deviceId, deviceType = 'android' } = req.body;
+
+//     if (!mobileNumber) {
+//       throw new AppError("Mobile number is required", 400);
+//     }
+    
+//     if (fcmToken && !deviceId) {
+//       throw new AppError('deviceId is required when providing fcmToken', 400);
+//     }
+    
+//     let formattedNumber: string;
+//     try {
+//       formattedNumber = formatPhoneNumber(mobileNumber);
+//       // console.log('Original number:', mobileNumber);
+//       // console.log('Formatted number:', formattedNumber);
+//     } catch (formatError: any) {
+//       // console.error('Phone formatting error:', formatError.message);
+//       throw new AppError(`Invalid phone number: ${formatError.message}`, 400);
+//     }
+
+//     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
+//     if (existingUser) {
+//       throw new AppError("Mobile number already registered", 400);
+//     }
+
+//     const user = await User.create({ 
+//       fullName, 
+//       country, 
+//       mobileNumber: formattedNumber, 
+//       email, 
+//       isVerified: false 
+//     });
+//     console.log('User created:', user._id);
+
+//     // Send OTP via Twilio
+//     // console.log('Attempting to send OTP...');
+//     await sendTwilioOTP(formattedNumber);
+//     console.log('OTP sent successfully');
+
+//     // Store FCM token only if both fcmToken and deviceId are provided
+//     if (fcmToken && deviceId) {
+//       const existingToken = await DeviceToken.findOne({
+//         userId: user._id,
+//         deviceId: deviceId
+//       });
+
+//       if (existingToken) {
+//         existingToken.fcmToken = fcmToken;
+//         existingToken.deviceType = deviceType;
+//         await existingToken.save();
+//         console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+//       } else {
+//         await DeviceToken.create({
+//           userId: user._id,
+//           fcmToken,
+//           deviceId,
+//           deviceType
+//         });
+//         // console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+//       }
+//     }
+
+//     // console.log('About to send success response...');
+//     res.status(201).json({
+//       status: "success",
+//       message: "User registered successfully. Please verify OTP to complete registration.",
+//       userId: user._id
+//     });
+
+//   } catch (error) {
+
+//     next(error);
+//   }
+// };
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('=== REGISTER DEBUG ===');
-    console.log('Request body:', req.body);
+    // console.log('=== REGISTER DEBUG ===');
+    // console.log('Request body:', req.body);
     
     const { fullName, mobileNumber, country, email, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
@@ -96,20 +183,29 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       // console.log('Original number:', mobileNumber);
       // console.log('Formatted number:', formattedNumber);
     } catch (formatError: any) {
-      console.error('Phone formatting error:', formatError.message);
+      // console.error('Phone formatting error:', formatError.message);
       throw new AppError(`Invalid phone number: ${formatError.message}`, 400);
     }
 
+    // Check if mobile number already exists
     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
     if (existingUser) {
       throw new AppError("Mobile number already registered", 400);
+    }
+
+    // Check if email already exists (only if email is provided)
+    if (email) {
+      const existingEmailUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingEmailUser) {
+        throw new AppError("Email already exists", 400);
+      }
     }
 
     const user = await User.create({ 
       fullName, 
       country, 
       mobileNumber: formattedNumber, 
-      email, 
+      email: email ? email.toLowerCase() : email, // Store email in lowercase for consistency
       isVerified: false 
     });
     console.log('User created:', user._id);
@@ -138,11 +234,11 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
           deviceId,
           deviceType
         });
-        console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+        // console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
       }
     }
 
-    console.log('About to send success response...');
+    // console.log('About to send success response...');
     res.status(201).json({
       status: "success",
       message: "User registered successfully. Please verify OTP to complete registration.",
@@ -150,7 +246,6 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     });
 
   } catch (error) {
-
     next(error);
   }
 };
@@ -171,8 +266,8 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     let formattedNumber: string;
     try {
       formattedNumber = formatPhoneNumber(mobileNumber);
-      console.log('Original number:', mobileNumber);
-      console.log('Formatted number:', formattedNumber);
+      // console.log('Original number:', mobileNumber);
+      // console.log('Formatted number:', formattedNumber);
     } catch (formatError: any) {
       console.error('Phone formatting error:', formatError.message);
       throw new AppError(`Invalid phone number: ${formatError.message}`, 400);
@@ -219,11 +314,11 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       userId: existingUser._id
     });
     console.log('Success response sent');
-    console.log('================');
+    // console.log('================');
   } catch (error) {
-    console.error('=== LOGIN ERROR ===');
-    console.error('Error in login:', error);
-    console.error('================');
+    // console.error('=== LOGIN ERROR ===');
+    // console.error('Error in login:', error);
+    // console.error('================');
     next(error);
   }
 };
@@ -1289,8 +1384,13 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
       status: 'success',
       message: 'User logged in successfully with Google.',
       data: {
-        user,
         token,
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+        },
       },
     });
   } catch (error) {
@@ -1304,3 +1404,5 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
     });
   }
 };
+
+
