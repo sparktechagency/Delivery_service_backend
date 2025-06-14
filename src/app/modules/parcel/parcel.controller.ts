@@ -873,22 +873,26 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
 };
 
 
-// export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction) => {
+
+// export const getFilteredParcels =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 //   try {
+//     // Debugging: Check the user ID
+//     console.log("Logged-in user ID:", req.user?.id); // Add this line to verify the user ID
+
 //     const { latitude, longitude, radius = 15, deliveryType } = req.query;
 
 //     const lat = parseFloat(latitude as string);
 //     const lng = parseFloat(longitude as string);
 
 //     if (isNaN(lat)) {
-//       return res.status(400).json({
+//        res.status(400).json({
 //         status: 'error',
 //         message: 'Invalid latitude value. Please provide a valid number for latitude.',
 //       });
 //     }
 
 //     if (isNaN(lng)) {
-//       return res.status(400).json({
+//        res.status(400).json({
 //         status: 'error',
 //         message: 'Invalid longitude value. Please provide a valid number for longitude.',
 //       });
@@ -902,10 +906,11 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
 //       status: DeliveryStatus.PENDING,
 //       pickupLocation: {
 //         $nearSphere: {
-//           $geometry: { type: 'Point', coordinates: [lng, lat] }, 
-//           $maxDistance: maxDistance, 
+//           $geometry: { type: 'Point', coordinates: [lng, lat] },
+//           $maxDistance: maxDistance,
 //         },
 //       },
+//       senderId: { $ne: req.user?.id }, // Exclude parcels owned by the logged-in user
 //     };
 
 //     const nearbyDeliveryQuery: any = {
@@ -913,9 +918,10 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
 //       deliveryLocation: {
 //         $nearSphere: {
 //           $geometry: { type: 'Point', coordinates: [lng, lat] },
-//           $maxDistance: maxDistance, 
+//           $maxDistance: maxDistance,
 //         },
 //       },
+//       senderId: { $ne: req.user?.id }, 
 //     };
 
 //     // Delivery type mapping based on selected delivery type
@@ -936,27 +942,27 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
 //         nearbyDeliveryQuery.deliveryType = { $in: validTypes };
 //       }
 //     } else if (deliveryType) {
-//       // If the provided deliveryType is invalid, return an error
-//       return res.status(400).json({
+//        res.status(400).json({
 //         status: 'error',
 //         message: `Invalid delivery type: ${deliveryType}. Please select a valid delivery type.`,
 //       });
 //     }
 
 //     const nearbyPickupParcels = await ParcelRequest.find(nearbyPickupQuery)
-//       .select('title price senderId description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
-//       .populate('senderId', 'fullName email mobileNumber role')
+//       .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
+//       .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
 //       .lean();
 
 //     const nearbyDeliveryParcels = await ParcelRequest.find(nearbyDeliveryQuery)
-//       .select('title price senderId description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
-//       .populate('senderId', 'fullName email mobileNumber role')
+//       .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
+//        .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
 //       .lean();
+
 
 //     const allNearbyParcels = [...nearbyPickupParcels, ...nearbyDeliveryParcels];
 
 //     if (allNearbyParcels.length === 0) {
-//       return res.status(404).json({
+//        res.status(404).json({
 //         status: 'error',
 //         message: `No parcels found with delivery type: ${deliveryType || 'any'}.`,
 //       });
@@ -974,21 +980,23 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
 //     });
 //   }
 // };
-export const getFilteredParcels =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Debugging: Check the user ID
-    console.log("Logged-in user ID:", req.user?.id); // Add this line to verify the user ID
+    console.log("Logged-in user ID:", req.user?.id);
 
     const { latitude, longitude, radius = 15, deliveryType } = req.query;
 
     const lat = parseFloat(latitude as string);
     const lng = parseFloat(longitude as string);
 
+    // ✅ FIXED: Added return statements to prevent multiple responses
     if (isNaN(lat)) {
        res.status(400).json({
         status: 'error',
         message: 'Invalid latitude value. Please provide a valid number for latitude.',
       });
+      return;
     }
 
     if (isNaN(lng)) {
@@ -996,6 +1004,7 @@ export const getFilteredParcels =async (req: Request, res: Response, next: NextF
         status: 'error',
         message: 'Invalid longitude value. Please provide a valid number for longitude.',
       });
+      return;
     }
 
     console.log(`Searching for parcels within ${radius} km of lat: ${lat}, lon: ${lng}`);
@@ -1035,6 +1044,7 @@ export const getFilteredParcels =async (req: Request, res: Response, next: NextF
       [DeliveryType.AIRPLANE]: [DeliveryType.AIRPLANE],
     };
 
+    // ✅ FIXED: Added return statement for invalid delivery type
     if (deliveryType && Object.values(DeliveryType).includes(deliveryType as DeliveryType)) {
       const validTypes = deliveryTypeMapping[deliveryType as string];
       if (validTypes) {
@@ -1046,38 +1056,80 @@ export const getFilteredParcels =async (req: Request, res: Response, next: NextF
         status: 'error',
         message: `Invalid delivery type: ${deliveryType}. Please select a valid delivery type.`,
       });
+      return;
     }
 
-    const nearbyPickupParcels = await ParcelRequest.find(nearbyPickupQuery)
-      .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
-      .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
-      .lean();
+    // ✅ IMPROVED: Execute both queries in parallel for better performance
+    const [nearbyPickupParcels, nearbyDeliveryParcels] = await Promise.all([
+      ParcelRequest.find(nearbyPickupQuery)
+        .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
+        .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
+        .lean(),
+      
+      ParcelRequest.find(nearbyDeliveryQuery)
+        .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
+        .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
+        .lean()
+    ]);
 
-    const nearbyDeliveryParcels = await ParcelRequest.find(nearbyDeliveryQuery)
-      .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
-       .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
-      .lean();
+    // ✅ IMPROVED: Remove duplicates by converting to Set using _id
+    const allNearbyParcels = [
+      ...nearbyPickupParcels,
+      ...nearbyDeliveryParcels.filter(
+        deliveryParcel => !nearbyPickupParcels.some(
+          pickupParcel => pickupParcel._id.toString() === deliveryParcel._id.toString()
+        )
+      )
+    ];
 
-
-    const allNearbyParcels = [...nearbyPickupParcels, ...nearbyDeliveryParcels];
-
+    // ✅ FIXED: Added return statement for no results
     if (allNearbyParcels.length === 0) {
        res.status(404).json({
         status: 'error',
-        message: `No parcels found with delivery type: ${deliveryType || 'any'}.`,
+        message: `No parcels found within ${radius}km radius${deliveryType ? ` with delivery type: ${deliveryType}` : ''}.`,
       });
+      return;
     }
 
-    res.status(200).json({
+    // ✅ IMPROVED: Enhanced response with metadata
+     res.status(200).json({
       status: 'success',
-      data: allNearbyParcels,
+      message: `Found ${allNearbyParcels.length} parcel(s) within ${radius}km radius.`,
+      data: {
+        parcels: allNearbyParcels,
+        total: allNearbyParcels.length,
+        filters: {
+          latitude: lat,
+          longitude: lng,
+          radius: `${radius}km`,
+          deliveryType: deliveryType || 'all',
+          excludedSender: req.user?.id
+        }
+      }
     });
+    return;
+
   } catch (error) {
     console.error('Error fetching parcels:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Internal server error',
-    });
+    
+    // ✅ IMPROVED: Better error handling with specific error messages
+    if (typeof error === 'object' && error !== null && 'name' in error && (error as any).name === 'CastError') {
+       res.status(400).json({
+        status: 'error',
+        message: 'Invalid query parameters provided.',
+      });
+      return;
+    }
+    
+    if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message?.includes('$nearSphere')) {
+       res.status(400).json({
+        status: 'error',
+        message: 'Location search failed. Please check your coordinates.',
+      });
+      return;
+    }
+
+    next(error);
   }
 };
 
