@@ -222,7 +222,7 @@ for (const token of fcmTokens) {
       status: 'error',
       message: 'Failed to create parcel request',
     });
-    next(error);
+    return;
   }
 };
 
