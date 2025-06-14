@@ -15,6 +15,7 @@ export interface UserDocument extends Document {
   notificationStatus?: boolean;
   facebook: string;
   fcmToken: string;
+  googleId?: string; // Google ID for OAuth
   instagram: string;
   whatsapp: string;
   role: UserRole;
@@ -86,7 +87,7 @@ export interface UserDocument extends Document {
   expiryDate: Date;
 }
 const userSchema = new Schema<UserDocument>({
-  fullName: { type: String, required: true },
+  fullName: { type: String, required: false },
   country: { type: String, required: false },
   email: { type: String, unique: true, sparse: true },
   mobileNumber: { type: String, unique: true, sparse: true },
@@ -97,6 +98,7 @@ const userSchema = new Schema<UserDocument>({
   whatsapp: { type: String },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.SENDER },
   fcmToken: { type: String},
+  googleId: { type: String, unique: true, sparse: false },
   isTrial: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
   senderType: { type: String, enum: Object.values(SenderType) },

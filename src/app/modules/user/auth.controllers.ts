@@ -19,7 +19,7 @@ import { User } from './user.model';
 import { OTPVerification } from '../../models/OTPVerification';
 import { AppError } from '../../middlewares/error';
 import { UserRole } from '../../../types/enums';
-import { AuthRequest, JWTPayload } from '../../middlewares/auth';
+import { AuthRequest, generateTokens, JWTPayload } from '../../middlewares/auth';
 import { emailHelper } from '../../../util/mailer/mailer'; 
 import { formatPhoneNumber } from "../../../util/formatPhoneNumber";
 import { UserActivity } from './user.activity.model';
@@ -967,7 +967,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-
 //  * Email Registration with OTP Verification
 
 export const registerWithEmail = async (req: Request, res: Response, next: NextFunction) => {
@@ -1317,44 +1316,42 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
 
 export const googleLoginOrRegister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { googleId, fullName, email, profileImage, fcmToken, deviceId, deviceType = 'android'  } = req.body;
+    const { googleId, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
-    if (!googleId || !email || !fullName) {
+    if (!googleId) {
       throw new AppError('Missing Google credentials', 400);
     }
     if (fcmToken && !deviceId) {
       throw new AppError('deviceId is required when providing fcmToken', 400);
     }
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ googleId });
+    let isNewUser = false;
 
+    // Create new user if doesn't exist
     if (!user) {
-
       user = await User.create({
-        fullName,
-        email,
         googleId,      
-        profileImage: profileImage || '', 
         isVerified: true,
         isRestricted: false, 
-        role: 'receiver', 
+        role: 'sender', 
       });
-    // Store FCM token only if both fcmToken and deviceId are provided
+      isNewUser = true;
+    }
+
+    // Handle FCM token for both new and existing users
     if (fcmToken && deviceId) {
-      // Check if this device token already exists
       const existingToken = await DeviceToken.findOne({
         userId: user._id,
         deviceId: deviceId
       });
 
       if (existingToken) {
-        // Update existing token
         existingToken.fcmToken = fcmToken;
         existingToken.deviceType = deviceType;
         await existingToken.save();
         console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
       } else {
-        // Create new device token
         await DeviceToken.create({
           userId: user._id,
           fcmToken,
@@ -1365,44 +1362,85 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
       }
     }
 
+    // Define payload for JWT
+    const payload = {
+      id: user._id.toString(),
+      role: user.role,
+    };
 
-      const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '20d' });
+    // Generate JWT token
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '20d' });
 
-       res.status(201).json({
+    // Send appropriate response based on whether user is new or existing
+    if (isNewUser) {
+      res.status(201).json({
         status: 'success',
         message: 'User registered successfully with Google.',
         data: {
-          user,
           token,
+          user: {
+            id: user._id,
+            googleId: user.googleId,
+            role: user.role,
+            isVerified: user.isVerified
+          }
+        },
+      });
+    } else {
+      res.status(200).json({
+        status: 'success',
+        message: 'User logged in successfully with Google.',
+        data: {
+          token,
+          user: {
+            id: user._id,
+            googleId: user.googleId,
+            role: user.role,
+            isVerified: user.isVerified
+          }
         },
       });
     }
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET_KEY, { expiresIn: '20d' });
-
-     res.status(200).json({
-      status: 'success',
-      message: 'User logged in successfully with Google.',
-      data: {
-        token,
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          role: user.role,
-        },
-      },
-    });
   } catch (error) {
     console.error('Error during Google login or registration:', error); 
+    
+    // Handle known AppError instances
     if (error instanceof AppError) {
-       res.status(error.statusCode).json({ status: 'error', message: error.message });
+       res.status(error.statusCode).json({ 
+        status: 'error', 
+        message: error.message 
+      });
+      return;
     }
-     res.status(500).json({
+    
+    // Handle validation errors (e.g., from Mongoose)
+    if (typeof error === 'object' && error !== null && 'name' in error && (error as any).name === 'ValidationError') {
+       res.status(400).json({
+        status: 'error',
+        message: 'Validation failed',
+        details: (error as any).message
+      });
+      return;
+    }
+    
+    // Handle duplicate key errors
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as any).code === 11000) {
+       res.status(409).json({
+        status: 'error',
+        message: 'User already exists with this Google ID'
+      });
+      return;
+    }
+    
+    // Generic server error
+    res.status(500).json({
       status: 'error',
       message: 'Internal Server Error. Please try again later.',
     });
   }
 };
+
+
 
 
