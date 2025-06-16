@@ -133,7 +133,7 @@ app.post('/api/save-fcm-token', async (req, res) => {
 });
 
 
-const SocketPort = process.env.SocketPort || "5000";
+const SocketPort = process.env.SocketPort || "socketPort"
 const server = createServer(app);
 const io = new Server(server);
 io.on("headers", (headers, req) => {
