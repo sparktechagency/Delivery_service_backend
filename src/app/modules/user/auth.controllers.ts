@@ -1440,7 +1440,3 @@ export const googleLoginOrRegister = async (req: Request, res: Response, next: N
     });
   }
 };
-
-
-
-
