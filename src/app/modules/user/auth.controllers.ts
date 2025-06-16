@@ -164,8 +164,7 @@ const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<b
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // console.log('=== REGISTER DEBUG ===');
-    // console.log('Request body:', req.body);
+
     
     const { fullName, mobileNumber, country, email, fcmToken, deviceId, deviceType = 'android' } = req.body;
 

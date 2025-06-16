@@ -80,6 +80,7 @@ import PushNotification from "./push.notification.model";
           status: 'error',
           message: 'User not found',
         });
+        return;
       }
   
       // Combine user notifications and announcements
@@ -434,6 +435,7 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
         status: 'error',
         message: 'User not authenticated'
       });
+      return;
     }
 
     const page = parseInt(req.query.page as string) || 1;
@@ -468,18 +470,19 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
       return notification;
     });
 
-    res.status(200).json({
-      status: 'success',
-      data: {
-        notifications: formattedNotifications,
-        pagination: {
-          total: totalCount,
-          page,
-          limit,
-          pages: Math.ceil(totalCount / limit)
-        }
-      }
-    });
+res.status(200).json({
+  status: 'success',
+  data: {
+    notifications: formattedNotifications,
+    pagination: {
+      total: totalCount,
+      page,
+      limit,
+      pages: Math.ceil(totalCount / limit)
+    }
+  }
+});
+  return;
   } catch (error) {
     console.error('Error fetching notifications:', error);
     res.status(500).json({
@@ -525,6 +528,7 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
           }
         }
       });
+      return;
       
     }
     
@@ -535,7 +539,8 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
    
 
         if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-           res.status(401).json({ status: 'error', message: 'Invalid or missing user ID' });
+         res.status(401).json({ status: 'error', message: 'Invalid or missing user ID' });
+         return;
         }
 
         const userObjectId = new mongoose.Types.ObjectId(userId);
@@ -583,6 +588,7 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
         }
       }
     });
+    return;
   } catch (error) {
   console.error('Error fetching parcel notifications:', error);
   
@@ -617,6 +623,7 @@ export const getUnreadNotifications = async (req: Request, res: Response, next: 
         unreadCount: count
       }
     });
+    return;
   } catch (error) {
     console.error('Error fetching unread notifications count:', error);
     res.status(500).json({
@@ -636,6 +643,7 @@ export const markAllNotificationsAsRead =async (req: Request, res: Response, nex
         status: 'error',
         message: 'User not authenticated',
       });
+      return;
     }
 
     const result = await Notification.updateMany(
@@ -648,6 +656,7 @@ export const markAllNotificationsAsRead =async (req: Request, res: Response, nex
         status: 'error',
         message: 'No unread notifications found to mark as read',
       });
+      return;
     }
 
     res.status(200).json({
@@ -660,6 +669,7 @@ export const markAllNotificationsAsRead =async (req: Request, res: Response, nex
       status: 'error',
       message: 'Failed to mark notifications as read',
     });
+    return;
     next(error);
   }
 };
@@ -672,13 +682,15 @@ export const updateNotificationStatus = async (req: Request, res: Response, next
         status: 'error',
         message: 'User not authenticated'
       });
+      return;
     }
 
     if (typeof notificationStatus !== 'boolean') {
-       res.status(400).json({
+     res.status(400).json({
         status: 'error',
         message: 'notificationStatus should be a boolean value'
       });
+      return;
     }
 
     const user = await User.findByIdAndUpdate(

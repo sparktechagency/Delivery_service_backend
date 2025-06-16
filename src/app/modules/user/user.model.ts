@@ -98,7 +98,7 @@ const userSchema = new Schema<UserDocument>({
   whatsapp: { type: String },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.SENDER },
   fcmToken: { type: String},
-  googleId: { type: String, unique: true, sparse: true, required: false },
+  googleId: { type: String, unique: false, sparse: true, required: false },
   isTrial: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
   senderType: { type: String, enum: Object.values(SenderType) },
