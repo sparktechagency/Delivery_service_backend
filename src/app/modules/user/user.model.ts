@@ -15,7 +15,7 @@ export interface UserDocument extends Document {
   notificationStatus?: boolean;
   facebook: string;
   fcmToken: string;
-  googleId?: string; 
+  googleId: string; 
   instagram: string;
   whatsapp: string;
   role: UserRole;
@@ -98,7 +98,7 @@ const userSchema = new Schema<UserDocument>({
   whatsapp: { type: String },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.SENDER },
   fcmToken: { type: String},
- googleId: { type: String, unique: true, sparse: false, required: false },
+ googleId: { type: String, unique: false, sparse: false, required: false },
   isTrial: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
   senderType: { type: String, enum: Object.values(SenderType) },
