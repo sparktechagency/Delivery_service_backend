@@ -6,63 +6,6 @@ import { Subscription } from "../../models/subscription.model";
 import { GlobalTrial } from "./trial.model";
 
 
-// export const createGlobalSubscriptionPlan = async (req: Request, res: Response) => {
-//   try {
-//     const { 
-//       type, 
-//       price, 
-//       freeDeliveries, 
-//       totalDeliveries, 
-//       totalOrders,  // New field added
-//       earnings, 
-//       version, 
-//       description,
-//       deliveryLimit
-
-//     } = req.body;
-
-//     // Log the request body to verify description is passed
-//     console.log("Request Body:", req.body);
-
-//     // Validate if version and description are provided
-//     if (!version) {
-//       return res.status(400).json({ message: "Subscription version is required." });
-//     }
-
-//     // Check if a plan with the same type and version already exists
-//     const existingPlan = await GlobalSubscription.findOne({ type, version });
-//     if (existingPlan) {
-//       return res.status(400).json({ message: `The subscription plan '${type}' with version '${version}' already exists` });
-//     }
-
-//     // Create the global subscription plan manually before saving to check if description is passed correctly
-//     const newSubscriptionPlan = new GlobalSubscription({
-//       type,
-//       price,
-//       freeDeliveries: freeDeliveries ?? 3,
-//       totalDeliveries: totalDeliveries ?? 0,
-//       totalOrders: totalOrders ?? 0,  // Added with default of 0
-//       earnings: earnings ?? 0,
-//       version,
-//       description: description,
-//       deliveryLimit: deliveryLimit ?? 0,
-//       isTrial: false,
-//     });
-
-//     console.log("Created Subscription Plan:", newSubscriptionPlan);  // Log before saving to verify description
-
-//     await newSubscriptionPlan.save(); // Save the plan
-
-//     res.status(201).json({
-//       message: `Global subscription plan '${type}' version '${version}' created successfully`,
-//       data: newSubscriptionPlan
-//     });
-//   } catch (error) {
-//     console.error("Error creating global subscription plan:", error);
-//     res.status(500).json({ message: "Error creating global subscription plan", error });
-//   }
-// };
-
 export const createGlobalSubscriptionPlan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { 
@@ -80,12 +23,14 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response, 
 
     if (!version) {
        res.status(400).json({ message: "Subscription version is required." });
+       return;
     }
 
     // Check if a plan with the same type and version already exists
     const existingPlan = await GlobalSubscription.findOne({ type, version });
     if (existingPlan) {
        res.status(400).json({ message: `The subscription plan '${type}' with version '${version}' already exists` });
+       return;
     }
 
     const newSubscriptionPlan = new GlobalSubscription({
@@ -109,9 +54,11 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response, 
       message: `Global subscription plan '${type}' version '${version}' created successfully`,
       data: newSubscriptionPlan
     });
+    return;
   } catch (error) {
     console.error("Error creating global subscription plan:", error);
     res.status(500).json({ message: "Error creating global subscription plan", error });
+    return;
   }
 };
 
@@ -166,34 +113,34 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response, 
 
 export const assignUserSubscription =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { userId, subscriptionType } = req.body; // Assuming userId and subscriptionType are provided
+    const { userId, subscriptionType } = req.body;
 
     if (!userId || !subscriptionType) {
        res.status(400).json({ message: "User ID and subscription type are required" });
+       return; // Return immediately to prevent further code execution
     }
 
-    // Find the global trial setting
     const globalTrialSetting = await GlobalTrial.findOne();
 
     if (!globalTrialSetting || !globalTrialSetting.trialActive) {
        res.status(400).json({
         message: "Global trial is not active"
       });
+      return; // Return immediately to prevent further code execution
     }
 
     // Create or update user subscription
     const userSubscription = new UserSubscription({
       userId,
       subscriptionType,
-      subscriptionPrice: 25.99, // Example price; should be fetched from the plan details
+      subscriptionPrice: 25.99,
       subscriptionStartDate: new Date(),
-      subscriptionCount: 1, // Increment subscription count
+      subscriptionCount: 1,
       isSubscribed: true,
     });
 
-    // Apply the global trial period to the subscription
-    userSubscription.expiryDate = new Date(new Date().setDate(new Date().getDate() + globalTrialSetting.trialPeriod)); // Set expiry based on global trial period
-    userSubscription.isTrial = true; // Mark user as being in trial
+    userSubscription.expiryDate = new Date(new Date().setDate(new Date().getDate() + globalTrialSetting.trialPeriod));
+    userSubscription.isTrial = true;
 
     await userSubscription.save();
 
@@ -201,12 +148,15 @@ export const assignUserSubscription =async (req: Request, res: Response, next: N
       message: "User subscription updated successfully",
       data: userSubscription
     });
+    return; // Return immediately to prevent further code execution
 
   } catch (error) {
     console.error("Error assigning subscription to user:", error);
     res.status(500).json({ message: "Error assigning subscription", error });
+    return; // Return immediately to prevent further code execution
   }
 };
+
 
 export const setGlobalTrialPeriod = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -249,6 +199,7 @@ export const getGlobalTrialDetailsForAdmin = async (req: Request, res: Response,
 
     if (!globalTrialSetting) {
        res.status(404).json({ message: "Global trial setting not found" });
+       return;
     }
 
     // Calculate the trial end date by adding the trial period to the trial start date
@@ -279,10 +230,12 @@ export const getGlobalTrialDetailsForAdmin = async (req: Request, res: Response,
       trialEndDate: trialEndDate, // Show the trial end date
       remainingDays: remainingDays // Show remaining days in the trial period
     });
+    return;
   } catch (error) {
     console.error("Error calculating global trial details:", error);
     res.status(500).json({ message: "Error calculating global trial details", error });
   }
+  return;
 };
 
 export const updateSubscriptionById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -299,6 +252,7 @@ export const updateSubscriptionById = async (req: Request, res: Response, next: 
        res.status(404).json({
         message: `Subscription with ID '${id}' not found.`
       });
+      return;
     }
 
     // Update the subscription fields with the provided data
@@ -317,12 +271,14 @@ export const updateSubscriptionById = async (req: Request, res: Response, next: 
       message: `Subscription with ID '${id}' updated successfully.`,
       data: subscription
     });
+    return;
   } catch (error) {
     console.error("Error updating subscription:", error);
     res.status(500).json({
       message: "Error updating subscription",
       error
     });
+    return;
   }
 };
 
@@ -334,21 +290,25 @@ export const getAllGlobalSubscriptions = async (req: Request, res: Response, nex
     const globalSubscriptions = await GlobalSubscription.find();
 
     if (globalSubscriptions.length === 0) {
-       res.status(200).json({ 
+      res.status(200).json({ 
         message: "No global subscription plans found.",
         data: globalSubscriptions
-       });
+      });
+      return; // Ensure to return here after sending the response to avoid further execution
     }
 
     res.status(200).json({
       message: "Global subscription plans retrieved successfully",
       data: globalSubscriptions
     });
+    return; // Ensure to return here after sending the response to avoid further execution
   } catch (error) {
     console.error("Error fetching global subscription plans:", error);
     res.status(500).json({ message: "Error fetching global subscription plans", error });
+    return; // Ensure to return here after sending the response to avoid further execution
   }
 };
+
 
 
 
@@ -377,6 +337,7 @@ export const updateEarnings = async (req: Request, res: Response) => {
         message: "User earnings updated successfully",
         subscription
       });
+      return;
     } 
     else if (type) {
       // Update the global plan for a specific type
@@ -404,6 +365,7 @@ export const updateEarnings = async (req: Request, res: Response) => {
           : "Global subscription earnings updated successfully",
         globalPlan
       });
+      return;
     }
     else {
       // Update all global plans
@@ -443,6 +405,7 @@ export const checkSubscription =async (req: Request, res: Response, next: NextFu
       user.isRestricted = true;
       await user.save();
        res.status(400).json({ message: "Your free deliveries are over. Please upgrade your profile." });
+       return;
     }
 
     next(); // Continue to next middleware or endpoint if subscription is valid
@@ -450,6 +413,7 @@ export const checkSubscription =async (req: Request, res: Response, next: NextFu
     console.error("Error checking subscription:", error);
     res.status(500).json({ message: "Error checking subscription", error });
   }
+  return;
 };
 
 export const deleteSubscriptionById = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
@@ -482,5 +446,6 @@ export const deleteSubscriptionById = async (req: Request, res: Response, next: 
       message: "Error deleting subscription",
       error
     });
+    return;
   }
 };
