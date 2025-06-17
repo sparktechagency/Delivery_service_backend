@@ -18,7 +18,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 const adminRouter = express.Router();
-adminRouter.post('/create', authenticate, authorize(UserRole.ADMIN), upload.single('image'), createAdmin);
+adminRouter.post('/create', upload.single('image'), createAdmin);
 adminRouter.post('/login', loginAdmin);
 adminRouter.put('/profile/:id', authenticate, updateAdminProfile);
 adminRouter.put('/change-password', authenticate, authorize(UserRole.ADMIN), changeAdminPassword);
