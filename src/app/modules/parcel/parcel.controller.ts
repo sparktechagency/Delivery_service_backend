@@ -134,7 +134,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     }).select('fcmToken userId');
 
     // ✅ Compose message
-    const notificationMessage = `A new parcel "${title}" created by "${sender.fullName}".`;
+      const notificationMessage = `A new parcel "${title}" created by "${sender.fullName}".`;
     const pushPayload = {
       notification: {
         title: `${parcel.title}`,
@@ -874,112 +874,7 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
 
 
 
-// export const getFilteredParcels =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-//   try {
-//     // Debugging: Check the user ID
-//     console.log("Logged-in user ID:", req.user?.id); // Add this line to verify the user ID
 
-//     const { latitude, longitude, radius = 15, deliveryType } = req.query;
-
-//     const lat = parseFloat(latitude as string);
-//     const lng = parseFloat(longitude as string);
-
-//     if (isNaN(lat)) {
-//        res.status(400).json({
-//         status: 'error',
-//         message: 'Invalid latitude value. Please provide a valid number for latitude.',
-//       });
-//     }
-
-//     if (isNaN(lng)) {
-//        res.status(400).json({
-//         status: 'error',
-//         message: 'Invalid longitude value. Please provide a valid number for longitude.',
-//       });
-//     }
-
-//     console.log(`Searching for parcels within ${radius} km of lat: ${lat}, lon: ${lng}`);
-
-//     const maxDistance = parseFloat(radius as string) * 1000;
-
-//     const nearbyPickupQuery: any = {
-//       status: DeliveryStatus.PENDING,
-//       pickupLocation: {
-//         $nearSphere: {
-//           $geometry: { type: 'Point', coordinates: [lng, lat] },
-//           $maxDistance: maxDistance,
-//         },
-//       },
-//       senderId: { $ne: req.user?.id }, // Exclude parcels owned by the logged-in user
-//     };
-
-//     const nearbyDeliveryQuery: any = {
-//       status: DeliveryStatus.PENDING,
-//       deliveryLocation: {
-//         $nearSphere: {
-//           $geometry: { type: 'Point', coordinates: [lng, lat] },
-//           $maxDistance: maxDistance,
-//         },
-//       },
-//       senderId: { $ne: req.user?.id }, 
-//     };
-
-//     // Delivery type mapping based on selected delivery type
-//     const deliveryTypeMapping: { [key: string]: string[] } = {
-//       [DeliveryType.PERSON]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE],
-//       [DeliveryType.BICYCLE]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE],
-//       [DeliveryType.BIKE]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR],
-//       [DeliveryType.CAR]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR],
-//       [DeliveryType.TAXI]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR, DeliveryType.TAXI],
-//       [DeliveryType.TRUCK]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR, DeliveryType.TRUCK],
-//       [DeliveryType.AIRPLANE]: [DeliveryType.AIRPLANE],
-//     };
-
-//     if (deliveryType && Object.values(DeliveryType).includes(deliveryType as DeliveryType)) {
-//       const validTypes = deliveryTypeMapping[deliveryType as string];
-//       if (validTypes) {
-//         nearbyPickupQuery.deliveryType = { $in: validTypes };
-//         nearbyDeliveryQuery.deliveryType = { $in: validTypes };
-//       }
-//     } else if (deliveryType) {
-//        res.status(400).json({
-//         status: 'error',
-//         message: `Invalid delivery type: ${deliveryType}. Please select a valid delivery type.`,
-//       });
-//     }
-
-//     const nearbyPickupParcels = await ParcelRequest.find(nearbyPickupQuery)
-//       .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
-//       .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
-//       .lean();
-
-//     const nearbyDeliveryParcels = await ParcelRequest.find(nearbyDeliveryQuery)
-//       .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
-//        .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
-//       .lean();
-
-
-//     const allNearbyParcels = [...nearbyPickupParcels, ...nearbyDeliveryParcels];
-
-//     if (allNearbyParcels.length === 0) {
-//        res.status(404).json({
-//         status: 'error',
-//         message: `No parcels found with delivery type: ${deliveryType || 'any'}.`,
-//       });
-//     }
-
-//     res.status(200).json({
-//       status: 'success',
-//       data: allNearbyParcels,
-//     });
-//   } catch (error) {
-//     console.error('Error fetching parcels:', error);
-//     res.status(500).json({
-//       status: 'error',
-//       message: 'Internal server error',
-//     });
-//   }
-// };
 export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Debugging: Check the user ID
@@ -1132,5 +1027,8 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     next(error);
   }
 };
+
+
+
 
 
