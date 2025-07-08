@@ -507,8 +507,8 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
 
     // ✅ Get FCM token for the DELIVERER (not sender) - they should be notified of rejection
     const deviceToken = await DeviceToken.findOne({
-      userId: requestToDeliver, // ✅ Fixed: notify the deliverer, not sender
-      fcmToken: { $exists: true, $ne: '' }
+      userId: requestToDeliver,
+      fcmToken: { $exists: true, $ne: 'Cancelled' }
     });
 
     console.log(`🔍 Looking for FCM token for deliverer: ${delivererId}`);
@@ -524,7 +524,7 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
           body: notificationMessage,
         },
         data: {
-          type: 'Rejected-Delivery',
+          type: 'Cancelled',
           title: parcel.title,
           message: notificationMessage,
           parcelId: parcel._id.toString(),
