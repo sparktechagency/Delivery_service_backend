@@ -564,7 +564,7 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
     // ✅ Create notification for the rejected deliverer
     const notification = new Notification({
       message: `Your delivery request for parcel "${parcel.title}" has been rejected by the sender.`,
-      type: 'Rejected',
+      type: 'Cancelled',
       title: `Request Rejected`,
       description: parcel.description || '',
       parcelTitle: parcel.title || '',
