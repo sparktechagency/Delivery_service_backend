@@ -547,12 +547,12 @@ export const getParcelNotifications = async (req: Request, res: Response, next: 
 
         const totalCount = await Notification.countDocuments({
           userId: userObjectId,
-          type: { $in: ['send_parcel', 'sender'] }
+          type: { $in: ['send_parcel', 'sender', 'Requested-Delivery'] }
         });
 
         const parcelNotifications = await Notification.find({
           userId: userObjectId,
-          type: { $in: ['send_parcel', 'sender'] }
+          type: { $in: ['send_parcel', 'sender', 'Requested-Delivery'] }
         })
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -647,8 +647,8 @@ export const markAllNotificationsAsRead =async (req: Request, res: Response, nex
     }
 
     const result = await Notification.updateMany(
-      { userId, isRead: false },  // Match unread notifications for this user
-      { $set: { isRead: true } }  // Set all matched notifications to isRead: true
+      { userId, isRead: false },  
+      { $set: { isRead: true } }  
     );
 
     if (result.modifiedCount === 0) {
