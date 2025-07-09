@@ -72,3 +72,23 @@ export type ParcelRequestDocument = Document & {
   createdAt: Date;
   updatedAt: Date;
 };
+
+
+interface UserLite {
+  _id: string;
+  fullName?: string;
+  email?: string;
+  phoneNumber?: string;
+  mobileNumber?: string;
+  averageRating?: number | string;
+  image?: string;
+  role?: string;
+}
+
+interface ParcelPopulated {
+  senderId: UserLite;
+  assignedDelivererId: UserLite;
+  deliveryRequests: UserLite[];
+  createdAt: Date;
+  [key: string]: any;
+}

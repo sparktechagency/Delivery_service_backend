@@ -433,37 +433,52 @@ export const getAssignedAndRequestedParcels = async (req: AuthRequest, res: Resp
   }
 };
 
-//all states parcel
 // export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
 //   try {
 //     const userId = req.user?.id;
 //     if (!userId) throw new AppError("Unauthorized", 401);
 
-//     // Parcels where user is sender (sendParcel)
+//     // Parcels where user is the sender (sendParcel)
 //     const sendParcels = await ParcelRequest.find({ senderId: userId })
-//       .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role")
-//       .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber avgRating reviews role")
-//       .populate("deliveryRequests", "fullName email mobileNumber phoneNumber avgRating reviews role")
+//       .populate("senderId", "fullName email mobileNumber phoneNumber averageRating reviews role image")
+//       .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber averageRating reviews role image")
+//       .populate("deliveryRequests", "fullName email mobileNumber phoneNumber averageRating reviews role image")
 //       .sort({ createdAt: -1 }) // Sort by the most recent parcel
 //       .lean();
 
 //     sendParcels.forEach(p => ((p as any).typeParcel = "sendParcel"));
 
-//     // Parcels where user requested delivery (exclude parcels user sent) (deliveryRequest)
+//     // Parcels where user requested delivery (deliveryRequest)
 //     const deliveryRequestParcels = await ParcelRequest.find({
-//       deliveryRequests: userId,
-//       senderId: { $ne: userId }, // Ensure user is not the sender
+//       deliveryRequests: userId,  
+//       senderId: { $ne: userId },
+//       status: { $in: ['PENDING', 'REQUESTED'] }, // Only available parcels
 //     })
-//       .populate("senderId", "fullName email mobileNumber phoneNumber role avgRating reviews")
-//       .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role")
-//       .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role")
+//       .populate("senderId", "fullName email mobileNumber phoneNumber role avgRating reviews image")
+//       .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role image")
+//       .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role image")
 //       .sort({ createdAt: -1 }) // Sort by the most recent delivery request
 //       .lean();
 
 //     deliveryRequestParcels.forEach(p => ((p as any).typeParcel = "deliveryRequest"));
 
-//     // Combine both arrays (no duplicates possible due to senderId condition)
-//     const parcels = [...sendParcels, ...deliveryRequestParcels].map(parcel => {
+//     const assignedParcels = await ParcelRequest.find({
+//       assignedDelivererId: userId,
+//       status: { $ne: 'DELIVERED' }, 
+//     })
+//       .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role image")
+//       .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role image")
+//       .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role image")
+//       .sort({ createdAt: -1 })
+//       .lean();
+
+//     assignedParcels.forEach(p => ((p as any).typeParcel = "assignedParcel"));
+
+//     const parcels = [
+//       ...sendParcels,
+//       ...deliveryRequestParcels,
+//       ...assignedParcels
+//     ].map(parcel => {
 //       // Fallback for sender mobile number
 //       if (parcel.senderId && typeof parcel.senderId === "object" && parcel.senderId !== null) {
 //         if ("email" in parcel.senderId) {
@@ -501,35 +516,35 @@ export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res
 
     // Parcels where user is the sender (sendParcel)
     const sendParcels = await ParcelRequest.find({ senderId: userId })
-      .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role image")
-      .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber avgRating reviews role image")
-      .populate("deliveryRequests", "fullName email mobileNumber phoneNumber avgRating reviews role image")
-      .sort({ createdAt: -1 }) // Sort by the most recent parcel
+      .populate("senderId", "fullName email mobileNumber phoneNumber averageRating reviews role image")
+      .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber averageRating reviews role image")
+      .populate("deliveryRequests", "fullName email mobileNumber phoneNumber averageRating reviews role image")
+      .sort({ createdAt: -1 })
       .lean();
 
     sendParcels.forEach(p => ((p as any).typeParcel = "sendParcel"));
 
     // Parcels where user requested delivery (deliveryRequest)
     const deliveryRequestParcels = await ParcelRequest.find({
-      deliveryRequests: userId,  
+      deliveryRequests: userId,
       senderId: { $ne: userId },
-      status: { $in: ['PENDING', 'REQUESTED'] }, // Only available parcels
+      status: { $in: ['PENDING', 'REQUESTED'] },
     })
-      .populate("senderId", "fullName email mobileNumber phoneNumber role avgRating reviews image")
-      .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role image")
-      .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role image")
-      .sort({ createdAt: -1 }) // Sort by the most recent delivery request
+      .populate("senderId", "fullName email mobileNumber phoneNumber role averageRating reviews image")
+      .populate("assignedDelivererId", "fullName email mobileNumber averageRating reviews role image")
+      .populate("deliveryRequests", "fullName email mobileNumber averageRating reviews role image")
+      .sort({ createdAt: -1 })
       .lean();
 
     deliveryRequestParcels.forEach(p => ((p as any).typeParcel = "deliveryRequest"));
 
     const assignedParcels = await ParcelRequest.find({
       assignedDelivererId: userId,
-      status: { $ne: 'DELIVERED' }, 
+      status: { $ne: 'DELIVERED' },
     })
-      .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role image")
-      .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role image")
-      .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role image")
+      .populate("senderId", "fullName email mobileNumber phoneNumber averageRating reviews role image")
+      .populate("assignedDelivererId", "fullName email mobileNumber averageRating reviews role image")
+      .populate("deliveryRequests", "fullName email mobileNumber averageRating reviews role image")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -541,25 +556,58 @@ export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res
       ...assignedParcels
     ].map(parcel => {
       // Fallback for sender mobile number
-      if (parcel.senderId && typeof parcel.senderId === "object" && parcel.senderId !== null) {
-        if ("email" in parcel.senderId) {
-          const mobileNumber =
-            ("mobileNumber" in parcel.senderId ? parcel.senderId.mobileNumber : null) ||
-            ("phoneNumber" in parcel.senderId ? parcel.senderId.phoneNumber : null) ||
-            "";
-          (parcel.senderId as any).mobileNumber = mobileNumber;
+      if (
+        parcel.senderId &&
+        typeof parcel.senderId === "object" &&
+        !('toHexString' in parcel.senderId) // Not an ObjectId
+      ) {
+        const mobileNumber =
+          (parcel.senderId as any).mobileNumber ||
+          (parcel.senderId as any).phoneNumber ||
+          "";
+        (parcel.senderId as any).mobileNumber = mobileNumber;
+
+        if ((parcel.senderId as any).averageRating !== undefined) {
+          (parcel.senderId as any).averageRating = parseFloat((parcel.senderId as any).averageRating).toFixed(2);
         }
       }
 
-      // Limit deliveryRequests array length to 5 max
-      if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
-        parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
+      // Format assignedDelivererId averageRating
+      if (
+        parcel.assignedDelivererId &&
+        typeof parcel.assignedDelivererId === "object" &&
+        !('toHexString' in parcel.assignedDelivererId)
+      ) {
+        if ((parcel.assignedDelivererId as any).averageRating !== undefined) {
+          (parcel.assignedDelivererId as any).averageRating = parseFloat((parcel.assignedDelivererId as any).averageRating).toFixed(2);
+        }
+      }
+
+      // Limit deliveryRequests to 5 and format their averageRating
+      if (Array.isArray(parcel.deliveryRequests)) {
+        // Create a new array for mapped deliveryRequests with formatted averageRating, do not mutate the original type
+        const mappedDeliveryRequests = parcel.deliveryRequests.slice(0, 5).map(user => {
+          if (
+            user &&
+            typeof user === "object" &&
+            "averageRating" in user &&
+            !('toHexString' in user)
+          ) {
+            return {
+              ...(typeof user === "object" && user !== null ? user : {}),
+              averageRating: parseFloat((user as any).averageRating).toFixed(2),
+            };
+          }
+          return user;
+        });
+        // Optionally attach as a new property for the response
+        (parcel as any).deliveryRequestsWithRating = mappedDeliveryRequests;
       }
 
       return parcel;
     });
 
-    // Sort combined parcels to ensure the latest is at the top (sort by createdAt in descending order)
+    // Final sort by createdAt (descending)
     parcels.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     res.status(200).json({
