@@ -1371,17 +1371,9 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
       });
     }
 
-    // Initialize OAuth2Client
     const client = new OAuth2Client();
-
-    // Verify token against all accepted client IDs
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: [
-        process.env.GOOGLE_CLIENT_ID_ANDROID || '',
-        process.env.GOOGLE_CLIENT_ID_IOS || '',
-        process.env.GOOGLE_CLIENT_ID_WEB || '',
-      ],
     });
 
     const payload = ticket.getPayload();
