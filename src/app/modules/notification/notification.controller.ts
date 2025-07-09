@@ -427,11 +427,76 @@ export const createNotification = async (
 /**
  * Get all non-parcel notifications for a user
  */
+// export const getNotifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+//   try {
+//     const userId = req.user?.id;
+//     if (!userId) {
+//        res.status(401).json({
+//         status: 'error',
+//         message: 'User not authenticated'
+//       });
+//       return;
+//     }
+
+//     const page = parseInt(req.query.page as string) || 1;
+//     const limit = parseInt(req.query.limit as string) || 10;
+//     const skip = (page - 1) * limit;
+
+//     // Modify the query to include specific types of notifications related to parcels
+//     const query = { 
+//       userId,
+//       type: { 
+//         $in: ['Requested-Delivery', 'Accepted', 'Cancelled', 'Rejected', 'Recciver'] // Include specific parcel-related types
+//       }
+//     };
+
+//     // Get total count for pagination
+//     const totalCount = await Notification.countDocuments(query);
+
+//     // Get notifications with pagination
+//     const notifications = await Notification.find(query)
+//       .sort({ createdAt: -1 })
+//       .skip(skip)
+//       .limit(limit);
+
+//     // Format the deliveryStartTime and deliveryEndTime to ISO string
+//     const formattedNotifications = notifications.map(notification => {
+//       if (notification.deliveryStartTime) {
+//         notification.deliveryStartTime = new Date(notification.deliveryStartTime).toISOString();
+//       }
+//       if (notification.deliveryEndTime) {
+//         notification.deliveryEndTime = new Date(notification.deliveryEndTime).toISOString(); 
+//       }
+//       return notification;
+//     });
+
+// res.status(200).json({
+//   status: 'success',
+//   data: {
+//     notifications: formattedNotifications,
+//     pagination: {
+//       total: totalCount,
+//       page,
+//       limit,
+//       pages: Math.ceil(totalCount / limit)
+//     }
+//   }
+// });
+//   return;
+//   } catch (error) {
+//     console.error('Error fetching notifications:', error);
+//     res.status(500).json({
+//       status: 'error',
+//       message: 'Failed to fetch notifications'
+//     });
+//     next(error);
+//   }
+// };
 export const getNotifications = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-       res.status(401).json({
+      res.status(401).json({
         status: 'error',
         message: 'User not authenticated'
       });
@@ -470,19 +535,18 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
       return notification;
     });
 
-res.status(200).json({
-  status: 'success',
-  data: {
-    notifications: formattedNotifications,
-    pagination: {
-      total: totalCount,
-      page,
-      limit,
-      pages: Math.ceil(totalCount / limit)
-    }
-  }
-});
-  return;
+    res.status(200).json({
+      status: 'success',
+      data: {
+        notifications: formattedNotifications,
+        pagination: {
+          total: totalCount,
+          page,
+          limit,
+          pages: Math.ceil(totalCount / limit)
+        }
+      }
+    });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     res.status(500).json({

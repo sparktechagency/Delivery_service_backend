@@ -585,8 +585,8 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
 
     // ✅ Get FCM token for the DELIVERER (not sender) - they should be notified of rejection
     const deviceToken = await DeviceToken.findOne({
-      userId: requestToDeliver,
-      fcmToken: { $exists: true, $ne: 'Cancelled' }
+      userId: delivererId,  // Corrected: this should be the deliverer's userId
+      fcmToken: { $exists: true, $ne: '' }
     });
 
     console.log(`🔍 Looking for FCM token for deliverer: ${delivererId}`);
@@ -595,14 +595,14 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
     // ✅ Send push notification to deliverer if token exists
     if (deviceToken?.fcmToken) {
       const notificationMessage = `Your delivery request for "${parcel.title}" has been rejected.`;
-      
+
       const pushPayload = {
         notification: {
           title: `Request Rejected`,
           body: notificationMessage,
         },
         data: {
-          type: 'Cancelled',
+          type: 'Cancelled',  // Type 'Cancelled' for rejected delivery request
           title: parcel.title,
           message: notificationMessage,
           parcelId: parcel._id.toString(),
@@ -624,11 +624,10 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
         console.log(`✅ Push notification sent to rejected deliverer: ${deviceToken.fcmToken}`);
       } catch (err) {
         console.error(`❌ Push notification failed to deliverer ${deviceToken.fcmToken}:`, err);
-        
+
         // ✅ Handle invalid FCM tokens
         if (typeof err === 'object' && err !== null && 'code' in err && (err as any).code === 'messaging/registration-token-not-registered') {
           console.log(`🗑️ Removing invalid FCM token for user ${delivererId}`);
-          // Remove the invalid token from database
           await DeviceToken.deleteOne({ 
             userId: delivererId, 
             fcmToken: deviceToken.fcmToken 
@@ -642,13 +641,13 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
     // ✅ Create notification for the rejected deliverer
     const notification = new Notification({
       message: `Your delivery request for parcel "${parcel.title}" has been rejected by the sender.`,
-      type: 'Cancelled',
+      type: 'Cancelled',  
       title: `Request Rejected`,
       description: parcel.description || '',
       parcelTitle: parcel.title || '',
       price: parcel.price || '',
       requestId: parcel._id,
-      userId: requestedUser._id, // ✅ Notify the deliverer
+      userId: requestedUser._id,  // Set the userId to the deliverer's userId
       image: requestedUser.image || 'https://i.ibb.co/z5YHLV9/profile.png',
       AvgRating: requestedUser.avgRating || 0,
       SenderName: requestedUser.fullName || '',
@@ -679,6 +678,7 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
     next(error);
   }
 };
+
 
 export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
