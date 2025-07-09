@@ -1360,7 +1360,6 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
   }
 };
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 export const googleLoginOrRegister = async (req: Request, res: Response) => {
   try {
     const { idToken, fcmToken } = req.body;
@@ -1371,6 +1370,9 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
         message: 'Google ID token is required',
       });
     }
+
+    // Initialize OAuth2Client
+    const client = new OAuth2Client();
 
     // Verify token against all accepted client IDs
     const ticket = await client.verifyIdToken({
@@ -1404,9 +1406,12 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
       });
     }
 
-    let user = await User.findOne({ googleId });
+    // Check if user exists based on googleId
+    let user = await User.findOne({ googleId }).select('name email isSubscribed role fcmToken');
+
     const isNewUser = !user;
 
+    // If the user doesn't exist, create a new user
     if (!user) {
       user = await User.create({
         googleId,
@@ -1418,16 +1423,12 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
         fcmToken: fcmToken || '',
       });
     } else {
+      // If the user exists, update fcmToken, fullName, and email
       user.fcmToken = fcmToken || user.fcmToken;
       user.isVerified = true;
 
-      if (!user.fullName && fullName) {
-        user.fullName = fullName;
-      }
-
-      if (!user.email && email) {
-        user.email = email;
-      }
+      if (!user.fullName && fullName) user.fullName = fullName;
+      if (!user.email && email) user.email = email;
 
       await user.save();
     }
@@ -1471,5 +1472,3 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
     });
   }
 };
-
-//hello
