@@ -244,78 +244,156 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
     // Fetch sender for notification meta info
     const deliverer = await User.findById(parcel.assignedDelivererId);
 
-    // ✅ Get FCM token from DeviceToken collection (like in createParcelRequest)
-    const deviceToken = await DeviceToken.findOne({
-      userId: parcel.senderId,
-      fcmToken: { $exists: true, $ne: '' }
-    });
+//     // ✅ Get FCM token from DeviceToken collection (like in createParcelRequest)
+    // const deviceToken = await DeviceToken.findOne({
+    //   userId: parcel.senderId,
+    //   fcmToken: { $exists: true, $ne: '' }
+    // });
 
-    // ✅ Send push notification if token exists
-    if (deviceToken?.fcmToken) {
-      const notificationMessage = `Requested to deliver "${parcel.title}".`;
+//     // ✅ Send push notification if token exists
+//     if (deviceToken?.fcmToken) {
+//       const notificationMessage = `Requested to deliver "${parcel.title}".`;
       
-      const pushPayload = {
-        notification: {
-          title: parcel.title,
-          body: notificationMessage,
-        },
-        data: {
-          type: 'delivery_request',
-          title: parcel.title,
-          message: notificationMessage,
-          parcelId: parcel._id.toString(),
-          price: String(parcel.price || ''),
-          description: parcel.description || '',
-          phoneNumber: parcel.phoneNumber || '',
-          deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
-          deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
-          pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
-          pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
-          deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
-          deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
-          image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-        },
-        token: deviceToken.fcmToken,
-      };
+//       const pushPayload = {
+//         notification: {
+//           title: parcel.title,
+//           body: notificationMessage,
+//         },
+//         data: {
+//           type: 'delivery_request',
+//           title: parcel.title,
+//           message: notificationMessage,
+//           parcelId: parcel._id.toString(),
+//           price: String(parcel.price || ''),
+//           description: parcel.description || '',
+//           phoneNumber: parcel.phoneNumber || '',
+//           deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
+//           deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
+//           pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
+//           pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
+//           deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
+//           deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
+//           image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+//         },
+//         token: deviceToken.fcmToken,
+//       };
 
-      try {
-        await admin.messaging().send(pushPayload);
-        console.log(`✅ Push notification sent to assigned deliverer: ${deviceToken.fcmToken}`);
-      } catch (err) {
-        console.error(`❌ Push notification failed to deliverer ${deviceToken.fcmToken}:`, err);
-      }
-    } else {
-      console.log(`⚠️ No FCM token found for deliverer: ${parcel.senderId}`);
-    }
+//       try {
+//         await admin.messaging().send(pushPayload);
+//         console.log(`✅ Push notification sent to assigned deliverer: ${deviceToken.fcmToken}`);
+//       } catch (err) {
+//         console.error(`❌ Push notification failed to deliverer ${deviceToken.fcmToken}:`, err);
+//       }
+//     } else {
+//       console.log(`⚠️ No FCM token found for deliverer: ${parcel.senderId}`);
+//     }
 
-      const notification = new Notification({
-        message: `${user.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
-        type: 'Requested-Delivery',
-        title: `${parcel.title}`,
-        description: parcel.description || '',
-        price: parcel.price || '',
-        requestId: parcel._id,
-        userId: user?._id,
-        image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-        AvgRating: user.avgRating || 0,
-        SenderName: user.fullName || '',
-        mobileNumber: user.mobileNumber || ' ',
-        name: user.fullName || '',
-        deliveryStartTime: parcel.deliveryStartTime,
-        deliveryEndTime: parcel.deliveryEndTime,
-        pickupLocation: {
-          latitude: parcel.pickupLocation?.coordinates[1],
-          longitude: parcel.pickupLocation?.coordinates[0]
-        },
-        deliveryLocation: {
-          latitude: parcel.deliveryLocation?.coordinates[1],
-          longitude: parcel.deliveryLocation?.coordinates[0]
-        },
-        Images: parcel.images,
-        user: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-      });
+//     // ✅ Get FCM token from DeviceToken collection for the sender
+// const deviceToken = await DeviceToken.findOne({
+//   userId: parcel.senderId,  // Use the sender's userId here
+//   fcmToken: { $exists: true, $ne: '' }
+// });
 
-      await notification.save();
+const deviceToken = await DeviceToken.findOne({
+  userId: parcel.senderId,  // Use the sender's userId here
+  fcmToken: { $exists: true, $ne: '' }
+});
+
+// ✅ Send push notification if token exists
+if (deviceToken?.fcmToken) {
+  const notificationMessage = `Requested to deliver "${parcel.title}".`;
+
+  const pushPayload = {
+    notification: {
+      title: parcel.title,
+      body: notificationMessage,
+    },
+    data: {
+      type: 'delivery_request',
+      title: parcel.title,
+      message: notificationMessage,
+      parcelId: parcel._id.toString(),
+      price: String(parcel.price || ''),
+      description: parcel.description || '',
+      phoneNumber: parcel.phoneNumber || '',
+      deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
+      deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
+      pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
+      pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
+      deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
+      deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
+      image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+    },
+    token: deviceToken.fcmToken,
+  };
+
+  try {
+    await admin.messaging().send(pushPayload);
+    console.log(`✅ Push notification sent to sender: ${deviceToken.fcmToken}`);
+  } catch (err) {
+    console.error(`❌ Push notification failed to sender ${deviceToken.fcmToken}:`, err);
+  }
+} else {
+  console.log(`⚠️ No FCM token found for sender: ${parcel.senderId}`);
+}
+
+
+      // const notification = new Notification({
+      //   message: `${user.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
+      //   type: 'Requested-Delivery',
+      //   title: `${parcel.title}`,
+      //   description: parcel.description || '',
+      //   price: parcel.price || '',
+      //   requestId: parcel._id,
+      //   userId: user?._id,
+      //   image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+      //   AvgRating: user.avgRating || 0,
+      //   SenderName: user.fullName || '',
+      //   mobileNumber: user.mobileNumber || ' ',
+      //   name: user.fullName || '',
+      //   deliveryStartTime: parcel.deliveryStartTime,
+      //   deliveryEndTime: parcel.deliveryEndTime,
+      //   pickupLocation: {
+      //     latitude: parcel.pickupLocation?.coordinates[1],
+      //     longitude: parcel.pickupLocation?.coordinates[0]
+      //   },
+      //   deliveryLocation: {
+      //     latitude: parcel.deliveryLocation?.coordinates[1],
+      //     longitude: parcel.deliveryLocation?.coordinates[0]
+      //   },
+      //   Images: parcel.images,
+      //   user: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+      // });
+// Inside your loop where you are creating the notification:
+const notification = new Notification({
+  message: `${user.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
+  type: 'Requested-Delivery',
+  title: `${parcel.title}`,
+  description: parcel.description || '',
+  price: parcel.price || '',
+  requestId: parcel._id,
+  userId: parcel.senderId, // Assign the correct userId (parcel owner)
+  image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+  AvgRating: user.avgRating || 0,
+  SenderName: user.fullName || '',
+  mobileNumber: user.mobileNumber || ' ',
+  name: user.fullName || '',
+  deliveryStartTime: parcel.deliveryStartTime,
+  deliveryEndTime: parcel.deliveryEndTime,
+  pickupLocation: {
+    latitude: parcel.pickupLocation?.coordinates[1],
+    longitude: parcel.pickupLocation?.coordinates[0]
+  },
+  deliveryLocation: {
+    latitude: parcel.deliveryLocation?.coordinates[1],
+    longitude: parcel.deliveryLocation?.coordinates[0]
+  },
+  Images: parcel.images,
+  user: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+});
+
+await notification.save();
+
     }
 
     res.status(200).json({
