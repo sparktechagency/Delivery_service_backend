@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import 'dotenv/config';
 import nodemailer from 'nodemailer';
-
 // Extend Express Request interface to include registeredUserId
 declare module 'express-serve-static-core' {
   interface Request {
@@ -1371,7 +1370,10 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
       });
     }
 
+    // Create OAuth2Client instance
     const client = new OAuth2Client();
+
+    // Verify the token using the Google OAuth client (auto audience verification)
     const ticket = await client.verifyIdToken({
       idToken,
     });
@@ -1398,8 +1400,8 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user exists based on googleId
-    let user = await User.findOne({ googleId }).select('name email isSubscribed role fcmToken');
+    // Check if user exists based on googleId or email (to prevent duplicates)
+    let user = await User.findOne({ email }).select('name email isSubscribed role fcmToken');
 
     const isNewUser = !user;
 
@@ -1422,6 +1424,7 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
       if (!user.fullName && fullName) user.fullName = fullName;
       if (!user.email && email) user.email = email;
 
+      // Save the updated user data
       await user.save();
     }
 
@@ -1458,6 +1461,15 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
       .json(responseData);
   } catch (error: any) {
     console.error('Google login error:', error.message || error);
+
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        status: 'error',
+        message: 'Email already exists, please use a different email.',
+      });
+    }
+
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       status: 'error',
       message: 'Google authentication failed',
