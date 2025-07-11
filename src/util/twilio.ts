@@ -3,22 +3,6 @@ import twilio from 'twilio';
 import { AppError } from "../app/middlewares/error";
 import { config } from "../config";
 
-// const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
-
-// export const sendOTP = async (to: string, otpCode: string) => {
-//   try {
-//     const message = await client.messages.create({
-//       body: `Your OTP code is: ${otpCode}`,
-//       from: process.env.TWILIO_PHONE_NUMBER,
-//       to,
-//     });
-//     console.log('OTP sent:', message.sid);
-//   } catch (error) {
-//     console.error('Error sending OTP:', error);
-//     throw new Error('Failed to send OTP');
-//   }
-// };
-
 const twilioClient = twilio(config.twilio.twilioAccountSid, config.twilio.twilioAuthToken);
 const twilioServiceSid = config.twilio.twilioServiceSid;
 

@@ -1238,7 +1238,7 @@ export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next:
 
     // Assign the delivery to the chosen deliverer
     parcel.assignedDelivererId = delivererId;
-    parcel.status = DeliveryStatus.IN_TRANSIT; // Change status to 'accepted'
+    parcel.status = DeliveryStatus.IN_TRANSIT;
     parcel.deliveryRequests = [];
     await parcel.save();
     
