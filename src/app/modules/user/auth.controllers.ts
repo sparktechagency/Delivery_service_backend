@@ -1361,7 +1361,7 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
 
 export const googleLoginOrRegister = async (req: Request, res: Response) => {
   try {
-    const { idToken, fcmToken } = req.body;
+    const { idToken, fcmToken, mobileNumber} = req.body;
 
     if (!idToken) {
       return res.status(StatusCodes.BAD_REQUEST).json({
@@ -1411,6 +1411,7 @@ export const googleLoginOrRegister = async (req: Request, res: Response) => {
         googleId,
         fullName: fullName || '',
         email: email || '',
+        mobileNumber: mobileNumber,
         isVerified: true,
         isRestricted: false,
         role: 'sender',
