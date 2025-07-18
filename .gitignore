@@ -34,4 +34,5 @@ coverage/
 .idea/
 *.sublime-workspace
 
-# OS
+# uploads
+uploads/
