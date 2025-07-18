@@ -199,7 +199,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
           instagram: user.instagram || "",
           whatsapp: user.whatsapp || "",
           email : user.email || "missing email",
-          image: user.image || "https://i.ibb.co/z5YHLV9/profile.png",
+          image: user.image || "/uploads/image/1000000315-1752121119330.jpg",
           fcmToken: user.fcmToken || "",
           country: user.country || "",
 
@@ -263,7 +263,7 @@ if (userObj.SendOrders !== undefined) {
           instagram: user.instagram || "",
           whatsapp: user.whatsapp || "",
           email: user.email || "missing email",
-          image: user.image || "https://i.ibb.co/z5YHLV9/profile.png",
+          image: user.image || "/uploads/image/1000000315-1752121119330.jpg",
           fcmToken: user.fcmToken || "",
           country: user.country || "",
         },
