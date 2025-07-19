@@ -200,37 +200,14 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     if (!existingUser) {
       throw new AppError("User not found", 404);
     }
-    console.log('User found:', existingUser._id);
+    console.log('user account was not found. To continue, please create an account:', existingUser._id);
 
     // Send OTP via Twilio
     console.log('Attempting to send OTP...');
     await sendTwilioOTP(formattedNumber);
     console.log('OTP sent successfully');
 
-    // Store FCM token only if both fcmToken and deviceId are provided
-    // if (fcmToken && deviceId) {
-    //   const existingToken = await DeviceToken.findOne({
-    //     userId: existingUser._id,
-    //     deviceId: deviceId
-    //   });
 
-    //   if (existingToken) {
-    //     existingToken.fcmToken = fcmToken;
-    //     existingToken.deviceType = deviceType;
-    //     await existingToken.save();
-    //     console.log(`Updated FCM token for user ${existingUser._id}, device ${deviceId}`);
-    //   } else {
-    //     await DeviceToken.create({
-    //       userId: existingUser._id,
-    //       fcmToken,
-    //       deviceId,
-    //       deviceType
-    //     });
-    //     console.log(`Created new FCM token for user ${existingUser._id}, device ${deviceId}`);
-    //   }
-    // }
-
-    // Store FCM token only if both fcmToken and deviceId are provided
 if (fcmToken && deviceId) {
   const existingToken = await DeviceToken.findOne({
     userId: existingUser._id,
