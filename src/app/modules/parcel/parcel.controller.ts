@@ -133,7 +133,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
       fcmToken: { $exists: true, $ne: '' }
     }).select('fcmToken userId');
 
-    // ✅ Compose message
+    // Compose message
       const notificationMessage = `A new parcel "${title}" created by "${sender.fullName}".`;
     const pushPayload = {
       notification: {
@@ -433,82 +433,6 @@ export const getAssignedAndRequestedParcels = async (req: AuthRequest, res: Resp
   }
 };
 
-// export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const userId = req.user?.id;
-//     if (!userId) throw new AppError("Unauthorized", 401);
-
-//     // Parcels where user is the sender (sendParcel)
-//     const sendParcels = await ParcelRequest.find({ senderId: userId })
-//       .populate("senderId", "fullName email mobileNumber phoneNumber averageRating reviews role image")
-//       .populate("assignedDelivererId", "fullName email mobileNumber phoneNumber averageRating reviews role image")
-//       .populate("deliveryRequests", "fullName email mobileNumber phoneNumber averageRating reviews role image")
-//       .sort({ createdAt: -1 }) // Sort by the most recent parcel
-//       .lean();
-
-//     sendParcels.forEach(p => ((p as any).typeParcel = "sendParcel"));
-
-//     // Parcels where user requested delivery (deliveryRequest)
-//     const deliveryRequestParcels = await ParcelRequest.find({
-//       deliveryRequests: userId,  
-//       senderId: { $ne: userId },
-//       status: { $in: ['PENDING', 'REQUESTED'] }, // Only available parcels
-//     })
-//       .populate("senderId", "fullName email mobileNumber phoneNumber role avgRating reviews image")
-//       .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role image")
-//       .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role image")
-//       .sort({ createdAt: -1 }) // Sort by the most recent delivery request
-//       .lean();
-
-//     deliveryRequestParcels.forEach(p => ((p as any).typeParcel = "deliveryRequest"));
-
-//     const assignedParcels = await ParcelRequest.find({
-//       assignedDelivererId: userId,
-//       status: { $ne: 'DELIVERED' }, 
-//     })
-//       .populate("senderId", "fullName email mobileNumber phoneNumber avgRating reviews role image")
-//       .populate("assignedDelivererId", "fullName email mobileNumber avgRating reviews role image")
-//       .populate("deliveryRequests", "fullName email mobileNumber avgRating reviews role image")
-//       .sort({ createdAt: -1 })
-//       .lean();
-
-//     assignedParcels.forEach(p => ((p as any).typeParcel = "assignedParcel"));
-
-//     const parcels = [
-//       ...sendParcels,
-//       ...deliveryRequestParcels,
-//       ...assignedParcels
-//     ].map(parcel => {
-//       // Fallback for sender mobile number
-//       if (parcel.senderId && typeof parcel.senderId === "object" && parcel.senderId !== null) {
-//         if ("email" in parcel.senderId) {
-//           const mobileNumber =
-//             ("mobileNumber" in parcel.senderId ? parcel.senderId.mobileNumber : null) ||
-//             ("phoneNumber" in parcel.senderId ? parcel.senderId.phoneNumber : null) ||
-//             "";
-//           (parcel.senderId as any).mobileNumber = mobileNumber;
-//         }
-//       }
-
-//       // Limit deliveryRequests array length to 5 max
-//       if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
-//         parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
-//       }
-
-//       return parcel;
-//     });
-
-//     // Sort combined parcels to ensure the latest is at the top (sort by createdAt in descending order)
-//     parcels.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-//     res.status(200).json({
-//       status: "success",
-//       data: parcels,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 export const getUserSendAndDeliveryRequestParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
@@ -689,91 +613,6 @@ export const getParcelWithDeliveryRequests = async (req: Request, res: Response,
   }
 };
 
-// export const updateParcelStatus = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { parcelId, status, rating, review } = req.body;
-
-//     if (!parcelId || !status) {
-//       throw new AppError("Parcel ID and status are required", 400);
-//     }
-
-//     // Validate status
-//     const validStatuses = [
-//       DeliveryStatus.REQUESTED,
-//       DeliveryStatus.ACCEPTED,
-//       DeliveryStatus.IN_TRANSIT,
-//       DeliveryStatus.DELIVERED
-//     ];
-
-//     if (!validStatuses.includes(status)) {
-//       throw new AppError(`Invalid status. Allowed values: ${validStatuses.join(", ")}`, 400);
-//     }
-
-//     // Find the parcel
-//     const parcel = await ParcelRequest.findById(parcelId);
-//     if (!parcel) {
-//       throw new AppError("Parcel not found", 404);
-//     }
-
-//     // Check if user is authorized to update status
-//     const userId = req.user?.id;
-//     if (!userId) throw new AppError("Unauthorized", 401);
-
-//     if (status === DeliveryStatus.DELIVERED) {
-//       // Handle rating and review only when the parcel is delivered
-//       if (rating && (rating < 1 || rating > 5)) {
-//         throw new AppError("Rating must be between 1 and 5", 400);
-//       }
-
-//       if (review && review.trim().length > 500) {
-//         throw new AppError("Review text cannot exceed 500 characters", 400);
-//       }
-
-//       // Find the sender and receiver users
-//       const sender = await User.findById(parcel.senderId);
-//       const receiver = await User.findById(parcel.receiverId);
-
-//       if (!sender || !receiver) {
-//         throw new AppError("Sender or Receiver not found", 404);
-//       }
-
-//       // Add the rating and review to both sender's and receiver's profiles
-//       if (rating && review) {
-//         // Update the sender's profile with the review and rating
-//         sender.reviews.push({
-//           parcelId: parcel._id,
-//           rating,
-//           review
-//         });
-//         await sender.save();
-
-//         // Update the receiver's profile with the review and rating
-//         receiver.reviews.push({
-//           parcelId: parcel._id,
-//           rating,
-//           review
-//         });
-//         await receiver.save();
-//       }
-
-//       // Set the parcel status to 'DELIVERED'
-//       parcel.status = DeliveryStatus.DELIVERED;
-//     }
-
-//     await parcel.save();
-
-//     res.status(200).json({
-//       status: "success",
-//       message: `Parcel status updated to ${status}`,
-//       data: parcel,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
- // To handle date comparison more easily
-
 export const updateParcelStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { parcelId, status, rating, review } = req.body;
@@ -886,8 +725,6 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
   }
 };
 
-
-
 export const getUserReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -920,161 +757,6 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
   }
 };
 
-
-
-
-// export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-//   try {
-//     // Debugging: Check the user ID
-//     console.log("Logged-in user ID:", req.user?.id);
-
-//     const { latitude, longitude, radius = 15, deliveryType } = req.query;
-
-//     const lat = parseFloat(latitude as string);
-//     const lng = parseFloat(longitude as string);
-
-//     // ✅ FIXED: Added return statements to prevent multiple responses
-//     if (isNaN(lat)) {
-//        res.status(400).json({
-//         status: 'error',
-//         message: 'Invalid latitude value. Please provide a valid number for latitude.',
-//       });
-//       return;
-//     }
-
-//     if (isNaN(lng)) {
-//        res.status(400).json({
-//         status: 'error',
-//         message: 'Invalid longitude value. Please provide a valid number for longitude.',
-//       });
-//       return;
-//     }
-
-//     console.log(`Searching for parcels within ${radius} km of lat: ${lat}, lon: ${lng}`);
-
-//     const maxDistance = parseFloat(radius as string) * 1000;
-
-//     const nearbyPickupQuery: any = {
-//       status: DeliveryStatus.PENDING,
-//       pickupLocation: {
-//         $nearSphere: {
-//           $geometry: { type: 'Point', coordinates: [lng, lat] },
-//           $maxDistance: maxDistance,
-//         },
-//       },
-//       senderId: { $ne: req.user?.id }, // Exclude parcels owned by the logged-in user
-//     };
-
-//     const nearbyDeliveryQuery: any = {
-//       status: DeliveryStatus.PENDING,
-//       deliveryLocation: {
-//         $nearSphere: {
-//           $geometry: { type: 'Point', coordinates: [lng, lat] },
-//           $maxDistance: maxDistance,
-//         },
-//       },
-//       senderId: { $ne: req.user?.id }, 
-//     };
-
-//     // Delivery type mapping based on selected delivery type
-//     const deliveryTypeMapping: { [key: string]: string[] } = {
-//       [DeliveryType.PERSON]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE],
-//       [DeliveryType.BICYCLE]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE],
-//       [DeliveryType.BIKE]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR],
-//       [DeliveryType.CAR]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR],
-//       [DeliveryType.TAXI]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR, DeliveryType.TAXI],
-//       [DeliveryType.TRUCK]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR, DeliveryType.TRUCK],
-//       [DeliveryType.AIRPLANE]: [DeliveryType.AIRPLANE],
-//     };
-
-//     // ✅ FIXED: Added return statement for invalid delivery type
-//     if (deliveryType && Object.values(DeliveryType).includes(deliveryType as DeliveryType)) {
-//       const validTypes = deliveryTypeMapping[deliveryType as string];
-//       if (validTypes) {
-//         nearbyPickupQuery.deliveryType = { $in: validTypes };
-//         nearbyDeliveryQuery.deliveryType = { $in: validTypes };
-//       }
-//     } else if (deliveryType) {
-//        res.status(400).json({
-//         status: 'error',
-//         message: `Invalid delivery type: ${deliveryType}. Please select a valid delivery type.`,
-//       });
-//       return;
-//     }
-
-//     // ✅ IMPROVED: Execute both queries in parallel for better performance
-//     const [nearbyPickupParcels, nearbyDeliveryParcels] = await Promise.all([
-//       ParcelRequest.find(nearbyPickupQuery)
-//         .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
-//         .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
-//         .lean(),
-      
-//       ParcelRequest.find(nearbyDeliveryQuery)
-//         .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images') 
-//         .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
-//         .lean()
-//     ]);
-
-//     // ✅ IMPROVED: Remove duplicates by converting to Set using _id
-//     const allNearbyParcels = [
-//       ...nearbyPickupParcels,
-//       ...nearbyDeliveryParcels.filter(
-//         deliveryParcel => !nearbyPickupParcels.some(
-//           pickupParcel => pickupParcel._id.toString() === deliveryParcel._id.toString()
-//         )
-//       )
-//     ];
-
-//     // ✅ FIXED: Added return statement for no results
-//     if (allNearbyParcels.length === 0) {
-//        res.status(404).json({
-//         status: 'error',
-//         message: `No parcels found within ${radius}km radius${deliveryType ? ` with delivery type: ${deliveryType}` : ''}.`,
-//       });
-//       return;
-//     }
-
-//     // ✅ IMPROVED: Enhanced response with metadata
-//      res.status(200).json({
-//       status: 'success',
-//       message: `Found ${allNearbyParcels.length} parcel(s) within ${radius}km radius.`,
-//       data: {
-//         parcels: allNearbyParcels,
-//         total: allNearbyParcels.length,
-//         filters: {
-//           latitude: lat,
-//           longitude: lng,
-//           radius: `${radius}km`,
-//           deliveryType: deliveryType || 'all',
-//           excludedSender: req.user?.id
-//         }
-//       }
-//     });
-//     return;
-
-//   } catch (error) {
-//     console.error('Error fetching parcels:', error);
-    
-//     // ✅ IMPROVED: Better error handling with specific error messages
-//     if (typeof error === 'object' && error !== null && 'name' in error && (error as any).name === 'CastError') {
-//        res.status(400).json({
-//         status: 'error',
-//         message: 'Invalid query parameters provided.',
-//       });
-//       return;
-//     }
-    
-//     if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message?.includes('$nearSphere')) {
-//        res.status(400).json({
-//         status: 'error',
-//         message: 'Location search failed. Please check your coordinates.',
-//       });
-//       return;
-//     }
-
-//     next(error);
-//   }
-// };
 export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     console.log("Logged-in user ID:", req.user?.id);

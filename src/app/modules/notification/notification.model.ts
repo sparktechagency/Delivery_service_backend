@@ -19,7 +19,6 @@ export interface NotificationData {
   
 }
 
-
 const notificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
   message: { type: String, required: true },

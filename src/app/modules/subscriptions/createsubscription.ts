@@ -38,14 +38,14 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response, 
       price,
       freeDeliveries: freeDeliveries ?? 3,
       totalDeliveries: totalDeliveries ?? 0,
-      totalOrders: totalOrders ?? 0,  // Added with default of 0
+      totalOrders: totalOrders ?? 0,  
       earnings: earnings ?? 0,
       version,
       description,
       deliveryLimit: deliveryLimit ?? 0,
       isTrial: false,
-      trialPeriod: trialPeriod ?? 30, // Default to 30 days if not provided
-      trialActive: true, // Activate the global trial by default
+      trialPeriod: trialPeriod ?? 30, 
+      trialActive: true, 
     });
 
     await newSubscriptionPlan.save();
@@ -61,54 +61,6 @@ export const createGlobalSubscriptionPlan = async (req: Request, res: Response, 
     return;
   }
 };
-
-
-// export const assignUserSubscription = async (req: Request, res: Response) => {
-//   try {
-//     const { userId, subscriptionType } = req.body; // Get userId and subscriptionType (e.g. "Enterprise")
-
-//     if (!userId || !subscriptionType) {
-//       return res.status(400).json({ message: "User ID and subscription type are required" });
-//     }
-
-//     // Find the user
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       return res.status(404).json({ message: "User not found" });
-//     }
-
-//     // Get the selected subscription plan from GlobalSubscription
-//     const subscriptionPlan = await GlobalSubscription.findOne({ type: subscriptionType });
-//     if (!subscriptionPlan) {
-//       return res.status(404).json({ message: `Subscription plan '${subscriptionType}' not found` });
-//     }
-
-//     // Assign subscription details to the user
-//     user.subscriptionType = subscriptionPlan.type;
-//     user.subscriptionPrice = subscriptionPlan.price;
-//     user.subscriptionCount += 1; // Increment subscription count
-//     user.subscriptionStartDate = new Date(); // Set the current date as the start date
-//     user.subscriptionExpiryDate = new Date(new Date().setMonth(new Date().getMonth() + 1)); // Set expiry date (1 month)
-//     user.isSubscribed = true; // Mark user as subscribed
-//     user.freeDeliveries = subscriptionPlan.freeDeliveries; // Set the free deliveries from the global plan
-
-//     await user.save(); // Save the updated user
-
-//     res.status(200).json({
-//       message: "User subscription updated successfully",
-//      data: user
-//     });
-
-//   } catch (error) {
-//     console.error("Error assigning subscription to user:", error);
-//     res.status(500).json({ message: "Error assigning subscription", error });
-//   }
-// };
-
-
-
-
-// ✅ Admin Can Update Global Subscription Plan Price and Description
 
 
 export const assignUserSubscription =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -177,7 +129,7 @@ export const setGlobalTrialPeriod = async (req: Request, res: Response, next: Ne
       });
     } else {
       globalTrialSetting.trialPeriod = trialPeriod;
-      globalTrialSetting.trialActive = true; // Activate the trial globally
+      globalTrialSetting.trialActive = true; 
     }
 
     await globalTrialSetting.save();
@@ -202,13 +154,12 @@ export const getGlobalTrialDetailsForAdmin = async (req: Request, res: Response,
        return;
     }
 
-    // Calculate the trial end date by adding the trial period to the trial start date
     const currentDate = new Date();
     const trialStartDate = globalTrialSetting.trialStartDate;
     const trialPeriod = globalTrialSetting.trialPeriod;
 
     const trialEndDate = new Date(trialStartDate);
-    trialEndDate.setDate(trialStartDate.getDate() + trialPeriod); // Add the trial period to the start date
+    trialEndDate.setDate(trialStartDate.getDate() + trialPeriod);
 
     // If the trial period has expired
     if (currentDate >= trialEndDate) {

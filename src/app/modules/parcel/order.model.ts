@@ -1,6 +1,4 @@
 import mongoose from "mongoose";
-
-// Order Model
 const orderSchema = new mongoose.Schema({
   orderId: { type: String, required: true, unique: true },
   customerName: { type: String, required: true },

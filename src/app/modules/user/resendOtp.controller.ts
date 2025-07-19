@@ -8,11 +8,9 @@ const otpAttempts = new Map<string, { count: number; lastAttempt: Date }>();
 
 const RATE_LIMIT = {
   maxAttempts: 3, 
-  windowMinutes: 15, // Time window in minutes
-  cooldownMinutes: 5, // Cooldown between requests in minutes
+  windowMinutes: 15, 
+  cooldownMinutes: 5,
 };
-
-
 
 
 export const resendOTP = async (req: Request, res: Response, next: NextFunction) => {
@@ -112,7 +110,6 @@ export const resendOTP = async (req: Request, res: Response, next: NextFunction)
     next(error);
   }
 };
-
 
 export const getOTPStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {

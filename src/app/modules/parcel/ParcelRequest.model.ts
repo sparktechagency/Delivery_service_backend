@@ -2,11 +2,6 @@
 import mongoose, { Schema, Document, Types, ObjectId } from 'mongoose';
 import { DeliveryStatus, DeliveryType, SenderType } from '../../../types/enums';
 
-// // Define timezone validation function
-// const validateTimeZone = (timezone: string) => {
-//    moment.tz.names().includes(timezone);
-//    return moment.tz.zone(timezone) !== null;
-// };
 
 const parcelRequestSchema = new Schema({
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -15,7 +10,7 @@ const parcelRequestSchema = new Schema({
   
   // Updated pickupLocation to store coordinates in GeoJSON format
   pickupLocation: {
-    type: { type: String, default: 'Point' }, // GeoJSON type
+    type: { type: String, default: 'Point' },
     coordinates: {
       type: [Number],
       required: true,

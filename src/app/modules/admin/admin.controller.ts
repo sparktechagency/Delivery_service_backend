@@ -1,11 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { DeliveryType } from '../../../types/enums';
 import moment from 'moment';  
-// interface AdminRequest extends Request {
-//   admin?: {
-//     id: string;
-//   };
-// }
 import bcrypt from 'bcryptjs';
 import { Admin } from './admin.model';
 import { AppError } from '../../middlewares/error';

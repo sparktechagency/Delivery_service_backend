@@ -1,4 +1,3 @@
-// // utils/twilio.ts
 import twilio from 'twilio';
 import { AppError } from "../app/middlewares/error";
 import { config } from "../config";
@@ -6,8 +5,6 @@ import { config } from "../config";
 const twilioClient = twilio(config.twilio.twilioAccountSid, config.twilio.twilioAuthToken);
 const twilioServiceSid = config.twilio.twilioServiceSid;
 
-// Helper function to send OTP via Twilio
-// In your Twilio helper function
 const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
   try {
     console.log(`Attempting to send OTP to: ${mobileNumber}`);

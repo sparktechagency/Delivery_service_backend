@@ -1,4 +1,3 @@
-// routes/parcel.routes.ts
 import express from 'express';
 import { authenticate } from '../../middlewares/auth';
 import { createParcelRequest, deleteParcelRequest, getUserSendAndDeliveryRequestParcels, getAssignedAndRequestedParcels, getAvailableParcels, getFilteredParcels, getParcelsByRadius, getParcelWithDeliveryRequests, getUserParcels, getUserReviews, updateParcelStatus } from './parcel.controller';
@@ -6,7 +5,6 @@ import { assignDeliveryMan, cancelAssignedDeliveryMan, removeDeliveryRequest } f
 import fileUploadHandler from '../../../multer/multer';
 const upload = fileUploadHandler();
 const parcelRouter = express.Router();
-// parcelRouter.post('/create', authenticate, createParcelRequest);
 
 parcelRouter.post("/create", authenticate, upload, createParcelRequest);
 parcelRouter.get('/available', authenticate, getAvailableParcels);
