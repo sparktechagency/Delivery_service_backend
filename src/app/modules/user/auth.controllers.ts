@@ -198,9 +198,9 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
     if (!existingUser) {
-      throw new AppError("User not found", 404);
+      throw new AppError("user account was not found. To continue, please create an account:", 404);
     }
-    console.log('user account was not found. To continue, please create an account:', existingUser._id);
+    console.log('User found:', existingUser._id);
 
     // Send OTP via Twilio
     console.log('Attempting to send OTP...');
