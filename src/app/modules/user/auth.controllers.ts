@@ -265,7 +265,7 @@ export const verifyOTP = async (req: Request, res: Response, next: NextFunction)
 
     const user = await User.findOne({ mobileNumber: formattedNumber });
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new AppError('user account was not found. To continue, please create an account', 404);
     }
 
     await User.findByIdAndUpdate(user._id, { isVerified: true });
@@ -311,7 +311,7 @@ export const verifyLoginOTPNumber = async (req: Request, res: Response, next: Ne
     const user = await User.findOne({ mobileNumber: formattedNumber });
 
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new AppError('user account was not found. To continue, please create an account', 404);
     }
 
     const payload = {
@@ -603,7 +603,7 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
 
     const user = await User.findOne({ email });
     if (!user) {
-      throw new AppError('User not found', 404);
+      throw new AppError('user account was not found. To continue, please create an account', 404);
     }
 
     const otp = await OTPVerification.findOne({
