@@ -757,6 +757,138 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+// export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+//   try {
+//     console.log("Logged-in user ID:", req.user?.id);
+
+//     const {
+//       pickupLat,
+//       pickupLng,
+//       deliveryLat,
+//       deliveryLng,
+//       radius = 15,
+//       deliveryType
+//     } = req.query;
+
+//     const pickupLatitude = parseFloat(pickupLat as string);
+//     const pickupLongitude = parseFloat(pickupLng as string);
+//     const deliveryLatitude = parseFloat(deliveryLat as string);
+//     const deliveryLongitude = parseFloat(deliveryLng as string);
+
+//     const maxDistance = parseFloat(radius as string) * 1000;
+
+//     // Validation
+//     if (isNaN(pickupLatitude) || isNaN(pickupLongitude)) {
+//       res.status(400).json({
+//         status: 'error',
+//         message: 'Invalid pickup coordinates. Please provide valid pickupLat and pickupLng.',
+//       });
+//       return;
+//     }
+
+//     if (isNaN(deliveryLatitude) || isNaN(deliveryLongitude)) {
+//       res.status(400).json({
+//         status: 'error',
+//         message: 'Invalid delivery coordinates. Please provide valid deliveryLat and deliveryLng.',
+//       });
+//       return;
+//     }
+
+//     console.log(`Searching for parcels with pickup near (${pickupLatitude}, ${pickupLongitude}) and delivery near (${deliveryLatitude}, ${deliveryLongitude}) within ${radius} km.`);
+
+//     // Delivery type mapping
+//     const deliveryTypeMapping: { [key: string]: string[] } = {
+//       [DeliveryType.PERSON]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE],
+//       [DeliveryType.BICYCLE]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE],
+//       [DeliveryType.BIKE]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR],
+//       [DeliveryType.CAR]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR],
+//       [DeliveryType.TAXI]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR, DeliveryType.TAXI],
+//       [DeliveryType.TRUCK]: [DeliveryType.PERSON, DeliveryType.BICYCLE, DeliveryType.BIKE, DeliveryType.CAR, DeliveryType.TRUCK],
+//       [DeliveryType.AIRPLANE]: [DeliveryType.AIRPLANE],
+//     };
+
+//     const baseQuery: any = {
+//       status: DeliveryStatus.PENDING,
+//       pickupLocation: {
+//         $nearSphere: {
+//           $geometry: { type: 'Point', coordinates: [pickupLongitude, pickupLatitude] },
+//           $maxDistance: maxDistance,
+//         },
+//       },
+//       deliveryLocation: {
+//         $nearSphere: {
+//           $geometry: { type: 'Point', coordinates: [deliveryLongitude, deliveryLatitude] },
+//           $maxDistance: maxDistance,
+//         },
+//       },
+//       senderId: { $ne: req.user?.id },
+//     };
+
+//     if (deliveryType && Object.values(DeliveryType).includes(deliveryType as DeliveryType)) {
+//       const validTypes = deliveryTypeMapping[deliveryType as string];
+//       baseQuery.deliveryType = { $in: validTypes };
+//     } else if (deliveryType) {
+//       res.status(400).json({
+//         status: 'error',
+//         message: `Invalid delivery type: ${deliveryType}. Please select a valid delivery type.`,
+//       });
+//       return;
+//     }
+
+//     const matchedParcels = await ParcelRequest.find(baseQuery)
+//       .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
+//       .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
+//       .lean();
+
+//     if (matchedParcels.length === 0) {
+//       res.status(404).json({
+//         status: 'error',
+//         message: `No parcels found with pickup within ${radius}km of the specified pickup location AND delivery within ${radius}km of the specified delivery location.`,
+//       });
+//       return;
+//     }
+
+//     res.status(200).json({
+//       status: 'success',
+//       message: `Found ${matchedParcels.length} parcel(s) matching both pickup and delivery location within ${radius}km radius.`,
+//       data: {
+//         parcels: matchedParcels,
+//         total: matchedParcels.length,
+//         filters: {
+//           pickupLat: pickupLatitude,
+//           pickupLng: pickupLongitude,
+//           deliveryLat: deliveryLatitude,
+//           deliveryLng: deliveryLongitude,
+//           radius: `${radius}km`,
+//           deliveryType: deliveryType || 'all',
+//           excludedSender: req.user?.id
+//         }
+//       }
+//     });
+//     return;
+
+//   } catch (error) {
+//     console.error('Error fetching parcels:', error);
+
+//     if (typeof error === 'object' && error !== null && 'name' in error && (error as any).name === 'CastError') {
+//       res.status(400).json({
+//         status: 'error',
+//         message: 'Invalid query parameters provided.',
+//       });
+//       return;
+//     }
+
+//     if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message?.includes('$nearSphere')) {
+//       res.status(400).json({
+//         status: 'error',
+//         message: 'Location search failed. Please check your coordinates.',
+//       });
+//       return;
+//     }
+
+//     next(error);
+//   }
+// };
 export const getFilteredParcels = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     console.log("Logged-in user ID:", req.user?.id);
@@ -767,7 +899,7 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
       deliveryLat,
       deliveryLng,
       radius = 15,
-      deliveryType
+      deliveryType,
     } = req.query;
 
     const pickupLatitude = parseFloat(pickupLat as string);
@@ -809,18 +941,6 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
 
     const baseQuery: any = {
       status: DeliveryStatus.PENDING,
-      pickupLocation: {
-        $nearSphere: {
-          $geometry: { type: 'Point', coordinates: [pickupLongitude, pickupLatitude] },
-          $maxDistance: maxDistance,
-        },
-      },
-      deliveryLocation: {
-        $nearSphere: {
-          $geometry: { type: 'Point', coordinates: [deliveryLongitude, deliveryLatitude] },
-          $maxDistance: maxDistance,
-        },
-      },
       senderId: { $ne: req.user?.id },
     };
 
@@ -835,10 +955,45 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
       return;
     }
 
-    const matchedParcels = await ParcelRequest.find(baseQuery)
-      .select('title price description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType status name phoneNumber images')
-      .populate("senderId", "fullName email mobileNumber phoneNumber image avgRating role")
-      .lean();
+    const matchedParcels = await ParcelRequest.aggregate([
+      {
+        $match: baseQuery, // Match parcels based on the base query
+      },
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [pickupLongitude, pickupLatitude] },
+          distanceField: 'pickupDistance',
+          maxDistance: maxDistance,
+          spherical: true,
+        },
+      },
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [deliveryLongitude, deliveryLatitude] },
+          distanceField: 'deliveryDistance',
+          maxDistance: maxDistance,
+          spherical: true,
+        },
+      },
+      {
+        $project: {
+          title: 1,
+          price: 1,
+          description: 1,
+          pickupLocation: 1,
+          deliveryLocation: 1,
+          pickupDistance: 1,
+          deliveryDistance: 1,
+          deliveryStartTime: 1,
+          deliveryEndTime: 1,
+          deliveryType: 1,
+          status: 1,
+          name: 1,
+          phoneNumber: 1,
+          images: 1,
+        },
+      },
+    ]);
 
     if (matchedParcels.length === 0) {
       res.status(404).json({
@@ -861,12 +1016,11 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
           deliveryLng: deliveryLongitude,
           radius: `${radius}km`,
           deliveryType: deliveryType || 'all',
-          excludedSender: req.user?.id
-        }
-      }
+          excludedSender: req.user?.id,
+        },
+      },
     });
     return;
-
   } catch (error) {
     console.error('Error fetching parcels:', error);
 

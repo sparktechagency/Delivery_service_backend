@@ -42,8 +42,7 @@ const parcelRequestSchema = new Schema({
   deliveryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Delivery' }
 });
 
-parcelRequestSchema.index({ pickupLocation: '2dsphere' });
-parcelRequestSchema.index({ deliveryLocation: '2dsphere' });
+
 
 export const ParcelRequest = mongoose.model('ParcelRequest', parcelRequestSchema);
 export type ParcelRequestDocument = Document & {
@@ -87,3 +86,5 @@ interface ParcelPopulated {
   createdAt: Date;
   [key: string]: any;
 }
+parcelRequestSchema.index({ pickupLocation: '2dsphere' });
+parcelRequestSchema.index({ deliveryLocation: '2dsphere' });
