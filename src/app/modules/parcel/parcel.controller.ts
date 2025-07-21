@@ -910,6 +910,7 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     const deliveryLongitude = parseFloat(deliveryLng as string);
 
     const maxDistance = parseFloat(radius as string) * 1000;
+    const radiusInRadians = maxDistance / 6378100; // Earth's radius in meters
 
     // Validation of coordinates
     if (isNaN(pickupLatitude) || isNaN(pickupLongitude)) {
@@ -945,6 +946,8 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     const validDeliveryType = typeof deliveryType === 'string' ? deliveryType : undefined;
 
     // Create the base query for fetching parcels
+    // Use $nearSphere for pickup location (for distance-based sorting)
+    // Use $geoWithin with $centerSphere for delivery location
     const baseQuery: any = {
       status: DeliveryStatus.PENDING,
       senderId: { $ne: req.user?.id },  // Exclude parcels sent by the logged-in user
@@ -955,9 +958,8 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
         },
       },
       deliveryLocation: {
-        $nearSphere: {
-          $geometry: { type: 'Point', coordinates: [deliveryLongitude, deliveryLatitude] },
-          $maxDistance: maxDistance,
+        $geoWithin: {
+          $centerSphere: [[deliveryLongitude, deliveryLatitude], radiusInRadians]
         },
       },
     };
