@@ -10,9 +10,8 @@ const orderSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   bill: { type: Number, required: true },
   
-  // New fields to track delivery times
-  assignedTime: { type: Date }, // Time when the delivery person is assigned
-  deliveredTime: { type: Date } // Time when the order is delivered
+  assignedTime: { type: Date },
+  deliveredTime: { type: Date } 
 });
 
 export const Order = mongoose.model('Order', orderSchema);

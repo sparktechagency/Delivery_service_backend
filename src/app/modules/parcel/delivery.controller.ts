@@ -82,17 +82,14 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
     
      const sender = await User.findById(parcel.senderId);
 
-    // Fix role enum spelling if necessary
     if (sender && sender.role === UserRole.SENDER) {
       sender.role = UserRole.RECCIVER; 
       await sender.save();
     }
-
-    // Fetch sender for notification meta info
     const deliverer = await User.findById(parcel.assignedDelivererId);
 
 const deviceToken = await DeviceToken.findOne({
-  userId: parcel.senderId,  // Use the sender's userId here
+  userId: parcel.senderId,
   fcmToken: { $exists: true, $ne: '' }
 });
 
@@ -642,8 +639,6 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
         latitude: parcel.deliveryLocation?.coordinates[1],
         longitude: parcel.deliveryLocation?.coordinates[0]
       }
-
-
 
       
     });

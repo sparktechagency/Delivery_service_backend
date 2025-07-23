@@ -103,7 +103,7 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
   };
   
   // Optional: Middleware to ensure user can only access their own profile or admin can access any profile
-  export const validateProfileAccess = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const validateProfileAccess = (req: AuthRequest, res: Response, next: NextFunction) => {
     const requestedUserId = req.params.userId;
     const currentUserId = req.user?.id;
     const currentUserRole = req.user?.role;
@@ -121,8 +121,6 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
     // Unauthorized access
     throw new AppError('Unauthorized to access this profile', 403);
   };
-  
-  
   
   
 export const trackUserActivity = async (req: AuthRequest, res: Response, next: NextFunction) => {
