@@ -7,6 +7,7 @@ import NotificationRoute from '../app/modules/notification/notification.route';
 import subscription from '../app/modules/subscriptions/route';
 import PaymentRoutes from '../app/modules/payments/payment.routes';
 import UserActivityRoute from '../app/modules/user/user.activity.Routes';
+import ReviewRoutes from '../app/modules/app-review/review.route';
 
 const router = express.Router();
 
@@ -19,7 +20,8 @@ const apiRoutes = [
   { path: '/notification', route: NotificationRoute},
   { path: '/admin/subscriptions', route: subscription},
   { path: '/payments', route: PaymentRoutes },
-  { path: '/activity', route: UserActivityRoute }
+  { path: '/activity', route: UserActivityRoute },
+  { path: '/review', route: ReviewRoutes }
 
   
 

@@ -24,7 +24,6 @@ adminRouter.put('/profile/:id', authenticate, updateAdminProfile);
 adminRouter.put('/change-password', authenticate, authorize(UserRole.ADMIN), changeAdminPassword);
 adminRouter.delete('/user/:userId', authenticate, authorize(UserRole.ADMIN), deleteUser);
 adminRouter.get('/profile', authenticate, authorize(UserRole.ADMIN), getAdminProfile);
-adminRouter.post('/login', loginAdmin);
 
 // Order Management
 adminRouter.get('/orders', authenticate, authorize(UserRole.ADMIN), getOrders);
