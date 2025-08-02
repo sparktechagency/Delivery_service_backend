@@ -52,21 +52,36 @@ export const createReview = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-// Get all global reviews
 export const getReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Fetch all reviews for the app
-    const reviews = await AppReview.find().populate('userId', 'fullName email');
+
+    const page = parseInt(req.query.page as string) || 1; 
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const reviews = await AppReview.find()
+      .skip(skip) 
+      .limit(limit)  
+      .populate('userId', 'fullName email');
+
+    const totalReviews = await AppReview.countDocuments();
 
     res.status(200).json({
       status: 'success',
       data: reviews,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalReviews / limit),
+        totalReviews: totalReviews,
+        reviewsPerPage: limit,
+      },
     });
   } catch (error) {
     console.error('Error fetching reviews:', error);
     next(error);
   }
 };
+
 
 // Delete a review (only the review creator can delete)
 export const deleteReview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
