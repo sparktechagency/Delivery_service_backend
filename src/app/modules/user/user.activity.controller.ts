@@ -7,100 +7,100 @@ import { DeliveryStatus, UserRole } from '../../../types/enums';
 import { AppError } from '../../middlewares/error';
 import mongoose from 'mongoose';
 
-export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-      const userId = req.params.userId;
+// export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//     try {
+//       const userId = req.params.userId;
       
-      if (!userId) {
-        throw new AppError("User ID is required", 400);
-      }
+//       if (!userId) {
+//         throw new AppError("User ID is required", 400);
+//       }
   
-      console.log('Searching for User ID:', userId);
+//       console.log('Searching for User ID:', userId);
   
-      const user = await User.findById(new mongoose.Types.ObjectId(userId))
-        .select('-passwordHash') 
-        .lean();
+//       const user = await User.findById(new mongoose.Types.ObjectId(userId))
+//         .select('-passwordHash') 
+//         .lean();
   
-      console.log('Found User:', user);
+//       console.log('Found User:', user);
   
-      if (!user) {
-        console.error('No user found with ID:', userId);
-        throw new AppError("User not found", 404);
-      }
+//       if (!user) {
+//         console.error('No user found with ID:', userId);
+//         throw new AppError("User not found", 404);
+//       }
   
-      const parcels = await ParcelRequest.find({
-        $or: [
-          { senderId: userId },
-          { assignedDelivererId: userId },
-          { deliveryRequests: userId }
-        ],
-        status: {
-          $in: [
-            DeliveryStatus.PENDING, 
-            DeliveryStatus.WAITING, 
-            // DeliveryStatus.ACCEPTED, 
-            DeliveryStatus.IN_TRANSIT
-          ]
-        }
-      })
-        .populate("senderId", "fullName email mobileNumber role profileImage")
-        .populate("assignedDelivererId", "fullName email mobileNumber role profileImage")
-        .populate("deliveryRequests", "fullName email mobileNumber role profileImage")
-        .sort({ createdAt: -1 }) // Sort by most recent first
-        .limit(10) // Limit to 10 most recent parcels
-        .lean();
+//       const parcels = await ParcelRequest.find({
+//         $or: [
+//           { senderId: userId },
+//           { assignedDelivererId: userId },
+//           { deliveryRequests: userId }
+//         ],
+//         status: {
+//           $in: [
+//             DeliveryStatus.PENDING, 
+//             DeliveryStatus.WAITING, 
+//             // DeliveryStatus.ACCEPTED, 
+//             DeliveryStatus.IN_TRANSIT
+//           ]
+//         }
+//       })
+//         .populate("senderId", "fullName email mobileNumber role profileImage")
+//         .populate("assignedDelivererId", "fullName email mobileNumber role profileImage")
+//         .populate("deliveryRequests", "fullName email mobileNumber role profileImage")
+//         .sort({ createdAt: -1 }) // Sort by most recent first
+//         .limit(10) // Limit to 10 most recent parcels
+//         .lean();
   
-      // Prepare user profile data
-      const userProfile = {
-        _id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        mobileNumber: user.mobileNumber,
-        Image: user.image,
-        role: user.role,
-        freeDeliveries: user.freeDeliveries,
-        totalOrders: user.totalOrders,
-        totaltripsCompleted: user.TotaltripsCompleted,
-        subscriptionType: user.subscriptionType,
-        isVerified: user.isVerified,
-        socialLinks: {
-          facebook: user.facebook,
-          instagram: user.instagram,
-          whatsapp: user.whatsapp
-        },
-        stats: {
-          totalSentParcels: user.totalSentParcels || 0,
-          totalReceivedParcels: user.totalReceivedParcels || 0,
-          avgRating: user.avgRating || 0
-        }
-      };
+//       // Prepare user profile data
+//       const userProfile = {
+//         _id: user._id,
+//         fullName: user.fullName,
+//         email: user.email,
+//         mobileNumber: user.mobileNumber,
+//         Image: user.image,
+//         role: user.role,
+//         freeDeliveries: user.freeDeliveries,
+//         totalOrders: user.totalOrders,
+//         totaltripsCompleted: user.TotaltripsCompleted,
+//         subscriptionType: user.subscriptionType,
+//         isVerified: user.isVerified,
+//         socialLinks: {
+//           facebook: user.facebook,
+//           instagram: user.instagram,
+//           whatsapp: user.whatsapp
+//         },
+//         stats: {
+//           totalSentParcels: user.totalSentParcels || 0,
+//           totalReceivedParcels: user.totalReceivedParcels || 0,
+//           avgRating: user.avgRating || 0
+//         }
+//       };
   
-      res.status(200).json({
-        status: "success",
-        message: "User profile and parcels fetched successfully",
-        profile: userProfile,
-        parcels: parcels,
-        parcelCount: parcels.length
-      });
+//       res.status(200).json({
+//         status: "success",
+//         message: "User profile and parcels fetched successfully",
+//         profile: userProfile,
+//         parcels: parcels,
+//         parcelCount: parcels.length
+//       });
   
-    } catch (error) {
-      console.error('Detailed Error in getUserProfileAndParcels:', error);
+//     } catch (error) {
+//       console.error('Detailed Error in getUserProfileAndParcels:', error);
       
-      // More detailed error response
-      if (error instanceof AppError) {
-        res.status(error.statusCode).json({
-          status: "error",
-          message: error.message
-        });
-      } else {
-        res.status(500).json({
-          status: "error",
-          message: "Internal server error",
-          details: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    }
-  };
+//       // More detailed error response
+//       if (error instanceof AppError) {
+//         res.status(error.statusCode).json({
+//           status: "error",
+//           message: error.message
+//         });
+//       } else {
+//         res.status(500).json({
+//           status: "error",
+//           message: "Internal server error",
+//           details: error instanceof Error ? error.message : 'Unknown error'
+//         });
+//       }
+//     }
+//   };
   
   // Optional: Middleware to ensure user can only access their own profile or admin can access any profile
 export const validateProfileAccess = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -121,7 +121,111 @@ export const validateProfileAccess = (req: AuthRequest, res: Response, next: Nex
     // Unauthorized access
     throw new AppError('Unauthorized to access this profile', 403);
   };
-  
+  export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.params.userId;
+    
+    if (!userId) {
+      throw new AppError("User ID is required", 400);
+    }
+
+    console.log('Searching for User ID:', userId);
+
+    // Fetch the user details by userId
+    const user = await User.findById(new mongoose.Types.ObjectId(userId))
+      .select('-passwordHash') // Exclude passwordHash from the response
+      .lean();
+
+    console.log('Found User:', user);
+
+    if (!user) {
+      console.error('No user found with ID:', userId);
+      throw new AppError("User not found", 404);
+    }
+
+    // Calculate the average rating for the user based on reviews
+    if (user.reviews && user.reviews.length > 0) {
+      const totalRating = user.reviews.reduce((sum, review) => sum + review.rating, 0);
+      const avgRating = totalRating / user.reviews.length;
+      user.avgRating = parseFloat(avgRating.toFixed(2)); // Round to 2 decimal places
+    } else {
+      user.avgRating = 0; // If no reviews, set avgRating to 0
+    }
+
+    // Fetch the parcels associated with the user
+    const parcels = await ParcelRequest.find({
+      $or: [
+        { senderId: userId },
+        { assignedDelivererId: userId },
+        { deliveryRequests: userId }
+      ],
+      status: {
+        $in: [
+          DeliveryStatus.PENDING,
+          DeliveryStatus.WAITING,
+          DeliveryStatus.IN_TRANSIT
+        ]
+      }
+    })
+      .populate("senderId", "fullName email mobileNumber role profileImage")
+      .populate("assignedDelivererId", "fullName email mobileNumber role profileImage")
+      .populate("deliveryRequests", "fullName email mobileNumber role profileImage")
+      .sort({ createdAt: -1 }) // Sort by most recent first
+      .limit(10) // Limit to 10 most recent parcels
+      .lean();
+
+    // Prepare user profile data
+    const userProfile = {
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      mobileNumber: user.mobileNumber,
+      image: user.image,
+      role: user.role,
+      freeDeliveries: user.freeDeliveries,
+      totalOrders: user.totalOrders,
+      totaltripsCompleted: user.TotaltripsCompleted,
+      subscriptionType: user.subscriptionType,
+      isVerified: user.isVerified,
+      socialLinks: {
+        facebook: user.facebook,
+        instagram: user.instagram,
+        whatsapp: user.whatsapp
+      },
+      stats: {
+        totalSentParcels: user.totalSentParcels || 0,
+        totalReceivedParcels: user.totalReceivedParcels || 0,
+        avgRating: user.avgRating || 0  // Include the avgRating here
+      }
+    };
+
+    res.status(200).json({
+      status: "success",
+      message: "User profile and parcels fetched successfully",
+      profile: userProfile,
+      parcels: parcels,
+      parcelCount: parcels.length
+    });
+
+  } catch (error) {
+    console.error('Detailed Error in getUserProfileAndParcels:', error);
+    
+    // More detailed error response
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({
+        status: "error",
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        status: "error",
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+};
+
   
 export const trackUserActivity = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
