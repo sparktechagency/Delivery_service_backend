@@ -88,6 +88,9 @@ export const deleteReview = async (req: Request, res: Response, next: NextFuncti
   try {
     const { reviewId } = req.params;
     const userId = req.user?.id;
+    const userRole = req.user?.role;  // Assuming you have user roles (admin, user, etc.)
+    
+    console.log('User ID:', userId, 'Review ID:', reviewId, 'User Role:', userRole);
 
     if (!userId) {
       res.status(400).json({
@@ -97,7 +100,30 @@ export const deleteReview = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // Check if the review exists and if the user is the one who wrote it
+    if (userRole === 'ADMIN') {
+      console.log('Admin user, allowing deletion of any review.');
+      // Admin can delete the review without checking ownership
+      const review = await AppReview.findById(reviewId);
+      if (!review) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Review not found.',
+          // console: `Review ID: ${reviewId}, User ID: ${userId}`,
+        });
+        return;
+      }
+      
+      // Proceed with deleting the review
+      await review.deleteOne();
+      res.status(200).json({
+        status: 'success',
+        message: 'Review deleted successfully.',
+        console: `Review with ID: ${reviewId} deleted by admin with ID: ${userId}`,
+      });
+      return;
+    }
+
+    // If the user is not an admin, check if they are the owner of the review
     const review = await AppReview.findOne({ _id: reviewId, userId });
 
     if (!review) {
@@ -108,15 +134,16 @@ export const deleteReview = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // Delete the review
+    // Proceed with deleting the review for non-admin users
     await review.deleteOne();
-
     res.status(200).json({
       status: 'success',
       message: 'Review deleted successfully.',
+      console: `Review with ID: ${reviewId} deleted by user with ID: ${userId}`,
     });
   } catch (error) {
     console.error('Error deleting review:', error);
     next(error);
   }
 };
+

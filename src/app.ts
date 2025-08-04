@@ -31,7 +31,7 @@ app.post(
 
 app.use(cors({
   origin: [
-    "http://10.0.70.213:4000", 
+    "http://10.10.7.22:3051", 
     "http://localhost:4000", 
     "https://ivan-parcel-delivery.vercel.app",
     "http://localhost:3000"
