@@ -8,6 +8,7 @@ import subscription from '../app/modules/subscriptions/route';
 import PaymentRoutes from '../app/modules/payments/payment.routes';
 import UserActivityRoute from '../app/modules/user/user.activity.Routes';
 import ReviewRoutes from '../app/modules/app-review/review.route';
+import { RuleRoutes } from '../app/modules/rule/rule.route';
 
 const router = express.Router();
 
@@ -21,7 +22,8 @@ const apiRoutes = [
   { path: '/admin/subscriptions', route: subscription},
   { path: '/payments', route: PaymentRoutes },
   { path: '/activity', route: UserActivityRoute },
-  { path: '/review', route: ReviewRoutes }
+  { path: '/review', route: ReviewRoutes },
+  { path: '/rule', route: RuleRoutes }
 
   
 
