@@ -9,25 +9,6 @@ export class AppError extends Error {
   }
 }
 
-// export const errorHandler = async (
-//   err: Error,
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ): Promise<void> => {
-//   if (err instanceof AppError) {
-//      res.status(err.statusCode).json({
-//       status: 'error',
-//       message: err.message
-//     });
-//   }
-
-//   console.error(err);
-//   res.status(500).json({
-//     status: 'error',
-//     message: 'Internal server error'
-//   });
-// };
 interface ErrorResponse {
   status: string;
   message: string;

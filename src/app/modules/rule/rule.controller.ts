@@ -42,16 +42,16 @@ const updatePrivacyPolicy = catchAsync(async (req: Request, res: Response) => {
 
 //terms and conditions
 const createTermsAndCondition = catchAsync(async (req: Request, res: Response) => {
-  const { ...termsData } = req.body
-  const result = await RuleService.createTermsAndConditionToDB(termsData)
-  
+  const { ...termsData } = req.body;
+  const result = await RuleService.createTermsAndConditionToDB(termsData);
+
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.CREATED,
     message: 'Terms and conditions created successfully',
     data: result,
-  })
-})
+  });
+});
 
 const getTermsAndCondition = catchAsync(async (req: Request, res: Response) => {
   const result = await RuleService.getTermsAndConditionFromDB()
