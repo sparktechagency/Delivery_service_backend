@@ -1,4 +1,4 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import catchAsync from '../shared/catchAsync'
 import sendResponse from '../shared/sendResponse'
@@ -42,18 +42,24 @@ const updatePrivacyPolicy = catchAsync(async (req: Request, res: Response) => {
 
 //terms and conditions
 const createTermsAndCondition = catchAsync(
-  async (req: Request, res: Response) => {
-    const { ...termsData } = req.body
-    const result = await RuleService.createTermsAndConditionToDB(termsData)
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { ...termsData } = req.body;
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Terms and conditions created successfully',
-      data: result,
-    })
-  },
-)
+    try {
+      const result = await RuleService.createTermsAndConditionToDB(termsData, next);
+
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Terms and conditions created successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error); 
+    }
+  }
+);
+
 
 const getTermsAndCondition = catchAsync(async (req: Request, res: Response) => {
   const result = await RuleService.getTermsAndConditionFromDB()
