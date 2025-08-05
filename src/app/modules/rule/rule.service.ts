@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes'
 import ApiError from '../../../errors/ApiError'
 import { IRule } from './rule.interface'
 import { Rule } from './rule.model'
+import { NextFunction } from 'express'
 
 //privacy policy
 const createPrivacyPolicyToDB = async (payload: IRule) => {
@@ -33,18 +34,33 @@ const updatePrivacyPolicyToDB = async (payload: IRule) => {
 }
 
 //terms and conditions
-const createTermsAndConditionToDB = async (payload: IRule) => {
-  const isExistTerms = await Rule.findOne({ type: 'terms' })
-  if (isExistTerms) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Terms and conditions already exist!',
-    )
-  } else {
-    const result = await Rule.create({ ...payload, type: 'terms' })
-    return result
+// const createTermsAndConditionToDB = async (payload: IRule) => {
+//   const isExistTerms = await Rule.findOne({ type: 'terms' })
+//   if (isExistTerms) {
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       'Terms and conditions already exist!',
+//     )
+//   } else {
+//     const result = await Rule.create({ ...payload, type: 'terms' })
+//     return result
+//   }
+// }
+const createTermsAndConditionToDB = async (payload: IRule, next: NextFunction) => {
+  try {
+    const isExistTerms = await Rule.findOne({ type: 'terms' });
+
+    if (isExistTerms) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Terms and conditions already exist!');
+    } else {
+      const result = await Rule.create({ ...payload, type: 'terms' });
+      return result;
+    }
+  } catch (error) {
+    next(error); // Pass the error to the next error handling middleware
   }
-}
+};
+
 
 const getTermsAndConditionFromDB = async () => {
   const result = await Rule.findOne({ type: 'terms' })
