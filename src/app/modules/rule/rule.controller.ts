@@ -8,10 +8,10 @@ import { RuleService } from './rule.service'
 const createPrivacyPolicy = catchAsync(async (req: Request, res: Response) => {
   const { ...privacyData } = req.body
   const result = await RuleService.createPrivacyPolicyToDB(privacyData)
-
+  
   sendResponse(res, {
     success: true,
-    statusCode: StatusCodes.OK,
+    statusCode: StatusCodes.CREATED,
     message: 'Privacy policy created successfully',
     data: result,
   })
@@ -19,7 +19,7 @@ const createPrivacyPolicy = catchAsync(async (req: Request, res: Response) => {
 
 const getPrivacyPolicy = catchAsync(async (req: Request, res: Response) => {
   const result = await RuleService.getPrivacyPolicyFromDB()
-
+  
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -31,7 +31,7 @@ const getPrivacyPolicy = catchAsync(async (req: Request, res: Response) => {
 const updatePrivacyPolicy = catchAsync(async (req: Request, res: Response) => {
   const { ...privacyData } = req.body
   const result = await RuleService.updatePrivacyPolicyToDB(privacyData)
-
+  
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -41,30 +41,21 @@ const updatePrivacyPolicy = catchAsync(async (req: Request, res: Response) => {
 })
 
 //terms and conditions
-const createTermsAndCondition = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const { ...termsData } = req.body;
-
-    try {
-      const result = await RuleService.createTermsAndConditionToDB(termsData);
-
-      sendResponse(res, {
-        success: true,
-        statusCode: StatusCodes.OK,
-        message: 'Terms and conditions created successfully',
-        data: result,
-      });
-    } catch (error) {
-      next(error); // Pass the error to the next error-handling middleware
-    }
-  }
-);
-
-
+const createTermsAndCondition = catchAsync(async (req: Request, res: Response) => {
+  const { ...termsData } = req.body
+  const result = await RuleService.createTermsAndConditionToDB(termsData)
+  
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.CREATED,
+    message: 'Terms and conditions created successfully',
+    data: result,
+  })
+})
 
 const getTermsAndCondition = catchAsync(async (req: Request, res: Response) => {
   const result = await RuleService.getTermsAndConditionFromDB()
-
+  
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -73,28 +64,26 @@ const getTermsAndCondition = catchAsync(async (req: Request, res: Response) => {
   })
 })
 
-const updateTermsAndCondition = catchAsync(
-  async (req: Request, res: Response) => {
-    const { ...termsData } = req.body
-    const result = await RuleService.updateTermsAndConditionToDB(termsData)
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Terms and conditions updated successfully',
-      data: result,
-    })
-  },
-)
+const updateTermsAndCondition = catchAsync(async (req: Request, res: Response) => {
+  const { ...termsData } = req.body
+  const result = await RuleService.updateTermsAndConditionToDB(termsData)
+  
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Terms and conditions updated successfully',
+    data: result,
+  })
+})
 
 //about
 const createAbout = catchAsync(async (req: Request, res: Response) => {
   const { ...aboutData } = req.body
   const result = await RuleService.createAboutToDB(aboutData)
-
+  
   sendResponse(res, {
     success: true,
-    statusCode: StatusCodes.OK,
+    statusCode: StatusCodes.CREATED,
     message: 'About created successfully',
     data: result,
   })
@@ -102,7 +91,7 @@ const createAbout = catchAsync(async (req: Request, res: Response) => {
 
 const getAbout = catchAsync(async (req: Request, res: Response) => {
   const result = await RuleService.getAboutFromDB()
-
+  
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -114,7 +103,7 @@ const getAbout = catchAsync(async (req: Request, res: Response) => {
 const updateAbout = catchAsync(async (req: Request, res: Response) => {
   const { ...aboutData } = req.body
   const result = await RuleService.updateAboutToDB(aboutData)
-
+  
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
