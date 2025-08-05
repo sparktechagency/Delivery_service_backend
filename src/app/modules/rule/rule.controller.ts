@@ -46,7 +46,7 @@ const createTermsAndCondition = catchAsync(
     const { ...termsData } = req.body;
 
     try {
-      const result = await RuleService.createTermsAndConditionToDB(termsData, next);
+      const result = await RuleService.createTermsAndConditionToDB(termsData);
 
       sendResponse(res, {
         success: true,
@@ -55,10 +55,11 @@ const createTermsAndCondition = catchAsync(
         data: result,
       });
     } catch (error) {
-      next(error); 
+      next(error); // Pass the error to the next error-handling middleware
     }
   }
 );
+
 
 
 const getTermsAndCondition = catchAsync(async (req: Request, res: Response) => {

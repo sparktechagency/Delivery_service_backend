@@ -46,18 +46,15 @@ const updatePrivacyPolicyToDB = async (payload: IRule) => {
 //     return result
 //   }
 // }
-const createTermsAndConditionToDB = async (payload: IRule, next: NextFunction) => {
-  try {
-    const isExistTerms = await Rule.findOne({ type: 'terms' });
+const createTermsAndConditionToDB = async (payload: IRule) => {
+  const isExistTerms = await Rule.findOne({ type: 'terms' });
 
-    if (isExistTerms) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Terms and conditions already exist!');
-    } else {
-      const result = await Rule.create({ ...payload, type: 'terms' });
-      return result;
-    }
-  } catch (error) {
-    next(error); // Pass the error to the next error handling middleware
+  if (isExistTerms) {
+    // Throw custom error when terms already exist
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Terms and conditions already exist!');
+  } else {
+    const result = await Rule.create({ ...payload, type: 'terms' });
+    return result;
   }
 };
 
