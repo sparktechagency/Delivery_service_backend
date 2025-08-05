@@ -5,6 +5,7 @@ import { User } from '../user/user.model';
 import { ParcelRequest } from '../parcel/ParcelRequest.model';
 import { UserActivity } from '../user/user.activity.model';
 import moment from 'moment';
+import { DeliveryStatus } from '../../../types/enums';
 
 
 const getDateRange = (year?: number, month?: number, day?: number) => {
@@ -898,19 +899,51 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
 };
 
 
-export const getTotalOrdersNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
-  try {
-    const totalOrders = await Order.countDocuments({});
+// export const getTotalOrdersNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
+//   try {
+//     const totalOrders = await Order.countDocuments({});
 
-     res.status(200).json({
+//      res.status(200).json({
+//       status: 'success',
+//       data: [
+//         {
+//           x: 'Total',
+//           y: totalOrders || 0,
+//         },
+//       ],
+//       total: totalOrders || 0,  
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+export const getTotalOrdersNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    // Count regular orders
+    const totalOrders = await Order.countDocuments({});
+    
+    // Count delivered parcels
+    const deliveredParcels = await ParcelRequest.countDocuments({ 
+      status: DeliveryStatus.DELIVERED 
+    });
+    
+    // Calculate total (orders + delivered parcels)
+    const grandTotal = totalOrders + deliveredParcels;
+    
+    res.status(200).json({
       status: 'success',
       data: [
         {
           x: 'Total',
-          y: totalOrders || 0,
+          y: grandTotal,
         },
       ],
-      total: totalOrders || 0,  
+      total: grandTotal,
+      breakdown: {
+        orders: totalOrders || 0,
+        deliveredParcels: deliveredParcels || 0,
+      }
     });
   } catch (error) {
     next(error);
