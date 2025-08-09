@@ -8,7 +8,7 @@ export interface UserDocument extends Document {
   _id: Types.ObjectId;
   fullName: string;
   country: string;
-  email?: string;
+  email: string;
   mobileNumber?: string;
   image: string;
   passwordHash?: string;
