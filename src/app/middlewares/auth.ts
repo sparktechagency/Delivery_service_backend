@@ -144,7 +144,6 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 //   };
 // };
 
-
 export const authorize = (...roles: UserRole[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     const userRole = req.user?.role?.toUpperCase(); // Normalize role case
