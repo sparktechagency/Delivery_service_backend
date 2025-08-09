@@ -89,7 +89,7 @@ export interface UserDocument extends Document {
 const userSchema = new Schema<UserDocument>({
   fullName: { type: String, required: false },
   country: { type: String, required: false },
-  email: { type: String, unique: true, sparse: true, required: false, default: "" },
+email: { type: String, unique: true, sparse: true, required: false },
   mobileNumber: { type: String, unique: true, sparse: true },
   image: { type: String, default: "" },
   passwordHash: String,
