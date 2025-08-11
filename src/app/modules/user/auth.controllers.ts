@@ -169,20 +169,17 @@ const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<b
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { fullName, mobileNumber, country, email, fcmToken, deviceId, deviceType = 'android' } = req.body;
-
-    // Ensure mobile number is provided
+    
     if (!mobileNumber) {
       throw new AppError("Mobile number is required", 400);
     }
-
-    // Ensure deviceId is provided if fcmToken is provided
+    
     if (fcmToken && !deviceId) {
       throw new AppError('deviceId is required when providing fcmToken', 400);
     }
 
     let formattedNumber: string;
     try {
-      // Format the phone number
       formattedNumber = formatPhoneNumber(mobileNumber);
     } catch (formatError: any) {
       throw new AppError(`Invalid phone number: ${formatError.message}`, 400);
@@ -194,46 +191,49 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       throw new AppError("Mobile number already registered", 400);
     }
 
-    // Handle email - it is optional
-    let formattedEmail = null; // Initialize email as null (if not provided)
+    // Prepare user data
+    const userData: {
+      fullName: typeof fullName;
+      country: typeof country;
+      mobileNumber: string;
+      isVerified: boolean;
+      email?: string;
+    } = {
+      fullName,
+      country,
+      mobileNumber: formattedNumber,
+      isVerified: false
+    };
+
+    // Handle email only if provided
     if (email && email.trim() !== "") {
-      // Format the email (to lowercase) and check if it's already in use
-      formattedEmail = email.toLowerCase();
+      const formattedEmail = email.toLowerCase();
       const existingEmailUser = await User.findOne({ email: formattedEmail });
       if (existingEmailUser) {
         throw new AppError("Email already exists", 400);
       }
+      userData.email = formattedEmail;
     }
 
-    // Create the user with the provided data (email can be null or a valid email)
-    const user = await User.create({ 
-      fullName, 
-      country, 
-      mobileNumber: formattedNumber, 
-      email: formattedEmail, // Pass the email (null if not provided)
-      isVerified: false 
-    });
-
+    const user = await User.create(userData);
     console.log('User created:', user._id);
 
-    // Send OTP via Twilio (assumes the OTP functionality is implemented correctly)
+    // Send OTP via Twilio
     await sendTwilioOTP(formattedNumber);
 
-    // Handle FCM token if provided
+    // Handle FCM token
     if (fcmToken && deviceId) {
       const existingToken = await DeviceToken.findOne({
         userId: user._id,
         deviceId: deviceId
       });
-
+      
       if (existingToken) {
-        // Update existing token
         existingToken.fcmToken = fcmToken;
         existingToken.deviceType = deviceType;
         await existingToken.save();
         console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
       } else {
-        // Create new token entry
         await DeviceToken.create({
           userId: user._id,
           fcmToken,
@@ -244,13 +244,11 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       }
     }
 
-    // Respond with a success message
     res.status(201).json({
       status: "success",
       message: "User registered successfully. Please verify OTP to complete registration.",
       userId: user._id
     });
-
   } catch (error) {
     next(error);
   }
