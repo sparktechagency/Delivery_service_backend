@@ -170,26 +170,34 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { fullName, mobileNumber, country, email, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
+    // Ensure mobile number is provided
     if (!mobileNumber) {
       throw new AppError("Mobile number is required", 400);
     }
 
+    // Ensure deviceId is provided if fcmToken is provided
     if (fcmToken && !deviceId) {
       throw new AppError('deviceId is required when providing fcmToken', 400);
     }
 
     let formattedNumber: string;
     try {
+      // Format the phone number
       formattedNumber = formatPhoneNumber(mobileNumber);
     } catch (formatError: any) {
       throw new AppError(`Invalid phone number: ${formatError.message}`, 400);
     }
+
+    // Check if mobile number already exists
     const existingUser = await User.findOne({ mobileNumber: formattedNumber });
     if (existingUser) {
       throw new AppError("Mobile number already registered", 400);
     }
+
+    // Handle email - it is optional
     let formattedEmail = null; // Initialize email as null (if not provided)
     if (email && email.trim() !== "") {
+      // Format the email (to lowercase) and check if it's already in use
       formattedEmail = email.toLowerCase();
       const existingEmailUser = await User.findOne({ email: formattedEmail });
       if (existingEmailUser) {
@@ -197,19 +205,21 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       }
     }
 
-
+    // Create the user with the provided data (email can be null or a valid email)
     const user = await User.create({ 
       fullName, 
       country, 
       mobileNumber: formattedNumber, 
-      email: formattedEmail,
+      email: formattedEmail, // Pass the email (null if not provided)
       isVerified: false 
     });
 
     console.log('User created:', user._id);
 
+    // Send OTP via Twilio (assumes the OTP functionality is implemented correctly)
     await sendTwilioOTP(formattedNumber);
 
+    // Handle FCM token if provided
     if (fcmToken && deviceId) {
       const existingToken = await DeviceToken.findOne({
         userId: user._id,
