@@ -162,7 +162,7 @@ export const authorize = (...roles: UserRole[]) => {
 
 
 export const generateTokens = (userId: string, role: UserRole) => {
-  const accessToken = jwt.sign({ id: userId, role }, config.jwtSecret, { expiresIn: '24h' });
+  const accessToken = jwt.sign({ id: userId, role }, config.jwtSecret, { expiresIn: '30d' });
   const refreshToken = jwt.sign({ id: userId }, config.jwtSecret, { expiresIn: '7d' });
 
   console.log("🔹 Generated Access Token:", accessToken); // Debugging
