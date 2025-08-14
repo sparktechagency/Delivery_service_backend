@@ -205,7 +205,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       isVerified: false
     };
 
-    // Handle email only if provided
+
     if (email && email.trim() !== "") {
       const formattedEmail = email.toLowerCase();
       const existingEmailUser = await User.findOne({ email: formattedEmail });
@@ -238,7 +238,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
           userId: user._id,
           fcmToken,
           deviceId,
-          deviceType
+          deviceType,
         });
         console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
       }
@@ -667,6 +667,7 @@ export const loginWithEmailOTP = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
+
 export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, otpCode, fcmToken, deviceId, deviceType = 'android' } = req.body;
