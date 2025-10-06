@@ -96,7 +96,7 @@ const userSchema = new Schema<UserDocument>({
   required: false 
 },
   mobileNumber: { type: String, unique: true, sparse: true },
-  image: { type: String, default: "https://api.deliverlydashboard.com/uploads/image/130-1759735274003.jpg" },
+  image: { type: String, default: 'https://api.deliverlydashboard.com/uploads/image/130-1759735274003.jpg'},
   passwordHash: String,
   facebook: { type: String },
   instagram: { type: String },

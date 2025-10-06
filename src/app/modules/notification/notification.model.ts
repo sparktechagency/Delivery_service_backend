@@ -38,7 +38,7 @@ const notificationSchema = new mongoose.Schema({
   },
   image: {
     type: String,
-    default: '',
+    default: 'https://api.deliverlydashboard.com/uploads/image/130-1759735274003.jpg',
   },
   price: {
     type: Number,

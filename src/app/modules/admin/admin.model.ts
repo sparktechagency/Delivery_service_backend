@@ -9,7 +9,7 @@ const adminSchema = new mongoose.Schema({
   permanentAddress: { type: String },
   postalCode: { type: String },
   username: { type: String, unique: true, required: true },
-  image: { type: String, default: "" },
+  image: { type: String, default: "https://api.deliverlydashboard.com/uploads/image/130-1759735274003.jpg" },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.ADMIN },
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },

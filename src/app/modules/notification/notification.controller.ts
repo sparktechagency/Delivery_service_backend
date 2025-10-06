@@ -361,7 +361,7 @@ export const createNotification = async (
         mobileNumber: additionalData.mobileNumber || '',
         price: additionalData.price || 0,
         description: additionalData.description || '',
-        image: additionalData.image || '',
+        image: additionalData.image || 'https://api.deliverlydashboard.com/uploads/image/130-1759735274003.jpg',
         parcelId: additionalData.parcelId || '',
         pickupLocation: pickupLocationAddress || '',
         deliveryLocation: deliveryLocationAddress || '',
