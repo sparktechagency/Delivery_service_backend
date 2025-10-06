@@ -6,7 +6,7 @@ pnpm-debug.log*
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
-
+deliverly-4811e-firebase-adminsdk-fbsvc-00237f3c12.json
 # Logs
 logs/
 *.log
