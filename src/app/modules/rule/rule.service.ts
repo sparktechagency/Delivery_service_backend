@@ -96,6 +96,37 @@ const updateAboutToDB = async (payload: IRule) => {
   return result
 }
 
+const deleteAccountPolicy = async (payload: IRule) => {
+  const isExistAbout = await Rule.findOne({ type: 'delete-account' })
+  if (isExistAbout) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'delete-policy already exist!')
+  }
+  
+  const result = await Rule.create({ ...payload, type: 'about' })
+  return result
+}
+
+//get delete account policy
+const getDeleteAccountFromDB = async () => {  
+  const result = await Rule.findOne({ type: 'delete-account' })
+  if (!result) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "delete-account policy doesn't exist!")
+  }
+  return result
+}
+
+
+//update delete account policy
+const updateDeleteAccountToDB = async (payload: IRule) => {
+  const result = await Rule.findOneAndUpdate({ type: 'delete-account' }, payload, {
+    new: true,
+  })
+  if (!result) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "delete-account policy doesn't exist!")
+  }
+  return result
+}
+
 export const RuleService = {
   createPrivacyPolicyToDB,
   updatePrivacyPolicyToDB,
@@ -106,4 +137,6 @@ export const RuleService = {
   createAboutToDB,
   updateAboutToDB,
   getAboutFromDB,
+  deleteAccountPolicy,
+  getDeleteAccountFromDB,
 }

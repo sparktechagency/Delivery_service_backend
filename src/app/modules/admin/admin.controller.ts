@@ -368,7 +368,6 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-
 export const deleteUser = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
   try {
     const userIdToDelete = req.params.userId;

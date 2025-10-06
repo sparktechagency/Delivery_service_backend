@@ -112,6 +112,43 @@ const updateAbout = catchAsync(async (req: Request, res: Response) => {
   })
 })
 
+// delete account
+const deleteAccountPolicy = catchAsync(async (req: Request, res: Response) => {
+  const { ...deleteData } = req.body
+  const result = await RuleService.createAboutToDB(deleteData)
+  
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.CREATED,
+    message: 'About created successfully',
+    data: result,
+  })
+})
+
+//get delete account policy
+const getDeleteAccount = catchAsync(async (req: Request, res: Response) => {
+  const result = await RuleService.getDeleteAccountFromDB()
+  
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'delete-account policy retrieved successfully',
+    data: result,
+  })
+})
+
+const updateDeleteAccount = catchAsync(async (req: Request, res: Response) => {
+  const { ...aboutData } = req.body
+  const result = await RuleService.updateAboutToDB(aboutData)
+  
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'About updated successfully',
+    data: result,
+  })
+})
+
 export const RuleController = {
   createPrivacyPolicy,
   getPrivacyPolicy,
@@ -122,4 +159,7 @@ export const RuleController = {
   createAbout,
   getAbout,
   updateAbout,
+  deleteAccountPolicy,
+  getDeleteAccount,
+  updateDeleteAccount,
 }

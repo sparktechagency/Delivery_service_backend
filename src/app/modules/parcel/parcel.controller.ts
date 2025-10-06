@@ -292,9 +292,8 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
 
     // Filter out parcels with null senderId AND current user's parcels
     parcels = parcels.filter(parcel => {
-      // Check if senderId exists and is populated
-      if (!parcel.senderId || !parcel.senderId._id) {
-        return false; // Exclude parcels with null/missing senderId
+            if (!parcel.senderId || !parcel.senderId._id) {
+        return false; 
       }
       
       // Exclude current user's parcels
@@ -899,8 +898,4 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
     next(error);
   }
 };
-
-
-
-
 

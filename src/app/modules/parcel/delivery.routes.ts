@@ -13,5 +13,4 @@ deliveryRouter.post('/cancel-request',authenticate, cancelDeliveryRequest);
 deliveryRouter.get('/review/:userId',getReviewsForUser );
 deliveryRouter.post('/DevCancelparcel',authenticate,cancelParcelDelivery);
 
-
 export default deliveryRouter;

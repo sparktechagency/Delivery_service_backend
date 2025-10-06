@@ -25,5 +25,10 @@ router
   .post(authenticate, authorize(UserRole.ADMIN), RuleController.createAbout)
   .patch(authenticate, authorize(UserRole.ADMIN),RuleController.updateAbout)
   .get(RuleController.getAbout);
-
+// delete account policy
+router
+  .route('/delete-account')
+  .post(authenticate, authorize(UserRole.ADMIN), RuleController.deleteAccountPolicy)
+  .patch(authenticate, authorize(UserRole.ADMIN), RuleController.updateDeleteAccount)
+  .get(RuleController.getDeleteAccount);
 export const RuleRoutes = router;

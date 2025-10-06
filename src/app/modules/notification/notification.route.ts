@@ -18,3 +18,4 @@ NotificationRoute.patch('/mark-read', authenticate, markAllNotificationsAsRead )
 //admin notifications
 NotificationRoute.post('/announcement', authenticate, authorize(UserRole.ADMIN),sendAnnouncement);
 export default NotificationRoute;
+

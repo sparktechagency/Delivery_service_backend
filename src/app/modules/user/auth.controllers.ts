@@ -37,25 +37,60 @@ const transporter = nodemailer.createTransport({
 });
 
 
+// const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
+//   try {
+    
+//     if (!config.twilio.twilioAccountSid || !config.twilio.twilioAuthToken || !twilioServiceSid) {
+//       throw new Error('Missing Twilio configuration');
+//     }
+    
+//     const verification = await twilioClient.verify.v2
+//       .services(twilioServiceSid)
+//       .verifications.create({
+//         to: mobileNumber,
+//         channel: 'sms'
+//       });
+    
+//     return verification.sid;
+//   } catch (error: any) {
+
+    
+//     // Provide more specific error messages
+//     if (error.code === 20003) {
+//       throw new AppError('Authentication Error: Invalid Twilio credentials', 500);
+//     }
+//     if (error.code === 20404) {
+//       throw new AppError('Twilio Service not found: Invalid Service SID', 500);
+//     }
+//     if (error.code === 60200) {
+//       throw new AppError('Invalid phone number format', 400);
+//     }
+    
+//     throw new AppError(`Failed to send OTP: ${error.message}`, 500);
+//   }
+// };
 const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
   try {
-    
+    // Review bypass - only enabled by env flag
+    if (process.env.ENABLE_REVIEW_BYPASS === 'true' &&
+        mobileNumber === process.env.REVIEW_BYPASS_PHONE) {
+      console.log(`Review bypass enabled for ${mobileNumber}`);
+      return `review-bypass-${Date.now()}`;
+    }
+
     if (!config.twilio.twilioAccountSid || !config.twilio.twilioAuthToken || !twilioServiceSid) {
       throw new Error('Missing Twilio configuration');
     }
-    
+
     const verification = await twilioClient.verify.v2
       .services(twilioServiceSid)
       .verifications.create({
         to: mobileNumber,
         channel: 'sms'
       });
-    
+
     return verification.sid;
   } catch (error: any) {
-
-    
-    // Provide more specific error messages
     if (error.code === 20003) {
       throw new AppError('Authentication Error: Invalid Twilio credentials', 500);
     }
@@ -65,25 +100,55 @@ const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
     if (error.code === 60200) {
       throw new AppError('Invalid phone number format', 400);
     }
-    
+
     throw new AppError(`Failed to send OTP: ${error.message}`, 500);
   }
 };
 
+// const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<boolean> => {
+//   try {
+    
+//     const verificationCheck = await twilioClient.verify.v2
+//       .services(twilioServiceSid)
+//       .verificationChecks.create({
+//         to: mobileNumber,
+//         code: otpCode
+//       });
+    
+//     return verificationCheck.status === 'approved';
+//   } catch (error: any) {
+  
+//     throw new AppError('OTP verification failed', 400);
+//   }
+// };
+
 const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<boolean> => {
   try {
-    
+    // Review bypass
+    if (process.env.ENABLE_REVIEW_BYPASS === 'true' &&
+        mobileNumber === process.env.REVIEW_BYPASS_PHONE) {
+      const expected = process.env.REVIEW_BYPASS_OTP;
+      return otpCode === expected;
+    }
+
     const verificationCheck = await twilioClient.verify.v2
       .services(twilioServiceSid)
       .verificationChecks.create({
         to: mobileNumber,
         code: otpCode
       });
-    
+
     return verificationCheck.status === 'approved';
   } catch (error: any) {
-  
-    throw new AppError('OTP verification failed', 400);
+    // Provide more context if needed
+    if (error.code === 20404) {
+      throw new AppError('Twilio verify service not found', 500);
+    }
+    if (error.code === 60200) {
+      throw new AppError('Invalid phone number format', 400);
+    }
+    // Twilio returns 20003 for auth, etc.
+    throw new AppError(`OTP verification failed: ${error?.message || 'unknown error'}`, 400);
   }
 };
 
@@ -166,6 +231,7 @@ const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<b
 //     next(error);
 //   }
 // };
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { fullName, mobileNumber, country, email, fcmToken, deviceId, deviceType = 'android' } = req.body;
