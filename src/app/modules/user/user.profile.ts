@@ -70,7 +70,7 @@ export const updateProfile = async (req: Request, res: Response) => {
         instagram: updatedUser.instagram,
         whatsapp: updatedUser.whatsapp,
         mobileNumber: updatedUser.mobileNumber,
-        Image: updatedUser.image || 'https://i.ibb.co/z5YHLV9/profile.png', 
+        Image: updatedUser.image || 'https://api.deliverlydashboard.com/uploads/image/130-1759735274003.jpg', 
   
       };
 
