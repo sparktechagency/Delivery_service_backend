@@ -140,7 +140,6 @@ const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<b
 
     return verificationCheck.status === 'approved';
   } catch (error: any) {
-    // Provide more context if needed
     if (error.code === 20404) {
       throw new AppError('Twilio verify service not found', 500);
     }
