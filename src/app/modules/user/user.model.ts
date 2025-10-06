@@ -96,7 +96,7 @@ const userSchema = new Schema<UserDocument>({
   required: false 
 },
   mobileNumber: { type: String, unique: true, sparse: true },
-  image: { type: String, default: '/uploads/image/130-1759735274003.jpg'},
+  image: { type: String, default: 'http://72.167.54.115:3000/uploads/image/130-1759735274003.jpg'},
   passwordHash: String,
   facebook: { type: String },
   instagram: { type: String },

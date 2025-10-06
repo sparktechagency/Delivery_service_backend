@@ -127,7 +127,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
           instagram: user.instagram || "",
           whatsapp: user.whatsapp || "",
           email : user.email || "missing email",
-          image: user.image || "/uploads/image/1000000315-1752121119330.jpg",
+          image: user.image || "http://72.167.54.115:3000/uploads/image/130-1759735274003.jpg",
           fcmToken: user.fcmToken || "",
           country: user.country || "",
 
