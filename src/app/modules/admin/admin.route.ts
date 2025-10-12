@@ -5,7 +5,7 @@ import { UserRole } from "../../../types/enums";
 import multer from 'multer';
 import { assignFreeDeliveriesToUser, updateGlobalFreeDeliveries } from '../parcel/delivery.controller';
 import { getTransactionSummary } from './transection.controller';
-import { getMostUsedDeliveryType, getNewSubscribers, getNewUsers, getTotalCompletedOrders, getTotalOrders, getTotalOrdersNumber, getTotalRevenue, getTotalRevenueNumber, getTotalSubscribers, getTotalSubscribersNumber, getTotalSubscriptionRevenue, getTotalUsers, getTransactions, getTransactionsTotal, getUserRatingCounts, getUserStatistics } from './report.controller';
+import { getMostUsedDeliveryType, getNewSubscribers, getNewUsers, getTotalCompletedOrders, getTotalOrders, getTotalOrdersNumber, getTotalRevenue, getTotalRevenueNumber, getTotalSubscribers, getTotalSubscribersNumber, getTotalSubscriptionRevenue, getTotalsystemUseres, getTotalUsers, getTransactions, getTransactionsTotal, getUserRatingCounts, getUserStatistics } from './report.controller';
 import { getAllAnnouncements } from '../notification/notification.controller';
 import { trackUserActivity } from '../user/user.activity.controller';
 
@@ -42,6 +42,7 @@ adminRouter.get('/totalRevenue', getTotalRevenue);
 adminRouter.get('/totalRevenue/number', getTotalRevenueNumber);
 adminRouter.get('/totalSubscriptionRevenue', getTotalSubscriptionRevenue);
 adminRouter.get('/totalUsers', getTotalUsers);
+adminRouter.get('/systemUser', getTotalsystemUseres);
 adminRouter.get('/newUsers', getNewUsers);
 adminRouter.get('/totalSubscribers', getTotalSubscribers);
 adminRouter.get('/totalSubscribers/total', getTotalSubscribersNumber);
