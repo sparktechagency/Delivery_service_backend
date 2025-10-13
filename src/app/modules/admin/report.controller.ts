@@ -981,7 +981,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
       let totalOrdersSum = 0; 
       for (let m = 1; m <= 12; m++) {
         const { startDate, endDate } = getDateRange(year, m);
-        const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+        const totalOrders = await ParcelRequest.countDocuments({ date: { $gte: startDate, $lte: endDate } });
         dataByMonth.push({
           x: m,
           y: totalOrders || 0, 
@@ -1002,7 +1002,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
       let totalOrdersSum = 0; 
       for (let d = 1; d <= daysInMonth; d++) {
         const { startDate, endDate } = getDateRange(year, month, d);
-        const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+        const totalOrders = await ParcelRequest.countDocuments({ date: { $gte: startDate, $lte: endDate } });
         dataByDay.push({
           x: d, 
           y: totalOrders || 0, 
