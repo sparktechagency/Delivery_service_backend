@@ -988,7 +988,6 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
       for (let m = 1; m <= 12; m++) {
         const { startDate: mStart, endDate: mEnd } = getDateRange(year, m);
         const totalOrders = await ParcelRequest.countDocuments({
-          status: DeliveryStatus.DELIVERED,
           date: { $gte: mStart, $lte: mEnd },
         });
         dataByMonth.push({ x: m, y: totalOrders || 0 });
@@ -1012,7 +1011,6 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
       for (let d = 1; d <= daysInMonth; d++) {
         const { startDate: dStart, endDate: dEnd } = getDateRange(year, month, d);
         const totalOrders = await ParcelRequest.countDocuments({
-          status: DeliveryStatus.DELIVERED,
           date: { $gte: dStart, $lte: dEnd },
         });
         dataByDay.push({ x: d, y: totalOrders || 0 });
@@ -1031,7 +1029,6 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
     if (year && month && day) {
       const { startDate: singleStart, endDate: singleEnd } = getDateRange(year, month, day);
       const totalOrders = await ParcelRequest.countDocuments({
-        status: DeliveryStatus.DELIVERED,
         date: { $gte: singleStart, $lte: singleEnd },
       });
 
@@ -1045,7 +1042,6 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
 
     // Default: use the provided globalStart/globalEnd (or up to today if getDateRange does that)
     const totalOrders = await ParcelRequest.countDocuments({
-      status: DeliveryStatus.DELIVERED,
       date: { $gte: globalStart, $lte: globalEnd },
     });
 
