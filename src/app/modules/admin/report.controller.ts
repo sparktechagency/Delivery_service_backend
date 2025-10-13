@@ -411,6 +411,80 @@ export const getTotalUsers = async (req: Request, res: Response, next: NextFunct
 };
 
 
+// export const getTotalsystemUseres = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+//   try {
+//     const year = parseQueryParamToNumber(req.query.year as string);
+//     const month = parseQueryParamToNumber(req.query.month as string);
+//     const day = parseQueryParamToNumber(req.query.day as string);
+
+//     const { startDate, endDate } = getDateRange(year, month, day);
+
+//     // Helper function to get cumulative totals
+//     const getCumulativeTotals = async (startDates: Date[], endDates: Date[]) => {
+//       const data: { x: number; y: number }[] = [];
+//       let runningTotal = 0;
+//       for (let i = 0; i < startDates.length; i++) {
+//         const dailyCount = await User.countDocuments({ createdAt: { $gte: startDates[i], $lte: endDates[i] } });
+//         runningTotal += dailyCount; // add to running total
+//         data.push({ x: i + 1, y: runningTotal });
+//       }
+//       return { data, total: runningTotal };
+//     };
+
+//     // Year selected, no month: data by month
+//     if (year && !month) {
+//       const startDates = [];
+//       const endDates = [];
+//       for (let m = 1; m <= 12; m++) {
+//         const { startDate, endDate } = getDateRange(year, m);
+//         startDates.push(startDate);
+//         endDates.push(endDate);
+//       }
+//       const result = await getCumulativeTotals(startDates, endDates);
+//        res.status(200).json({ status: 'success', ...result });
+//        return
+//     }
+
+//     // Year and month selected, no day: data by day
+//     if (year && month && !day) {
+//       const daysInMonth = new Date(year, month, 0).getDate();
+//       const startDates = [];
+//       const endDates = [];
+//       for (let d = 1; d <= daysInMonth; d++) {
+//         const { startDate, endDate } = getDateRange(year, month, d);
+//         startDates.push(startDate);
+//         endDates.push(endDate);
+//       }
+//       const result = await getCumulativeTotals(startDates, endDates);
+//        res.status(200).json({ status: 'success', ...result });
+//        return
+//     }
+
+//     // Year, month, day selected: total users up to that day
+//     if (year && month && day) {
+//       const { endDate } = getDateRange(year, month, day);
+//       const totalUsers = await User.countDocuments({ createdAt: { $lte: endDate } });
+//        res.status(200).json({
+//         status: 'success',
+//         data: [{ x: day, y: totalUsers }],
+//         total: totalUsers,
+//       });
+//       return
+//     }
+
+//     // Default: total users up to today
+//     const totalUsers = await User.countDocuments({ createdAt: { $lte: new Date() } });
+//      res.status(200).json({
+//       status: 'success',
+//       data: [{ x: new Date().getDate(), y: totalUsers }],
+//       total: totalUsers,
+//     });
+
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 export const getTotalsystemUseres = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
@@ -419,62 +493,61 @@ export const getTotalsystemUseres = async (req: Request, res: Response, next: Ne
 
     const { startDate, endDate } = getDateRange(year, month, day);
 
-    // Helper function to get cumulative totals
+    // Helper to get cumulative totals
     const getCumulativeTotals = async (startDates: Date[], endDates: Date[]) => {
       const data: { x: number; y: number }[] = [];
-      let runningTotal = 0;
       for (let i = 0; i < startDates.length; i++) {
-        const dailyCount = await User.countDocuments({ createdAt: { $gte: startDates[i], $lte: endDates[i] } });
-        runningTotal += dailyCount; // add to running total
-        data.push({ x: i + 1, y: runningTotal });
+        const totalUntilThisPoint = await User.countDocuments({ createdAt: { $lte: endDates[i] } });
+        data.push({ x: i + 1, y: totalUntilThisPoint });
       }
-      return { data, total: runningTotal };
+      const total = data[data.length - 1]?.y || 0;
+      return { data, total };
     };
 
-    // Year selected, no month: data by month
+    // Year only → cumulative by month
     if (year && !month) {
-      const startDates = [];
-      const endDates = [];
+      const startDates: Date[] = [];
+      const endDates: Date[] = [];
       for (let m = 1; m <= 12; m++) {
         const { startDate, endDate } = getDateRange(year, m);
         startDates.push(startDate);
         endDates.push(endDate);
       }
       const result = await getCumulativeTotals(startDates, endDates);
-       res.status(200).json({ status: 'success', ...result });
-       return
+      res.status(200).json({ status: 'success', ...result });
+      return;
     }
 
-    // Year and month selected, no day: data by day
+    // Year + month → cumulative by day
     if (year && month && !day) {
       const daysInMonth = new Date(year, month, 0).getDate();
-      const startDates = [];
-      const endDates = [];
+      const startDates: Date[] = [];
+      const endDates: Date[] = [];
       for (let d = 1; d <= daysInMonth; d++) {
         const { startDate, endDate } = getDateRange(year, month, d);
         startDates.push(startDate);
         endDates.push(endDate);
       }
       const result = await getCumulativeTotals(startDates, endDates);
-       res.status(200).json({ status: 'success', ...result });
-       return
+      res.status(200).json({ status: 'success', ...result });
+      return;
     }
 
-    // Year, month, day selected: total users up to that day
+    // Year + month + day → total up to that day
     if (year && month && day) {
       const { endDate } = getDateRange(year, month, day);
       const totalUsers = await User.countDocuments({ createdAt: { $lte: endDate } });
-       res.status(200).json({
+      res.status(200).json({
         status: 'success',
         data: [{ x: day, y: totalUsers }],
         total: totalUsers,
       });
-      return
+      return;
     }
 
     // Default: total users up to today
     const totalUsers = await User.countDocuments({ createdAt: { $lte: new Date() } });
-     res.status(200).json({
+    res.status(200).json({
       status: 'success',
       data: [{ x: new Date().getDate(), y: totalUsers }],
       total: totalUsers,
@@ -484,7 +557,6 @@ export const getTotalsystemUseres = async (req: Request, res: Response, next: Ne
     next(error);
   }
 };
-
 
 
 export const getNewUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
