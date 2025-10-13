@@ -1116,7 +1116,6 @@ export const getTotalOrdersNumber = async (req: Request, res: Response, next: Ne
     
     // Count delivered parcels
     const deliveredParcels = await ParcelRequest.countDocuments({ 
-      status: DeliveryStatus.DELIVERED || DeliveryStatus.IN_TRANSIT || DeliveryStatus.PENDING || DeliveryStatus.REQUESTED || DeliveryStatus.WAITING
     });
     
     // Calculate total (orders + delivered parcels)
