@@ -977,10 +977,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
     const month = parseQueryParamToNumber(req.query.month as string);
     const day = parseQueryParamToNumber(req.query.day as string);
 
-    // Use createdAt from your model
     const dateField = "$createdAt";
-
-    // getDateRange(year, month, day) must return inclusive startDate/endDate (Date objects)
     const { startDate: globalStart, endDate: globalEnd } = getDateRange(year, month, day);
 
     // determine granularity
@@ -990,7 +987,6 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
     else if (year && month && !day) granularity = 'day';
     else if (year && month && day) granularity = 'single';
 
-    // Match documents inside the requested overall date window
     const matchStage = {
       $match: {
         createdAt: { $gte: globalStart, $lte: globalEnd },
@@ -1014,16 +1010,12 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
       projectStage.$project.label = { $literal: 1 };
     }
 
-    // Aggregation pipeline:
-    // 1) group by label + status to count per-status per-label
-    // 2) group by label to build statuses object and labelTotal
-    // 3) sort by label
     const pipeline: any[] = [
       matchStage,
       projectStage,
       {
         $group: {
-          _id: { label: "$label", status: "$status" },
+          _id: { label: "$label", },
           count: { $sum: 1 },
         },
       },
@@ -1039,7 +1031,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
           statuses: { $arrayToObject: "$totals" },
         },
       },
-      { $project: { _id: 0, label: "$_id", labelTotal: 1, statuses: 1 } },
+      { $project: { _id: 0, label: "$_id", labelTotal: 1,  } },
       { $sort: { label: 1 } },
     ];
 
@@ -1049,11 +1041,11 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
     // ensureStatuses: make sure commonly expected statuses exist in output
     const ensureStatuses = (obj?: Record<string, number>) => {
       const template: Record<string, number> = {
-        REQUESTED: 0,
-        IN_TRANSIT: 0,
-        DELIVERED: 0,
-        WAITING: 0,
-        PENDING: 0, // include PENDING because your model default referenced it
+        RQ: 0,
+        IN: 0,
+        DL: 0,
+        WT: 0,
+        PG: 0, // include PENDING because your model default referenced it
       };
       if (obj) {
         for (const k of Object.keys(obj)) {
