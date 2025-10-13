@@ -1041,11 +1041,11 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
     // ensureStatuses: make sure commonly expected statuses exist in output
     const ensureStatuses = (obj?: Record<string, number>) => {
       const template: Record<string, number> = {
-        RQ: 0,
-        IN: 0,
-        DL: 0,
-        WT: 0,
-        PG: 0, // include PENDING because your model default referenced it
+        REQUESTED: 0,
+        IN_TRANSIT: 0,
+        DELIVERED: 0,
+        WAITING: 0,
+        PENDING: 0, // include PENDING because your model default referenced it
       };
       if (obj) {
         for (const k of Object.keys(obj)) {
