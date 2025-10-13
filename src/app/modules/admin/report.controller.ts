@@ -1015,7 +1015,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
       projectStage,
       {
         $group: {
-          _id: { label: "$label", },
+          _id: { label: "$label", status: "$status" },
           count: { $sum: 1 },
         },
       },
@@ -1031,7 +1031,7 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
           statuses: { $arrayToObject: "$totals" },
         },
       },
-      { $project: { _id: 0, label: "$_id", labelTotal: 1,  } },
+      { $project: { _id: 0, label: "$_id", labelTotal: 1, statuses: 1 } },
       { $sort: { label: 1 } },
     ];
 
@@ -1107,7 +1107,6 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
     next(error);
   }
 };
-
 
 
 export const getTotalOrdersNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
