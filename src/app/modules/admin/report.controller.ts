@@ -891,8 +891,9 @@ export const getNewSubscribers = async (req: Request, res: Response, next: NextF
 };
 
 
-// Controller: Total Orders API
-// export const getTotalOrders = async (req: Request, res: Response, next: NextFunction) => {
+
+
+// export const getTotalOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 //   try {
 //     const year = parseQueryParamToNumber(req.query.year as string);
 //     const month = parseQueryParamToNumber(req.query.month as string);
@@ -900,147 +901,183 @@ export const getNewSubscribers = async (req: Request, res: Response, next: NextF
 
 //     const { startDate, endDate } = getDateRange(year, month, day);
 
-//     // If year is provided, return data for all 12 months of that year
 //     if (year && !month) {
 //       const dataByMonth = [];
-
+//       let totalOrdersSum = 0; 
 //       for (let m = 1; m <= 12; m++) {
 //         const { startDate, endDate } = getDateRange(year, m);
-//         const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+//         const totalOrders = await ParcelRequest.countDocuments({ status: DeliveryStatus.DELIVERED});
 //         dataByMonth.push({
-//           x: m, // Month number (1 to 12)
-//           y: totalOrders || 0, // Total orders for that month, or 0 if no data
+//           x: m,
+//           y: totalOrders || 0, 
 //         });
+//         totalOrdersSum += totalOrders || 0;
 //       }
 
-//       return res.status(200).json({
+//        res.status(200).json({
 //         status: 'success',
 //         data: dataByMonth,
+//         total: totalOrdersSum, 
 //       });
 //     }
 
-//     // If year and month are provided, return data for each day in the month
 //     if (year && month && !day) {
-//       const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
+//       const daysInMonth = new Date(year, month, 0).getDate();
 //       const dataByDay = [];
+//       let totalOrdersSum = 0; 
 //       for (let d = 1; d <= daysInMonth; d++) {
 //         const { startDate, endDate } = getDateRange(year, month, d);
-//         const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+//         const totalOrders = await ParcelRequest.countDocuments({ status: DeliveryStatus.DELIVERED  });
 //         dataByDay.push({
-//           x: d, // Day of the month (1, 2, 3, ...)
-//           y: totalOrders || 0, // Total orders for that day, or 0 if no data
+//           x: d, 
+//           y: totalOrders || 0, 
 //         });
+//         totalOrdersSum += totalOrders || 0; 
 //       }
 
-//       return res.status(200).json({
+//        res.status(200).json({
 //         status: 'success',
 //         data: dataByDay,
+//         total: totalOrdersSum, 
 //       });
 //     }
 
-//     // If year, month, and day are all selected, return data for that specific day
 //     if (year && month && day) {
-//       const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
-//       return res.status(200).json({
+//       const totalOrders = await ParcelRequest.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+//        res.status(200).json({
 //         status: 'success',
 //         data: [
 //           {
-//             x: day, // Day of the month (e.g., 15)
-//             y: totalOrders || 0, // Total orders for that specific day, or 0 if no data
+//             x: day, 
+//             y: totalOrders || 0, 
 //           },
 //         ],
+//         total: totalOrders || 0, 
 //       });
 //     }
 
-//     // Default case: Return total orders count for today
-//     const totalOrders = await Order.countDocuments({ date: { $gte: startDate, $lte: endDate } });
-//     return res.status(200).json({
+//     const totalOrders = await ParcelRequest.countDocuments({ date: { $gte: startDate, $lte: endDate } });
+//      res.status(200).json({
 //       status: 'success',
 //       data: [
 //         {
-//           x: new Date().getDate(), // Today's day
-//           y: totalOrders || 0, // Total orders for today
+//           x: new Date().getDate(), 
+//           y: totalOrders || 0,
 //         },
 //       ],
+//       total: totalOrders || 0, 
 //     });
 //   } catch (error) {
 //     next(error);
 //   }
 // };
-
 export const getTotalOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
     const month = parseQueryParamToNumber(req.query.month as string);
     const day = parseQueryParamToNumber(req.query.day as string);
 
-    const { startDate, endDate } = getDateRange(year, month, day);
+    // getDateRange should return { startDate: Date, endDate: Date } for the input filters.
+    // When year/month/day not provided, it should default appropriately (e.g., full range or today).
+    const { startDate: globalStart, endDate: globalEnd } = getDateRange(year, month, day);
 
-    if (year && !month) {
-      const dataByMonth = [];
-      let totalOrdersSum = 0; 
-      for (let m = 1; m <= 12; m++) {
-        const { startDate, endDate } = getDateRange(year, m);
-        const totalOrders = await ParcelRequest.countDocuments({ status: DeliveryStatus.DELIVERED});
-        dataByMonth.push({
-          x: m,
-          y: totalOrders || 0, 
-        });
-        totalOrdersSum += totalOrders || 0;
+    // statuses we want to report
+    const statuses = [
+      DeliveryStatus.REQUESTED,
+      DeliveryStatus.IN_TRANSIT,
+      DeliveryStatus.DELIVERED,
+      DeliveryStatus.WAITING,
+    ];
+
+    // helper to create intervals for the requested granularity
+    const buildIntervals = (): { startDate: Date; endDate: Date; label: number }[] => {
+      const intervals: { startDate: Date; endDate: Date; label: number }[] = [];
+
+      if (year && !month) {
+        // by month (1..12)
+        for (let m = 1; m <= 12; m++) {
+          const { startDate, endDate } = getDateRange(year, m);
+          intervals.push({ startDate, endDate, label: m });
+        }
+        return intervals;
       }
 
-       res.status(200).json({
-        status: 'success',
-        data: dataByMonth,
-        total: totalOrdersSum, 
-      });
-    }
-
-    if (year && month && !day) {
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const dataByDay = [];
-      let totalOrdersSum = 0; 
-      for (let d = 1; d <= daysInMonth; d++) {
-        const { startDate, endDate } = getDateRange(year, month, d);
-        const totalOrders = await ParcelRequest.countDocuments({ status: DeliveryStatus.DELIVERED  });
-        dataByDay.push({
-          x: d, 
-          y: totalOrders || 0, 
-        });
-        totalOrdersSum += totalOrders || 0; 
+      if (year && month && !day) {
+        // by day in month
+        const daysInMonth = new Date(year, month, 0).getDate();
+        for (let d = 1; d <= daysInMonth; d++) {
+          const { startDate, endDate } = getDateRange(year, month, d);
+          intervals.push({ startDate, endDate, label: d });
+        }
+        return intervals;
       }
 
-       res.status(200).json({
-        status: 'success',
-        data: dataByDay,
-        total: totalOrdersSum, 
-      });
-    }
+      if (year && month && day) {
+        // single day
+        const { startDate, endDate } = getDateRange(year, month, day);
+        intervals.push({ startDate, endDate, label: day });
+        return intervals;
+      }
 
-    if (year && month && day) {
-      const totalOrders = await ParcelRequest.countDocuments({ date: { $gte: startDate, $lte: endDate } });
-       res.status(200).json({
-        status: 'success',
-        data: [
-          {
-            x: day, 
-            y: totalOrders || 0, 
-          },
-        ],
-        total: totalOrders || 0, 
-      });
-    }
+      // default: use the single global interval (e.g., up to today or provided range)
+      intervals.push({ startDate: globalStart, endDate: globalEnd, label: new Date().getDate() });
+      return intervals;
+    };
 
-    const totalOrders = await ParcelRequest.countDocuments({ date: { $gte: startDate, $lte: endDate } });
-     res.status(200).json({
+    const intervals = buildIntervals();
+
+    // Totals across all intervals
+    const totalsByStatus: Record<string, number> = {
+      [DeliveryStatus.REQUESTED]: 0,
+      [DeliveryStatus.IN_TRANSIT]: 0,
+      [DeliveryStatus.DELIVERED]: 0,
+      [DeliveryStatus.WAITING]: 0,
+    };
+    let overallTotal = 0;
+
+    // For each interval, count each status in parallel
+    const data = await Promise.all(
+      intervals.map(async (interval, idx) => {
+        // build an array of promises for each status count
+        const promises = statuses.map((status) =>
+          ParcelRequest.countDocuments({
+            date: { $gte: interval.startDate, $lte: interval.endDate },
+            status,
+          })
+        );
+
+        // run counts in parallel
+        const counts = await Promise.all(promises); // same order as statuses[]
+
+        // compose statuses object
+        const statusesObj: Record<string, number> = {};
+        let intervalTotal = 0;
+        for (let i = 0; i < statuses.length; i++) {
+          const s = statuses[i];
+          const c = counts[i] || 0;
+          statusesObj[s] = c;
+          intervalTotal += c;
+          totalsByStatus[s] = (totalsByStatus[s] || 0) + c;
+        }
+
+        overallTotal += intervalTotal;
+
+        return {
+          x: interval.label,
+          y: intervalTotal,
+          statuses: statusesObj,
+          // optional: attach start/end if you want in the response for debugging:
+          // startDate: interval.startDate,
+          // endDate: interval.endDate,
+        };
+      })
+    );
+
+    res.status(200).json({
       status: 'success',
-      data: [
-        {
-          x: new Date().getDate(), 
-          y: totalOrders || 0,
-        },
-      ],
-      total: totalOrders || 0, 
+      data,
+      total: overallTotal,
+      totalsByStatus,
     });
   } catch (error) {
     next(error);
