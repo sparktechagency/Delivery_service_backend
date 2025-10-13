@@ -766,7 +766,7 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET!,
-      { expiresIn: '20d' }
+      { expiresIn: '60d' }
     );
 
     // Handle FCM token registration/update here as well
