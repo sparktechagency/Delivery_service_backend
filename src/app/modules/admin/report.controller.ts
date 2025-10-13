@@ -1110,25 +1110,6 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
 
 
 
-// export const getTotalOrdersNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
-//   try {
-//     const totalOrders = await Order.countDocuments({});
-
-//      res.status(200).json({
-//       status: 'success',
-//       data: [
-//         {
-//           x: 'Total',
-//           y: totalOrders || 0,
-//         },
-//       ],
-//       total: totalOrders || 0,  
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 export const getTotalOrdersNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Count regular orders
