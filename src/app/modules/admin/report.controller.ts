@@ -977,83 +977,145 @@ export const getTotalOrders = async (req: Request, res: Response, next: NextFunc
     const month = parseQueryParamToNumber(req.query.month as string);
     const day = parseQueryParamToNumber(req.query.day as string);
 
-    // globalStart/globalEnd used for the default case
+    // Use createdAt from your model
+    const dateField = "$createdAt";
+
+    // getDateRange(year, month, day) must return inclusive startDate/endDate (Date objects)
     const { startDate: globalStart, endDate: globalEnd } = getDateRange(year, month, day);
 
-    // Year only -> by month
-    if (year && !month) {
-      const dataByMonth: { x: number; y: number }[] = [];
-      let totalOrdersSum = 0;
+    // determine granularity
+    type Gran = 'month' | 'day' | 'single' | 'global';
+    let granularity: Gran = 'global';
+    if (year && !month) granularity = 'month';
+    else if (year && month && !day) granularity = 'day';
+    else if (year && month && day) granularity = 'single';
 
+    // Match documents inside the requested overall date window
+    const matchStage = {
+      $match: {
+        createdAt: { $gte: globalStart, $lte: globalEnd },
+      },
+    };
+
+    // Project a numeric label for grouping: month (1..12), day (1..31), or literal
+    const projectStage: any = {
+      $project: {
+        status: 1,
+      },
+    };
+
+    if (granularity === 'month') {
+      projectStage.$project.label = { $month: dateField };
+    } else if (granularity === 'day') {
+      projectStage.$project.label = { $dayOfMonth: dateField };
+    } else if (granularity === 'single') {
+      projectStage.$project.label = { $literal: day || 1 };
+    } else {
+      projectStage.$project.label = { $literal: 1 };
+    }
+
+    // Aggregation pipeline:
+    // 1) group by label + status to count per-status per-label
+    // 2) group by label to build statuses object and labelTotal
+    // 3) sort by label
+    const pipeline: any[] = [
+      matchStage,
+      projectStage,
+      {
+        $group: {
+          _id: { label: "$label", status: "$status" },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id.label",
+          totals: { $push: { k: "$_id.status", v: "$count" } },
+          labelTotal: { $sum: "$count" },
+        },
+      },
+      {
+        $addFields: {
+          statuses: { $arrayToObject: "$totals" },
+        },
+      },
+      { $project: { _id: 0, label: "$_id", labelTotal: 1, statuses: 1 } },
+      { $sort: { label: 1 } },
+    ];
+
+    const aggResults: Array<{ label: number; labelTotal: number; statuses?: Record<string, number> }> =
+      await ParcelRequest.aggregate(pipeline).exec();
+
+    // ensureStatuses: make sure commonly expected statuses exist in output
+    const ensureStatuses = (obj?: Record<string, number>) => {
+      const template: Record<string, number> = {
+        REQUESTED: 0,
+        IN_TRANSIT: 0,
+        DELIVERED: 0,
+        WAITING: 0,
+        PENDING: 0, // include PENDING because your model default referenced it
+      };
+      if (obj) {
+        for (const k of Object.keys(obj)) {
+          if (!(k in template)) template[k] = 0;
+        }
+      }
+      return { ...template, ...(obj || {}) };
+    };
+
+    // Build filled data array and compute totalsByStatus + overallTotal
+    const filledData: { x: number; y: number; statuses: Record<string, number> }[] = [];
+    const totalsByStatus: Record<string, number> = {};
+    let overallTotal = 0;
+
+    if (granularity === 'month') {
       for (let m = 1; m <= 12; m++) {
-        const { startDate: mStart, endDate: mEnd } = getDateRange(year, m);
-        const totalOrders = await ParcelRequest.countDocuments({
-          date: { $gte: mStart, $lte: mEnd },
-        });
-        dataByMonth.push({ x: m, y: totalOrders || 0 });
-        totalOrdersSum += totalOrders || 0;
+        const row = aggResults.find(r => r.label === m);
+        const statusesObj = ensureStatuses(row?.statuses);
+        const y = row?.labelTotal ?? 0;
+        filledData.push({ x: m, y, statuses: statusesObj });
+        overallTotal += y;
+        for (const [s, c] of Object.entries(statusesObj)) {
+          totalsByStatus[s] = (totalsByStatus[s] || 0) + c;
+        }
       }
-
-      res.status(200).json({
-        status: 'success',
-        data: dataByMonth,
-        total: totalOrdersSum,
-      });
-      return;
-    }
-
-    // Year + month -> by day
-    if (year && month && !day) {
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const dataByDay: { x: number; y: number }[] = [];
-      let totalOrdersSum = 0;
-
+    } else if (granularity === 'day') {
+      // days in the requested month
+      const daysInMonth = new Date(year!, month!, 0).getDate();
       for (let d = 1; d <= daysInMonth; d++) {
-        const { startDate: dStart, endDate: dEnd } = getDateRange(year, month, d);
-        const totalOrders = await ParcelRequest.countDocuments({
-          date: { $gte: dStart, $lte: dEnd },
-        });
-        dataByDay.push({ x: d, y: totalOrders || 0 });
-        totalOrdersSum += totalOrders || 0;
+        const row = aggResults.find(r => r.label === d);
+        const statusesObj = ensureStatuses(row?.statuses);
+        const y = row?.labelTotal ?? 0;
+        filledData.push({ x: d, y, statuses: statusesObj });
+        overallTotal += y;
+        for (const [s, c] of Object.entries(statusesObj)) {
+          totalsByStatus[s] = (totalsByStatus[s] || 0) + c;
+        }
       }
-
-      res.status(200).json({
-        status: 'success',
-        data: dataByDay,
-        total: totalOrdersSum,
-      });
-      return;
+    } else if (granularity === 'single' || granularity === 'global') {
+      // either a single day or the whole range -> use aggResults[0] if present
+      const row = aggResults[0];
+      const statusesObj = ensureStatuses(row?.statuses);
+      const y = row?.labelTotal ?? 0;
+      const label = granularity === 'single' ? (day || 1) : (new Date().getDate());
+      filledData.push({ x: label, y, statuses: statusesObj });
+      overallTotal = y;
+      for (const [s, c] of Object.entries(statusesObj)) {
+        totalsByStatus[s] = (totalsByStatus[s] || 0) + c;
+      }
     }
-
-    // Year + month + day -> single day total (DELIVERED)
-    if (year && month && day) {
-      const { startDate: singleStart, endDate: singleEnd } = getDateRange(year, month, day);
-      const totalOrders = await ParcelRequest.countDocuments({
-        date: { $gte: singleStart, $lte: singleEnd },
-      });
-
-      res.status(200).json({
-        status: 'success',
-        data: [{ x: day, y: totalOrders || 0 }],
-        total: totalOrders || 0,
-      });
-      return;
-    }
-
-    // Default: use the provided globalStart/globalEnd (or up to today if getDateRange does that)
-    const totalOrders = await ParcelRequest.countDocuments({
-      date: { $gte: globalStart, $lte: globalEnd },
-    });
 
     res.status(200).json({
       status: 'success',
-      data: [{ x: new Date().getDate(), y: totalOrders || 0 }],
-      total: totalOrders || 0,
+      data: filledData,
+      total: overallTotal,
+      totalsByStatus,
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 
 // export const getTotalOrdersNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
