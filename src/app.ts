@@ -34,7 +34,8 @@ app.use(cors({
     "http://10.10.7.22:3051", 
     "http://localhost:4000", 
     "https://ivan-parcel-delivery.vercel.app",
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://admin.deliverlydashboard.com/"
   ],
   credentials: true
 }));
