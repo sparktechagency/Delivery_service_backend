@@ -296,13 +296,20 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
-     const { filterType, sortBy, sortOrder } = req.query;
+     const { filterType, sortBy, sortOrder, searchTerm  } = req.query;
     const skip = (page - 1) * limit;
    
 
     console.log("🔍 Fetching users with pagination, rating, earnings, and sorting...");
 
     let filter: any = {};
+
+    if (searchTerm && typeof searchTerm === 'string') {
+      filter.$or = [
+        { fullName: { $regex: searchTerm, $options: 'i' } }, // case-insensitive
+        { mobileNumber: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
 
     if (filterType === "rating") {
       // If filterType is 'rating', we will just sort by highest or lowest rating
@@ -328,7 +335,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
     const users = await User.find(filter)
       .skip(skip)
       .limit(limit)
-      .select('fullName image email mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt reviews')
+      .select('fullName image mobileNumber role isVerified freeDeliveries tripsPerDay isSubscribed isRestricted subscriptionType subscriptionPrice subscriptionStartDate subscriptionExpiryDate subscriptionCount TotaltripsCompleted totalEarning createdAt reviews')
       .lean();
 
     users.forEach((user) => {
