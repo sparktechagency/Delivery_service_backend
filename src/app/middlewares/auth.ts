@@ -25,59 +25,6 @@ export interface AuthRequest extends Request {
 }
 
 
-// export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
-//   try {
-//     const authHeader = req.headers.authorization;
-//     console.log("🔹 Authorization Header:", authHeader); // Debugging
-
-//     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-//       throw new AppError('Authentication required', 401);
-//     }
-
-//     const token = authHeader.split(' ')[1];
-//     console.log("🔹 Extracted Token:", token); // Debugging
-
-//     if (!token) {
-//       throw new AppError('Authentication required', 401);
-//     }
-
-//     let decoded: JWTPayload;
-//     try {
-//       decoded = jwt.verify(token, config.jwtSecret) as JWTPayload;
-//       console.log("🔹 Decoded Token:", decoded); // Debugging
-//     } catch (error) {
-//       throw new AppError('Invalid or expired token', 401);
-//     }
-
-//     let user;
-//     if (decoded.role === UserRole.ADMIN) {
-//       user = await Admin.findById(decoded.id);  // Check if the role is ADMIN
-//     } else {
-//       user = await User.findById(decoded.id);   // For non-admin users
-//     }
-
-//     if (!user) {
-//       throw new AppError('User not found', 404);
-//     }
-
-//     req.user = {
-//       id: user.id,
-//       role: user.role,  
-//       username: user.fullName,
-//     } as IUser;
-
-//     console.log("🔹 Authenticated User:", req.user);
-
-//     next();
-//   } catch (error) {
-//     console.error("❌ Authentication Error:", error); 
-//     next(error);
-//   }
-// };
-
-
-
-// admin working
 
 export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -116,33 +63,6 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     next(error);
   }
 };
-//updated
-
-
-// export const authorize = (...roles: UserRole[]) => {
-//   return (req: AuthRequest, res: Response, next: NextFunction) => {
-//     if (!req.user || !roles.includes(req.user.role)) {
-//       throw new AppError('Unauthorized', 403);
-//     }
-//     next();
-//   };
-// };
-
-// export const authorize = (...roles: UserRole[]) => {
-//   return (req: AuthRequest, res: Response, next: NextFunction) => {
-//     const userRole = req.user?.role;  // No need to convert to uppercase
-//     const allowedRoles = roles; // Keep the roles as they are
-
-//     console.log("🔹 User Role from Token:", userRole);
-//     console.log("🔹 Allowed Roles:", allowedRoles);
-
-//     if (!userRole || !allowedRoles.includes(userRole)) {
-//       throw new AppError('Unauthorized', 403);
-//     }
-
-//     next();
-//   };
-// };
 
 export const authorize = (...roles: UserRole[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
