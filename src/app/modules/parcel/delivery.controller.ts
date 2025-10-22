@@ -209,7 +209,7 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
       throw new AppError("Requested user not found", 404);
     }
 
-    // ✅ Get FCM token for the DELIVERER (not sender) - they should be notified of rejection
+    //  Get FCM token for the DELIVERER (not sender) - they should be notified of rejection
     const deviceToken = await DeviceToken.findOne({
       userId: delivererId,  // Corrected: this should be the deliverer's userId
       fcmToken: { $exists: true, $ne: '' }
@@ -218,7 +218,7 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
     console.log(`🔍 Looking for FCM token for deliverer: ${delivererId}`);
     console.log(`📱 Found device token:`, deviceToken ? 'Yes' : 'No');
 
-    // ✅ Send push notification to deliverer if token exists
+    //  Send push notification to deliverer if token exists
     if (deviceToken?.fcmToken) {
       const notificationMessage = `Your delivery request for "${parcel.title}" has been rejected.`;
 
@@ -251,7 +251,7 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
       } catch (err) {
         console.error(`❌ Push notification failed to deliverer ${deviceToken.fcmToken}:`, err);
 
-        // ✅ Handle invalid FCM tokens
+        // Handle invalid FCM tokens
         if (typeof err === 'object' && err !== null && 'code' in err && (err as any).code === 'messaging/registration-token-not-registered') {
           await DeviceToken.deleteOne({ 
             userId: delivererId, 

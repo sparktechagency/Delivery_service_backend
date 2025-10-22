@@ -82,7 +82,6 @@ export const getReviews = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-
 // Delete a review (only the review creator can delete)
 export const deleteReview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
