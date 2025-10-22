@@ -312,8 +312,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
     }
 
     if (filterType === "rating") {
-      // If filterType is 'rating', we will just sort by highest or lowest rating
-      // No need to check for specific rating values, just use the default behavior (highest or lowest)
+ 
     }
 
     if (filterType === "earning") {
@@ -462,59 +461,6 @@ export const manageSubscriptions = async (req: Request, res: Response, next: Nex
   }
 };
 
-
-// export const getParcelDetails = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const { status, page = 1, limit = 10 } = req.query;
-
-//     // Convert page and limit to numbers
-//     const pageNumber = parseInt(page as string, 10) || 1;
-//     const limitNumber = parseInt(limit as string, 10) || 10;
-//     const skip = (pageNumber - 1) * limitNumber;
-
-//     // Build the filter object
-//     let filter: any = {};
-//     if (status) {
-//       filter.status = status.toString();
-//     }
-
-//     // Fetch filtered parcels with pagination
-//     const parcels = await ParcelRequest.find(filter)
-//       .populate('senderId', 'fullName email role') // Populate sender details
-//       .populate('assignedDelivererId', 'fullName email role') // Populate deliverer details
-//       .select('pickupLocation deliveryLocation status deliveryType price senderId assignedDelivererId') // Select necessary fields
-//       .skip(skip)
-//       .limit(limitNumber)
-//       .lean();
-
-//     // Count total parcels for pagination metadata
-//     const totalParcels = await ParcelRequest.countDocuments(filter);
-//     const totalPages = Math.ceil(totalParcels / limitNumber);
-
-//     // If no parcels are found
-//     if (parcels.length === 0) {
-//       return res.status(404).json({
-//         status: 'error',
-//         message: 'No parcels found'
-//       });
-//     }
-
-//     // Return paginated parcel details
-//     res.status(200).json({
-//       status: 'success',
-//       message: 'Parcel details fetched successfully',
-//       data: parcels,
-//       pagination: {
-//         totalParcels,
-//         totalPages,
-//         currentPage: pageNumber,
-//         limit: limitNumber
-//       }
-//     });
-//   } catch (error) {
-//     next(error); // Pass error to global error handler
-//   }
-// };
 
 export const getParcelDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -750,34 +696,3 @@ export const getParcelDetailsById =async (req: Request, res: Response, next: Nex
     });
   }
 };
-
-
-// export const updateUserStatus = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//       const { userId, isRestricted } = req.body;
-//       const user = await User.findById(userId);
-//       if (!user) throw new AppError('User not found', 404);
-  
-//       user.isRestricted = isRestricted;
-//       await user.save();
-  
-//       res.json({ status: 'success', message: isRestricted ? 'User is restricted' : 'User is active' });
-//     } catch (error) {
-//       next(error);
-//     }
-//   };
-  
-//   export const reviewAdminUpdates = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//       const { userId, feedback } = req.body;
-//       const user = await User.findById(userId);
-//       if (!user) throw new AppError('User not found', 404);
-  
-//       user.adminFeedback = feedback;
-//       await user.save();
-  
-//       res.json({ status: 'success', message: 'Feedback submitted successfully' });
-//     } catch (error) {
-//       next(error);
-//     }
-//   };

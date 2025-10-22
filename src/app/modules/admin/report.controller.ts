@@ -893,84 +893,6 @@ export const getNewSubscribers = async (req: Request, res: Response, next: NextF
 
 
 
-// export const getTotalOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-//   try {
-//     const year = parseQueryParamToNumber(req.query.year as string);
-//     const month = parseQueryParamToNumber(req.query.month as string);
-//     const day = parseQueryParamToNumber(req.query.day as string);
-
-//     const { startDate, endDate } = getDateRange(year, month, day);
-
-//     if (year && !month) {
-//       const dataByMonth = [];
-//       let totalOrdersSum = 0; 
-//       for (let m = 1; m <= 12; m++) {
-//         const { startDate, endDate } = getDateRange(year, m);
-//         const totalOrders = await ParcelRequest.countDocuments({ status: DeliveryStatus.DELIVERED});
-//         dataByMonth.push({
-//           x: m,
-//           y: totalOrders || 0, 
-//         });
-//         totalOrdersSum += totalOrders || 0;
-//       }
-
-//        res.status(200).json({
-//         status: 'success',
-//         data: dataByMonth,
-//         total: totalOrdersSum, 
-//       });
-//     }
-
-//     if (year && month && !day) {
-//       const daysInMonth = new Date(year, month, 0).getDate();
-//       const dataByDay = [];
-//       let totalOrdersSum = 0; 
-//       for (let d = 1; d <= daysInMonth; d++) {
-//         const { startDate, endDate } = getDateRange(year, month, d);
-//         const totalOrders = await ParcelRequest.countDocuments({ status: DeliveryStatus.DELIVERED  });
-//         dataByDay.push({
-//           x: d, 
-//           y: totalOrders || 0, 
-//         });
-//         totalOrdersSum += totalOrders || 0; 
-//       }
-
-//        res.status(200).json({
-//         status: 'success',
-//         data: dataByDay,
-//         total: totalOrdersSum, 
-//       });
-//     }
-
-//     if (year && month && day) {
-//       const totalOrders = await ParcelRequest.countDocuments({ date: { $gte: startDate, $lte: endDate } });
-//        res.status(200).json({
-//         status: 'success',
-//         data: [
-//           {
-//             x: day, 
-//             y: totalOrders || 0, 
-//           },
-//         ],
-//         total: totalOrders || 0, 
-//       });
-//     }
-
-//     const totalOrders = await ParcelRequest.countDocuments({ date: { $gte: startDate, $lte: endDate } });
-//      res.status(200).json({
-//       status: 'success',
-//       data: [
-//         {
-//           x: new Date().getDate(), 
-//           y: totalOrders || 0,
-//         },
-//       ],
-//       total: totalOrders || 0, 
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 export const getTotalOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const year = parseQueryParamToNumber(req.query.year as string);
@@ -1192,7 +1114,6 @@ export const getTotalCompletedOrders =async (req: Request, res: Response, next: 
       });
     }
 
-    // If year, month, and day are all selected, return data for that specific day
     if (year && month && day) {
       const totalCompletedOrders = await Order.countDocuments({
         status: 'delivered',
@@ -1230,101 +1151,6 @@ export const getTotalCompletedOrders =async (req: Request, res: Response, next: 
 };
 
 
-
-// export const getTransactions = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const year = parseQueryParamToNumber(req.query.year as string);
-//     const month = parseQueryParamToNumber(req.query.month as string);
-//     const day = parseQueryParamToNumber(req.query.day as string);
-
-//     const { startDate, endDate } = getDateRange(year, month, day);
-
-//     // If year is selected, return data for each month of the year
-//     if (year && !month) {
-//       const dataByMonth = [];
-//       for (let m = 1; m <= 12; m++) {
-//         const { startDate, endDate } = getDateRange(year, m);
-        
-//         // Total Transactions for the Month
-//         const totalTransactions = await ParcelRequest.countDocuments({
-//           status: { $in: ['accepted', 'delivered'] },
-//           createdAt: { $gte: startDate, $lte: endDate }
-//         });
-
-//         dataByMonth.push({
-//           x: m, // Month number (1 to 12)
-//           y: totalTransactions || 0, // Total transactions for that month
-//         });
-//       }
-
-//       return res.status(200).json({
-//         status: 'success',
-//         data: dataByMonth,
-//       });
-//     }
-
-//     // If year and month are selected, return data for each day of the month
-//     if (year && month && !day) {
-//       const daysInMonth = new Date(year, month, 0).getDate(); // Get total days in the month
-//       const dataByDay = [];
-//       for (let d = 1; d <= daysInMonth; d++) {
-//         const { startDate, endDate } = getDateRange(year, month, d);
-        
-//         // Total Transactions for the Day
-//         const totalTransactions = await ParcelRequest.countDocuments({
-//           status: { $in: ['accepted', 'delivered'] },
-//           createdAt: { $gte: startDate, $lte: endDate }
-//         });
-
-//         dataByDay.push({
-//           x: d, // Day of the month (1, 2, 3, ...)
-//           y: totalTransactions || 0, // Total transactions for that day
-//         });
-//       }
-
-//       return res.status(200).json({
-//         status: 'success',
-//         data: dataByDay,
-//       });
-//     }
-
-//     // If year, month, and day are all selected, return data for that specific day
-//     if (year && month && day) {
-//       const totalTransactions = await ParcelRequest.countDocuments({
-//         status: { $in: ['accepted', 'delivered'] },
-//         createdAt: { $gte: startDate, $lte: endDate }
-//       });
-
-//       return res.status(200).json({
-//         status: 'success',
-//         data: [
-//           {
-//             x: day, // Day of the month (e.g., 15)
-//             y: totalTransactions || 0, // Total transactions for that specific day
-//           },
-//         ],
-//       });
-//     }
-
-//     // Default case: Return total transactions count for today
-//     const totalTransactions = await ParcelRequest.countDocuments({
-//       status: { $in: ['accepted', 'delivered'] },
-//       createdAt: { $gte: startDate, $lte: endDate }
-//     });
-
-//     return res.status(200).json({
-//       status: 'success',
-//       data: [
-//         {
-//           x: new Date().getDate(), // Today's day
-//           y: totalTransactions || 0, // Total transactions for today
-//         },
-//       ],
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 
 export const getTransactions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -1552,34 +1378,6 @@ export const getUserRatingCounts = async (req: Request, res: Response, next: Nex
   }
 };
 
-
-// export const getUserStatistics = async (req: Request, res: Response) => {
-//   try {
-//     // 1. Total Number of Users
-//     const totalUsers = await User.countDocuments();
-
-//     // 2. Active Users in the last 5 days
-//     const fiveDaysAgo = moment().subtract(5, 'days').toDate();
-//     const activeUsers = await UserActivity.countDocuments({
-//       loginTime: { $gte: fiveDaysAgo },
-//     });
-
-//     // 3. New Users today
-//     const todayStart = moment().startOf('day').toDate();
-//     const newUsers = await User.countDocuments({
-//       createdAt: { $gte: todayStart },
-//     });
-
-//     return res.json({
-//       totalUsers,
-//       activeUsers,
-//       newUsers,
-//     });
-//   } catch (error) {
-//     console.error('Error fetching user statistics', error);
-//     return res.status(500).json({ message: 'Error fetching user statistics' });
-//   }
-// };
 
 export const getUserStatistics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
