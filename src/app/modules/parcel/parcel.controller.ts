@@ -5,31 +5,33 @@ import { AppError } from '../../middlewares/error';
 import { DeliveryStatus, DeliveryType, SenderType, UserRole } from '../../../types/enums';
 import { AuthRequest } from '../../middlewares/auth';
 import mongoose from 'mongoose';
-import upload from "../../../multer/multer"; 
+import upload from "../../../multer/multer";
 import moment from 'moment';
 import axios from 'axios';
-import admin from '../../../config/firebase'; 
+import admin from '../../../config/firebase';
 import { Notification } from '../notification/notification.model';
-import  path from 'path';
+import path from 'path';
 import fs from 'fs';
 import { PhoneNumber } from 'libphonenumber-js';
 import { UserDocument } from '../user/user.model';
-import { ParcelRequestDocument } from './ParcelRequest.model'; 
+import { ParcelRequestDocument } from './ParcelRequest.model';
 import { createNotification, sendPushNotification } from '../notification/notification.controller';
-import { Server } from "socket.io"; 
+import { Server } from "socket.io";
 import DeviceToken from '../user/fcm.token.model';
 import PushNotification from '../notification/push.notification.model';
+import { getIO } from '../../../helpers/socket';
+// const io = getIO();
 let io: Server | null = null;
 
 const getCoordinates = async (location: string) => {
   try {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY; 
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?address=${location}&key=${apiKey}`);
-    
+
     if (response.data.results.length === 0) {
       throw new Error(`No coordinates found for location: ${location}`);
     }
-    
+
     const coordinates = response.data.results[0].geometry.location;
     return { latitude: coordinates.lat, longitude: coordinates.lng };
   } catch (error) {
@@ -118,7 +120,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     // Get sender info
     const sender = await User.findById(req.user?.id).select('fullName');
     if (!sender) throw new Error('Sender not found');
-  
+
     //specific user obly notify
     const usersToNotify = await User.find({
       isVerified: true,
@@ -134,7 +136,7 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
     }).select('fcmToken userId');
 
     // Compose message
-      const notificationMessage = `A new parcel "${title}" created by "${sender.fullName}".`;
+    const notificationMessage = `A new parcel "${title}" created by "${sender.fullName}".`;
     const pushPayload = {
       notification: {
         title: `${parcel.title}`,
@@ -151,68 +153,87 @@ export const createParcelRequest = async (req: Request, res: Response, next: Nex
         deliveryStartTime,
         deliveryEndTime,
       },
+
     };
 
 
-for (const token of fcmTokens) {
-  try {
-    await admin.messaging().send({
-      ...pushPayload,
-      token: token.fcmToken,
-    });
-    console.log(`✅ Sent push to ${token.fcmToken}`);
-  } catch (err: any) {
-    console.error(`❌ Push failed to ${token.fcmToken}:`, err);
+    for (const token of fcmTokens) {
+      try {
+        await admin.messaging().send({
+          ...pushPayload,
+          token: token.fcmToken,
+        });
+        console.log(`✅ Sent push to ${token.fcmToken}`);
+      } catch (err: any) {
+        console.error(`❌ Push failed to ${token.fcmToken}:`, err);
 
-    // Remove invalid tokens automatically
-    if (
-      err.code === 'messaging/registration-token-not-registered' ||
-      err.code === 'messaging/mismatched-credential'
-    ) {
-      await DeviceToken.deleteOne({ fcmToken: token.fcmToken });
-      console.log(`🗑️ Removed invalid token: ${token.fcmToken}`);
+        // Remove invalid tokens automatically
+        if (
+          err.code === 'messaging/registration-token-not-registered' ||
+          err.code === 'messaging/mismatched-credential'
+        ) {
+          await DeviceToken.deleteOne({ fcmToken: token.fcmToken });
+          console.log(`🗑️ Removed invalid token: ${token.fcmToken}`);
+        }
+      }
     }
-  }
-}
 
 
-for (const userId of userIds) {
-  try {
-    await Notification.create({
-      userId: new mongoose.Types.ObjectId(userId),
-      message: notificationMessage,
-      type: 'send_parcel',
-      title,
-      parcelId: parcel._id,
-      price,
-      phoneNumber,
-      description,
-      deliveryStartTime,
-      deliveryEndTime,
-      pickupLocation: {
-        latitude: pickupCoordinates.latitude,
-        longitude: pickupCoordinates.longitude,
-      },
-      deliveryLocation: {
-        latitude: deliveryCoordinates.latitude,
-        longitude: deliveryCoordinates.longitude,
-      },
-      isRead: false,
-      createdAt: new Date(),
-       localCreatedAt: moment().tz('Asia/Dhaka').format('YYYY-MM-DD hh:mm A')
-    });
-  } catch (err) {
-    console.error('Error saving notification for user:', userId, err);
-  }
-}
-  
-    console.log(`🔔 Notifications sent to ${userIds.length} users`);
+    for (const userId of userIds) {
+      try {
+        await Notification.create({
+          userId: new mongoose.Types.ObjectId(userId),
+          message: notificationMessage,
+          type: 'send_parcel',
+          title,
+          parcelId: parcel._id,
+          price,
+          phoneNumber,
+          description,
+          deliveryStartTime,
+          deliveryEndTime,
+          pickupLocation: {
+            latitude: pickupCoordinates.latitude,
+            longitude: pickupCoordinates.longitude,
+          },
+          deliveryLocation: {
+            latitude: deliveryCoordinates.latitude,
+            longitude: deliveryCoordinates.longitude,
+          },
+          isRead: false,
+          createdAt: new Date(),
+          localCreatedAt: moment().tz('Asia/Dhaka').format('YYYY-MM-DD hh:mm A')
+        });
+      } catch (err) {
+        console.error('Error saving notification for user:', userId, err);
+      }
+    }
+
+    let notificationReceiver = userIds[0];
+    let notificationText;
+    const io = global.io;
+    if (io) {
+      io.emit(`notification::${notificationReceiver}`, {
+        text: notificationText,
+        type: "send_parcel",
+        title,
+        parcelId: parcel._id,
+        price,
+        phoneNumber,
+        description,
+        deliveryStartTime,
+        deliveryEndTime,
+      });
+      console.log('🔔  socket notification sent to:', notificationReceiver);
+    }
+
+    console.log(`🔔 socket base notification sent to ${userIds.length} users`);
 
     const fullParcel = await ParcelRequest.findById(parcel._id)
-    .populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage')
-    
+      .populate('senderId', 'fullName email mobileNumber name phoneNumber profileImage')
 
-     res.status(201).json({
+
+    res.status(201).json({
       status: 'success',
       data: fullParcel,
     });
@@ -227,14 +248,14 @@ for (const userId of userIds) {
 };
 
 
-export const deleteParcelRequest = async (req: Request, res: Response, next: NextFunction): Promise<void> =>{
+export const deleteParcelRequest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { parcelId } = req.params;
-    
+
     const parcel = await ParcelRequest.findById(parcelId);
-    
+
     if (!parcel) {
-       res.status(404).json({
+      res.status(404).json({
         status: 'error',
         message: 'Parcel not found',
       });
@@ -242,7 +263,7 @@ export const deleteParcelRequest = async (req: Request, res: Response, next: Nex
     }
 
     if (parcel.status === 'IN_TRANSIT' || parcel.status === 'DELIVERED') {
-       res.status(400).json({
+      res.status(400).json({
         status: 'error',
         message: 'Your parcel is already in transit or delivered. Please remove the delivery man first before deleting the parcel.',
       });
@@ -256,12 +277,12 @@ export const deleteParcelRequest = async (req: Request, res: Response, next: Nex
         $inc: { totalSentParcels: -1, totalOrders: -1 }
       });
 
-    res.status(200).json({
+      res.status(200).json({
         status: 'success',
         message: 'Parcel deleted successfully',
       });
     } else {
-       res.status(400).json({
+      res.status(400).json({
         status: 'error',
         message: 'Cannot delete the parcel as its status is not pending or requested.',
       });
@@ -282,20 +303,20 @@ export const getAvailableParcels = async (req: AuthRequest, res: Response, next:
       return next(new AppError("Unauthorized", 401));
     }
     const userId = req.user.id;
-    
+
     let parcels = await ParcelRequest.find({
       status: DeliveryStatus.PENDING,
     })
-    .select('title description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType senderType status deliveryRequests name price phoneNumber createdAt updatedAt images') 
-    .populate("senderId", "fullName email mobileNumber profileImage role")
-    .sort({ createdAt: -1 });
+      .select('title description pickupLocation deliveryLocation deliveryStartTime deliveryEndTime deliveryType senderType status deliveryRequests name price phoneNumber createdAt updatedAt images')
+      .populate("senderId", "fullName email mobileNumber profileImage role")
+      .sort({ createdAt: -1 });
 
     // Filter out parcels with null senderId AND current user's parcels
     parcels = parcels.filter(parcel => {
-            if (!parcel.senderId || !parcel.senderId._id) {
-        return false; 
+      if (!parcel.senderId || !parcel.senderId._id) {
+        return false;
       }
-      
+
       // Exclude current user's parcels
       return parcel.senderId._id.toString() !== userId.toString();
     });
@@ -335,7 +356,7 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
         .populate("senderId", "fullName email mobileNumber phoneNumber reviews avgRating image role")
         .populate("assignedDelivererId", "fullName email mobileNumber image reviews avgRating role")
         .populate("deliveryRequests", "fullName email mobileNumber image reviews avgRating role")
-        .sort({ createdAt: -1 })  
+        .sort({ createdAt: -1 })
         .lean();
     }
     if (parcels && parcels.length > 0) {
@@ -345,16 +366,16 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
           // Check if it's a populated user object by looking for common user properties
           if ('email' in parcel.senderId) {
             // Check for mobileNumber first, then phoneNumber
-            const mobileNumber = 
-              ('mobileNumber' in parcel.senderId ? parcel.senderId.mobileNumber : null) || 
-              ('phoneNumber' in parcel.senderId ? parcel.senderId.phoneNumber : null) || 
+            const mobileNumber =
+              ('mobileNumber' in parcel.senderId ? parcel.senderId.mobileNumber : null) ||
+              ('phoneNumber' in parcel.senderId ? parcel.senderId.phoneNumber : null) ||
               "";
-            
+
             // Set the mobileNumber
             (parcel.senderId as any).mobileNumber = mobileNumber;
           }
         }
-        
+
         // Slice the deliveryRequests array to the first 5 requests only
         if (parcel.deliveryRequests && parcel.deliveryRequests.length > 5) {
           parcel.deliveryRequests = parcel.deliveryRequests.slice(0, 5);
@@ -364,10 +385,10 @@ export const getUserParcels = async (req: AuthRequest, res: Response, next: Next
     }
     res.status(200).json({
       status: "success",
-      data: parcels,  
+      data: parcels,
     });
   } catch (error) {
-    next(error);  
+    next(error);
   }
 };
 
@@ -406,11 +427,11 @@ export const getAssignedAndRequestedParcels = async (req: AuthRequest, res: Resp
     const parcels = allParcels.map(parcel => {
       if (parcel.senderId && typeof parcel.senderId === 'object' && parcel.senderId !== null) {
         if ('email' in parcel.senderId) {
-          const mobileNumber = 
-            ('mobileNumber' in parcel.senderId ? parcel.senderId.mobileNumber : null) || 
-            ('phoneNumber' in parcel.senderId ? parcel.senderId.phoneNumber : null) || 
+          const mobileNumber =
+            ('mobileNumber' in parcel.senderId ? parcel.senderId.mobileNumber : null) ||
+            ('phoneNumber' in parcel.senderId ? parcel.senderId.phoneNumber : null) ||
             "";
-          
+
           (parcel.senderId as any).mobileNumber = mobileNumber;
         }
       }
@@ -425,7 +446,7 @@ export const getAssignedAndRequestedParcels = async (req: AuthRequest, res: Resp
 
     res.status(200).json({
       status: "success",
-      data: parcels,  
+      data: parcels,
     });
   } catch (error) {
     next(error);
@@ -557,10 +578,10 @@ export const getParcelsByRadius = async (req: Request, res: Response, next: Next
     const filter: any = {
       'pickupLocation.coordinates': {
         $geoWithin: {
-          $centerSphere: [[longitude, latitude], radiusInRadians], 
+          $centerSphere: [[longitude, latitude], radiusInRadians],
         },
       },
-      status: DeliveryStatus.PENDING, 
+      status: DeliveryStatus.PENDING,
     };
     if (status && Object.values(DeliveryStatus).includes(status)) {
       filter.status = status;
@@ -572,7 +593,7 @@ export const getParcelsByRadius = async (req: Request, res: Response, next: Next
     }
 
     const parcels = await ParcelRequest.find(filter)
-      .populate('senderId', 'fullName') 
+      .populate('senderId', 'fullName')
       .lean();
 
     if (parcels.length === 0) {
@@ -604,7 +625,7 @@ export const getParcelWithDeliveryRequests = async (req: Request, res: Response,
       status: 'success',
       data: {
         parcel,
-        deliveryRequests: parcel.deliveryRequests 
+        deliveryRequests: parcel.deliveryRequests
       }
     });
   } catch (error) {
@@ -655,7 +676,7 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
             totalAmountSpent: parcel.price
           }
         });
-        
+
         const delivererId = parcel.assignedDelivererId;
         await User.findByIdAndUpdate(delivererId, {
           $inc: {
@@ -665,17 +686,17 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
           }
         });
       }
-    parcel.status = status;
-    await parcel.save();
-    const sender = await User.findById(parcel.senderId);
-    const receiver = await User.findById(parcel.receiverId);
+      parcel.status = status;
+      await parcel.save();
+      const sender = await User.findById(parcel.senderId);
+      const receiver = await User.findById(parcel.receiverId);
 
-  console.log(`Sender ID: ${parcel.senderId}, Receiver ID: ${parcel.receiverId}`);
+      console.log(`Sender ID: ${parcel.senderId}, Receiver ID: ${parcel.receiverId}`);
 
-  if (!sender || !receiver) {
-  throw new AppError("Sender or Receiver not found", 404);
-  }
-  
+      if (!sender || !receiver) {
+        throw new AppError("Sender or Receiver not found", 404);
+      }
+
 
       // Add the rating and review to both sender's and receiver's profiles
       if (rating && review) {
@@ -727,7 +748,7 @@ export const updateParcelStatus = async (req: Request, res: Response, next: Next
 export const getUserReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
-    
+
     if (!userId) {
       throw new AppError("Unauthorized", 401);
     }
@@ -740,7 +761,7 @@ export const getUserReviews = async (req: Request, res: Response, next: NextFunc
     const reviews = user.reviews;
 
     if (reviews.length === 0) {
-       res.status(200).json({
+      res.status(200).json({
         status: "success",
         message: "No reviews found",
         data: [],
@@ -814,7 +835,7 @@ export const getFilteredParcels = async (req: Request, res: Response, next: Next
 
     const baseQuery: any = {
       status: DeliveryStatus.PENDING,
-      senderId: { $ne: req.user?.id }, 
+      senderId: { $ne: req.user?.id },
       pickupLocation: {
         $nearSphere: {
           $geometry: { type: 'Point', coordinates: [pickupLongitude, pickupLatitude] },

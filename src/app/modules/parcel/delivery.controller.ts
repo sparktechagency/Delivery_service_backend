@@ -17,8 +17,8 @@ import moment from 'moment';
 
 export const requestToDeliver = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { parcelIds } = req.body;  
-    const userId = req.user?.id;    
+    const { parcelIds } = req.body;
+    const userId = req.user?.id;
 
     if (!userId) {
       throw new AppError("Unauthorized", 401);
@@ -33,7 +33,7 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
       status: DeliveryStatus.PENDING,
       deliveryRequests: { $ne: userObjectId }  // Ensure user hasn't already requested it
     });
-   
+
     if (parcels.length === 0) {
       throw new AppError("No available parcels found or you have already requested these parcels", 404);
     }
@@ -57,109 +57,130 @@ export const requestToDeliver = async (req: AuthRequest, res: Response, next: Ne
       parcel.status = DeliveryStatus.REQUESTED;
       await parcel.save();
 
-       await User.findByIdAndUpdate(parcel.senderId, {
-      $push: {
-        RecciveOrders: {
-          parcelId: parcel._id,
-          pickupLocation: parcel.pickupLocation?.coordinates
-            ? `${parcel.pickupLocation.coordinates[1]},${parcel.pickupLocation.coordinates[0]}`
-            : "",
-          deliveryLocation: parcel.deliveryLocation?.coordinates
-            ? `${parcel.deliveryLocation.coordinates[1]},${parcel.deliveryLocation.coordinates[0]}`
-            : "",
-          price: parcel.price,
-          title: parcel.title,
-          description: parcel.description,
-          senderType: parcel.senderType,
-          deliveryType: parcel.deliveryType,
-          deliveryStartTime: parcel.deliveryStartTime,
-          deliveryEndTime: parcel.deliveryEndTime,
-          Images: parcel.images,
+      await User.findByIdAndUpdate(parcel.senderId, {
+        $push: {
+          RecciveOrders: {
+            parcelId: parcel._id,
+            pickupLocation: parcel.pickupLocation?.coordinates
+              ? `${parcel.pickupLocation.coordinates[1]},${parcel.pickupLocation.coordinates[0]}`
+              : "",
+            deliveryLocation: parcel.deliveryLocation?.coordinates
+              ? `${parcel.deliveryLocation.coordinates[1]},${parcel.deliveryLocation.coordinates[0]}`
+              : "",
+            price: parcel.price,
+            title: parcel.title,
+            description: parcel.description,
+            senderType: parcel.senderType,
+            deliveryType: parcel.deliveryType,
+            deliveryStartTime: parcel.deliveryStartTime,
+            deliveryEndTime: parcel.deliveryEndTime,
+            Images: parcel.images,
+          },
         },
-      },
-      $inc: { totalReceivedParcels: 1 },
-    });
-    
-     const sender = await User.findById(parcel.senderId);
+        $inc: { totalReceivedParcels: 1 },
+      });
 
-    if (sender && sender.role === UserRole.SENDER) {
-      sender.role = UserRole.RECCIVER; 
-      await sender.save();
-    }
-    const deliverer = await User.findById(parcel.assignedDelivererId);
+      const sender = await User.findById(parcel.senderId);
 
-const deviceToken = await DeviceToken.findOne({
-  userId: parcel.senderId,
-  fcmToken: { $exists: true, $ne: '' }
-});
+      if (sender && sender.role === UserRole.SENDER) {
+        sender.role = UserRole.RECCIVER;
+        await sender.save();
+      }
+      const deliverer = await User.findById(parcel.assignedDelivererId);
 
-// ✅ Send push notification if token exists
-if (deviceToken?.fcmToken) {
-  const notificationMessage = `Requested to deliver "${parcel.title}".`;
+      const deviceToken = await DeviceToken.findOne({
+        userId: parcel.senderId,
+        fcmToken: { $exists: true, $ne: '' }
+      });
 
-  const pushPayload = {
-    notification: {
-      title: parcel.title,
-      body: notificationMessage,
-    },
-    data: {
-      type: 'delivery_request',
-      title: parcel.title,
-      message: notificationMessage,
-      parcelId: parcel._id.toString(),
-      price: String(parcel.price || ''),
-      description: parcel.description || '',
-      phoneNumber: parcel.phoneNumber || '',
-      deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
-      deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
-      pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
-      pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
-      deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
-      deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
-      image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-    },
-    token: deviceToken.fcmToken,
-  };
+      // ✅ Send push notification if token exists
+      if (deviceToken?.fcmToken) {
+        const notificationMessage = `Requested to deliver "${parcel.title}".`;
 
-  try {
-    await admin.messaging().send(pushPayload);
-    console.log(`✅ Push notification sent to sender: ${deviceToken.fcmToken}`);
-  } catch (err) {
-    console.error(`❌ Push notification failed to sender ${deviceToken.fcmToken}:`, err);
-  }
-} else {
-  console.log(`⚠️ No FCM token found for sender: ${parcel.senderId}`);
-}
+        const pushPayload = {
+          notification: {
+            title: parcel.title,
+            body: notificationMessage,
+          },
+          data: {
+            type: 'delivery_request',
+            title: parcel.title,
+            message: notificationMessage,
+            parcelId: parcel._id.toString(),
+            price: String(parcel.price || ''),
+            description: parcel.description || '',
+            phoneNumber: parcel.phoneNumber || '',
+            deliveryStartTime: parcel.deliveryStartTime?.toISOString() || '',
+            deliveryEndTime: parcel.deliveryEndTime?.toISOString() || '',
+            pickupLatitude: parcel.pickupLocation?.coordinates?.[1]?.toString() || '',
+            pickupLongitude: parcel.pickupLocation?.coordinates?.[0]?.toString() || '',
+            deliveryLatitude: parcel.deliveryLocation?.coordinates?.[1]?.toString() || '',
+            deliveryLongitude: parcel.deliveryLocation?.coordinates?.[0]?.toString() || '',
+            image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+          },
+          token: deviceToken.fcmToken,
+        };
+
+        try {
+          await admin.messaging().send(pushPayload);
+          console.log(`✅ Push notification sent to sender: ${deviceToken.fcmToken}`);
+        } catch (err) {
+          console.error(`❌ Push notification failed to sender ${deviceToken.fcmToken}:`, err);
+        }
+      } else {
+        console.log(`⚠️ No FCM token found for sender: ${parcel.senderId}`);
+      }
 
 
-const notification = new Notification({
-  message: `${user.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
-  type: 'Requested-Delivery',
-  title: `${parcel.title}`,
-  description: parcel.description || '',
-  price: parcel.price || '',
-  requestId: parcel._id,
-  userId: parcel.senderId, // Assign the correct userId (parcel owner)
-  image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-  AvgRating: user.avgRating || 0,
-  SenderName: user.fullName || '',
-  mobileNumber: user.mobileNumber || ' ',
-  name: user.fullName || '',
-  deliveryStartTime: parcel.deliveryStartTime,
-  deliveryEndTime: parcel.deliveryEndTime,
-  pickupLocation: {
-    latitude: parcel.pickupLocation?.coordinates[1],
-    longitude: parcel.pickupLocation?.coordinates[0]
-  },
-  deliveryLocation: {
-    latitude: parcel.deliveryLocation?.coordinates[1],
-    longitude: parcel.deliveryLocation?.coordinates[0]
-  },
-  Images: parcel.images,
-  user: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
-});
+      const notification = new Notification({
+        message: `${user.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} this user"${user.fullName}".`,
+        type: 'Requested-Delivery',
+        title: `${parcel.title}`,
+        description: parcel.description || '',
+        price: parcel.price || '',
+        requestId: parcel._id,
+        userId: parcel.senderId, // Assign the correct userId (parcel owner)
+        image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+        AvgRating: user.avgRating || 0,
+        SenderName: user.fullName || '',
+        mobileNumber: user.mobileNumber || ' ',
+        name: user.fullName || '',
+        deliveryStartTime: parcel.deliveryStartTime,
+        deliveryEndTime: parcel.deliveryEndTime,
+        pickupLocation: {
+          latitude: parcel.pickupLocation?.coordinates[1],
+          longitude: parcel.pickupLocation?.coordinates[0]
+        },
+        deliveryLocation: {
+          latitude: parcel.deliveryLocation?.coordinates[1],
+          longitude: parcel.deliveryLocation?.coordinates[0]
+        },
+        Images: parcel.images,
+        user: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+      });
 
-await notification.save();
+      //socket
+      let notificationReceiver = parcel.senderId;
+      let notificationText;
+      const io = global.io;
+      if (io) {
+        io.emit(`notification::${notificationReceiver}`, {
+          text: notificationText,
+          type: 'Requested-Delivery',
+          title: `${parcel.title}`,
+          description: parcel.description || '',
+          price: parcel.price || '',
+          requestId: parcel._id,
+          userId: parcel.senderId, // Assign the correct userId (parcel owner)
+          image: user.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+          AvgRating: user.avgRating || 0,
+          SenderName: user.fullName || '',
+          mobileNumber: user.mobileNumber || ' ',
+          name: user.fullName || '',
+        });
+        console.log('🔔  socket notification sent to:', notificationReceiver);
+      }
+      await notification.save();
 
     }
 
@@ -253,9 +274,9 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
 
         // Handle invalid FCM tokens
         if (typeof err === 'object' && err !== null && 'code' in err && (err as any).code === 'messaging/registration-token-not-registered') {
-          await DeviceToken.deleteOne({ 
-            userId: delivererId, 
-            fcmToken: deviceToken.fcmToken 
+          await DeviceToken.deleteOne({
+            userId: delivererId,
+            fcmToken: deviceToken.fcmToken
           });
         }
       }
@@ -266,7 +287,7 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
     // ✅ Create notification for the rejected deliverer
     const notification = new Notification({
       message: `Your delivery request for parcel "${parcel.title}" has been rejected by the sender.`,
-      type: 'Cancelled',  
+      type: 'Cancelled',
       title: `Request Rejected`,
       description: parcel.description || '',
       parcelTitle: parcel.title || '',
@@ -291,6 +312,23 @@ export const removeDeliveryRequest = async (req: AuthRequest, res: Response, nex
       createdAt: new Date(),
       localCreatedAt: moment().tz('Asia/Dhaka').format('YYYY-MM-DD hh:mm A')
     });
+
+    let notificationReceiver = requestedUser._id;
+    let notificationText;
+    const io = global.io;
+    if (io) {
+      io.emit(`notification::${notificationReceiver}`, {
+        text: notificationText,
+        type: 'Cancelled',
+        title: `Request Rejected`,
+        description: parcel.description || '',
+        parcelTitle: parcel.title || '',
+        price: parcel.price || '',
+        requestId: parcel._id,
+        userId: requestedUser._id,
+      });
+      console.log('🔔  socket notification sent to:', notificationReceiver);
+    }
 
     await notification.save();
 
@@ -363,7 +401,7 @@ export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: N
 
     // Fix role enum spelling if necessary
     if (deliverer && deliverer.role === UserRole.SENDER) {
-      deliverer.role = UserRole.RECCIVER; 
+      deliverer.role = UserRole.RECCIVER;
       await deliverer.save();
     }
 
@@ -379,7 +417,7 @@ export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: N
     // Send push notification if token exists
     if (deviceToken?.fcmToken) {
       const notificationMessage = `You have been assigned to deliver the parcel "${parcel.title}".`;
-      
+
       const pushPayload = {
         notification: {
           title: parcel.title,
@@ -441,6 +479,22 @@ export const assignDeliveryMan = async (req: AuthRequest, res: Response, next: N
       localCreatedAt: moment().tz('Asia/Dhaka').format('YYYY-MM-DD hh:mm A')
     });
 
+    let notificationReceiver = deliverer?._id;
+    let notificationText;
+    const io = global.io;
+    if (io) {
+      io.emit(`notification::${notificationReceiver}`, {
+        text: notificationText,
+        type: 'Accepted',
+        title: parcel.title,
+        description: parcel.description || '',
+        price: parcel.price || '',
+        requestId: parcel._id,
+        userId: deliverer?._id,
+      });
+      console.log('🔔  socket notification sent to:', notificationReceiver);
+    }
+
     await notification.save();
 
     res.status(200).json({
@@ -470,19 +524,19 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
 
     // Revert parcel status to `PENDING` and clear assigned delivery man
     parcel.status = DeliveryStatus.PENDING;
-    parcel.assignedDelivererId; 
+    parcel.assignedDelivererId;
     await parcel.save();
 
-  
+
     parcel.deliveryRequests = [];
     await parcel.save();
     // 🚀 End Notification Logi
     const senderUser = await User.findById(parcel.senderId);
-    
+
 
     // Fix role enum spelling if necessary
     if (senderUser && senderUser.role === UserRole.SENDER) {
-      senderUser.role = UserRole.RECCIVER; 
+      senderUser.role = UserRole.RECCIVER;
       await senderUser.save();
     }
 
@@ -496,15 +550,15 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
     });
 
     if (deviceToken?.fcmToken) {
-      const notificationMessage = `You have been assigned to deliver the parcel "${parcel.title}".`;
-      
+      const notificationMessage = `You have been cancelled to deliver the parcel "${parcel.title}".`;
+
       const pushPayload = {
         notification: {
           title: parcel.title,
           body: notificationMessage,
         },
         data: {
-          type: 'Accepted',
+          type: 'Cancelled',
           title: parcel.title,
           message: notificationMessage,
           parcelId: parcel._id.toString(),
@@ -523,17 +577,17 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
 
       try {
         await admin.messaging().send(pushPayload);
-        console.log(`✅ Push notification sent to assigned deliverer: ${deviceToken.fcmToken}`);
+        console.log(`✅ Push notification sent to cancel deliverer: ${deviceToken.fcmToken}`);
       } catch (err) {
         console.error(`❌ Push notification failed to deliverer ${deviceToken.fcmToken}:`, err);
       }
     } else {
       console.log(`⚠️ No FCM token found for deliverer: ${senderUser?._id}`);
     }
-    
+
 
     const notification = new Notification({
-      message: `${senderUser?.role === UserRole.RECCIVER ? 'A deliverer has requested' : 'A user has requested'} to deliver your parcel titled "${parcel.title}".`,
+      message: `${senderUser?.role === UserRole.RECCIVER ? '' : 'A owner has cancelled'} to deliver your parcel titled "${parcel.title}".`,
       type: 'Cancelled',
       title: `"${parcel.title} "`,
       description: parcel.description || '',
@@ -555,8 +609,25 @@ export const cancelAssignedDeliveryMan = async (req: AuthRequest, res: Response,
         latitude: parcel.deliveryLocation?.coordinates[1],
         longitude: parcel.deliveryLocation?.coordinates[0]
       }
-      
+
     });
+
+    let notificationReceiver = senderUser?._id;
+    let notificationText;
+    const io = global.io;
+    if (io) {
+      io.emit(`notification::${notificationReceiver}`, {
+        text: notificationText,
+        type: 'Cancelled',
+        title: `"${parcel.title} "`,
+        description: parcel.description || '',
+        parcelTitle: parcel.title || '',
+        price: parcel.price || '',
+        requestId: parcel._id,
+        userId: senderUser?._id,
+      });
+      console.log('🔔  socket notification sent to:', notificationReceiver);
+    }
 
     await notification.save();
 
@@ -586,10 +657,10 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
 
     // Revert parcel status to `PENDING` and clear assigned delivery man
     parcel.status = DeliveryStatus.PENDING;
-    parcel.assignedDelivererId = null; 
+    parcel.assignedDelivererId = null;
     await parcel.save();
 
-  
+
     parcel.deliveryRequests = [];
     await parcel.save();
     // 🚀 End Notification
@@ -600,7 +671,7 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
           title: 'cancelled parcel Delivery Man',
           body: `${DeliveryMan.role === UserRole.RECCIVER ? 'A deliverery has cancelled' : 'A user has cancelled'} parcel title "${parcel.title}".`,
           mobileNumber: DeliveryMan.mobileNumber || 'Unknown Number',
-          image:DeliveryMan.image || 'https://i.ibb.co/z5YHLV9/profile.png',
+          image: DeliveryMan.image || 'https://i.ibb.co/z5YHLV9/profile.png',
           AvgRating: DeliveryMan.avgRating || 0,
           deliveryStartTime: parcel.deliveryStartTime,
           deliveryEndTime: parcel.deliveryEndTime,
@@ -635,16 +706,16 @@ export const cancelParcelDelivery = async (req: AuthRequest, res: Response, next
         latitude: parcel.pickupLocation?.coordinates[1],
         longitude: parcel.pickupLocation?.coordinates[0]
       },
-      deliveryLocation: { 
+      deliveryLocation: {
         latitude: parcel.deliveryLocation?.coordinates[1],
         longitude: parcel.deliveryLocation?.coordinates[0]
       }
 
-      
+
     });
 
     await notification.save();
-    
+
 
     res.status(200).json({
       status: "success",
@@ -802,7 +873,7 @@ export const cancelDeliveryRequest = async (req: AuthRequest, res: Response, nex
 export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { parcelId, delivererId } = req.body;
-    const senderId = req.user?.id; 
+    const senderId = req.user?.id;
 
     if (!senderId) throw new AppError('Unauthorized', 401);
 
@@ -818,7 +889,7 @@ export const acceptDeliveryOffer = async (req: AuthRequest, res: Response, next:
     parcel.status = DeliveryStatus.IN_TRANSIT;
     parcel.deliveryRequests = [];
     await parcel.save();
-    
+
 
     res.status(200).json({ status: 'success', message: 'Deliverer assigned successfully', data: parcel });
   } catch (error) {
@@ -855,19 +926,19 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response, next: 
     const deliverer = await User.findById(delivererId);
     if (!deliverer) throw new AppError('Deliverer user not found', 404);
 
-if (status === DeliveryStatus.DELIVERED) {
-  // Find the deliverer user
-  const deliverer = await User.findById(delivererId);
-  console.log('Deliverer before update:', deliverer);
-  if (!deliverer) throw new AppError('Deliverer user not found', 404);
+    if (status === DeliveryStatus.DELIVERED) {
+      // Find the deliverer user
+      const deliverer = await User.findById(delivererId);
+      console.log('Deliverer before update:', deliverer);
+      if (!deliverer) throw new AppError('Deliverer user not found', 404);
 
-  deliverer.totalDelivered = (deliverer.totalDelivered || 0) + 1;
-  deliverer.totalEarning = (deliverer.totalEarning || 0) + parcel.price;
-  deliverer.monthlyEarnings = (deliverer.monthlyEarnings || 0) + parcel.price;
-  
-  await deliverer.save();
-  console.log('Deliverer saved successfully');
-}
+      deliverer.totalDelivered = (deliverer.totalDelivered || 0) + 1;
+      deliverer.totalEarning = (deliverer.totalEarning || 0) + parcel.price;
+      deliverer.monthlyEarnings = (deliverer.monthlyEarnings || 0) + parcel.price;
+
+      await deliverer.save();
+      console.log('Deliverer saved successfully');
+    }
 
     parcel.status = status;
     await parcel.save();
@@ -887,7 +958,7 @@ export const updateGlobalFreeDeliveries = async (req: Request, res: Response, ne
     const { freeDeliveries } = req.body;
 
     if (freeDeliveries === undefined) {
-       res.status(400).json({ message: "Free deliveries value is required" });
+      res.status(400).json({ message: "Free deliveries value is required" });
     }
 
     // Update all users with the new freeDeliveries value
@@ -903,16 +974,16 @@ export const updateGlobalFreeDeliveries = async (req: Request, res: Response, ne
 };
 
 //Admin Assign single or multiple user free delivery
-export const assignFreeDeliveriesToUser =async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const assignFreeDeliveriesToUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userIds, freeDeliveries } = req.body;
 
     if (!userIds || userIds.length === 0) {
-       res.status(400).json({ message: "User IDs are required" });
+      res.status(400).json({ message: "User IDs are required" });
     }
 
     if (freeDeliveries === undefined) {
-       res.status(400).json({ message: "Free deliveries value is required" });
+      res.status(400).json({ message: "Free deliveries value is required" });
     }
 
     // Assign free deliveries to specific users
@@ -923,7 +994,7 @@ export const assignFreeDeliveriesToUser =async (req: Request, res: Response, nex
 
     // Use `modifiedCount` instead of `nModified`
     if (updatedUsers.modifiedCount === 0) {
-       res.status(404).json({ message: "No users found with the provided IDs" });
+      res.status(404).json({ message: "No users found with the provided IDs" });
     }
 
     res.status(200).json({
@@ -939,7 +1010,7 @@ export const postReviewForUser = async (req: Request, res: Response, next: NextF
   try {
     const { parcelId, rating, review, targetUserId } = req.body;
 
-    if (!parcelId || !rating ||  !targetUserId) {
+    if (!parcelId || !rating || !targetUserId) {
       throw new AppError("Parcel ID, rating, review, and target user ID are required", 400);
     }
 
@@ -999,7 +1070,7 @@ export const getReviewsForUser = async (req: Request, res: Response, next: NextF
     res.status(200).json({
       status: "success",
       message: "Reviews fetched successfully",
-      data: user.reviews, 
+      data: user.reviews,
     });
   } catch (error) {
     next(error);

@@ -31,8 +31,8 @@ app.post(
 
 app.use(cors({
   origin: [
-    "http://10.10.7.22:3051", 
-    "http://localhost:4000", 
+    "http://10.10.7.22:3051",
+    "http://localhost:4000",
     "https://ivan-parcel-delivery.vercel.app",
     "http://localhost:3000",
     "https://admin.deliverlydashboard.com/"
@@ -58,7 +58,7 @@ app.use('/api', apiRoutes);
 app.post('/api/save-fcm-token', async (req, res) => {
   try {
     const { token } = req.body;
-    const userId = req.user?.id; 
+    const userId = req.user?.id;
 
     await User.updateOne({ _id: userId }, { $set: { fcmToken: token } });
 
@@ -70,25 +70,25 @@ app.post('/api/save-fcm-token', async (req, res) => {
 });
 
 
-const SocketPort = process.env.SocketPort || "socketPort"
-const server = createServer(app);
-const io = new Server(server);
-io.on("headers", (headers, req) => {
-  headers["Access-Control-Allow-Origin"] = "*"; 
-});
+// const SocketPort = process.env.SocketPort || "socketPort"
+// const server = createServer(app);
+// const io = new Server(server);
+// io.on("headers", (headers, req) => {
+//   headers["Access-Control-Allow-Origin"] = "*"; 
+// });
 
 
-io.on("connection", (socket: any) => {
-  console.log("⚡ New client connected:", socket.id);
-  socket.on("disconnect", () => {
-    console.log("❌ Client disconnected:", socket.id);
-  });
-});
+// io.on("connection", (socket: any) => {
+//   console.log("⚡ New client connected:", socket.id);
+//   socket.on("disconnect", () => {
+//     console.log("❌ Client disconnected:", socket.id);
+//   });
+// });
 
-server.listen(SocketPort, () => {
-  // console.log(`🚀 Server & Socket.io running on http://10.0.70.208:${PORT}`);
-  console.log(`🚀 Server & Socket.io running:${SocketPort}`);
-});
+// server.listen(SocketPort, () => {
+//   // console.log(`🚀 Server & Socket.io running on http://10.0.70.208:${PORT}`);
+//   console.log(`🚀 Server & Socket.io running:${SocketPort}`);
+// });
 
 // Error handling
 app.use(errorHandler);

@@ -18,12 +18,12 @@ import { OTPVerification } from '../../models/OTPVerification';
 import { AppError } from '../../middlewares/error';
 import { UserRole } from '../../../types/enums';
 import { AuthRequest, generateTokens, JWTPayload } from '../../middlewares/auth';
-import { emailHelper } from '../../../util/mailer/mailer'; 
+import { emailHelper } from '../../../util/mailer/mailer';
 import { formatPhoneNumber } from "../../../util/formatPhoneNumber";
 import { UserActivity } from './user.activity.model';
 import DeviceToken from './fcm.token.model';
 import { StatusCodes } from 'http-status-codes';
-const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here'; 
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'your_secret_key_here';
 
 
 const twilioClient = twilio(config.twilio.twilioAccountSid, config.twilio.twilioAuthToken);
@@ -39,22 +39,22 @@ const transporter = nodemailer.createTransport({
 
 // const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
 //   try {
-    
+
 //     if (!config.twilio.twilioAccountSid || !config.twilio.twilioAuthToken || !twilioServiceSid) {
 //       throw new Error('Missing Twilio configuration');
 //     }
-    
+
 //     const verification = await twilioClient.verify.v2
 //       .services(twilioServiceSid)
 //       .verifications.create({
 //         to: mobileNumber,
 //         channel: 'sms'
 //       });
-    
+
 //     return verification.sid;
 //   } catch (error: any) {
 
-    
+
 //     // Provide more specific error messages
 //     if (error.code === 20003) {
 //       throw new AppError('Authentication Error: Invalid Twilio credentials', 500);
@@ -65,7 +65,7 @@ const transporter = nodemailer.createTransport({
 //     if (error.code === 60200) {
 //       throw new AppError('Invalid phone number format', 400);
 //     }
-    
+
 //     throw new AppError(`Failed to send OTP: ${error.message}`, 500);
 //   }
 // };
@@ -73,7 +73,7 @@ const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
   try {
     // Review bypass - only enabled by env flag
     if (process.env.ENABLE_REVIEW_BYPASS === 'true' &&
-        mobileNumber === process.env.REVIEW_BYPASS_PHONE) {
+      mobileNumber === process.env.REVIEW_BYPASS_PHONE) {
       console.log(`Review bypass enabled for ${mobileNumber}`);
       return `review-bypass-${Date.now()}`;
     }
@@ -107,17 +107,17 @@ const sendTwilioOTP = async (mobileNumber: string): Promise<string> => {
 
 // const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<boolean> => {
 //   try {
-    
+
 //     const verificationCheck = await twilioClient.verify.v2
 //       .services(twilioServiceSid)
 //       .verificationChecks.create({
 //         to: mobileNumber,
 //         code: otpCode
 //       });
-    
+
 //     return verificationCheck.status === 'approved';
 //   } catch (error: any) {
-  
+
 //     throw new AppError('OTP verification failed', 400);
 //   }
 // };
@@ -126,7 +126,7 @@ const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<b
   try {
     // Review bypass
     if (process.env.ENABLE_REVIEW_BYPASS === 'true' &&
-        mobileNumber === process.env.REVIEW_BYPASS_PHONE) {
+      mobileNumber === process.env.REVIEW_BYPASS_PHONE) {
       const expected = process.env.REVIEW_BYPASS_OTP;
       return otpCode === expected;
     }
@@ -154,11 +154,11 @@ const verifyTwilioOTP = async (mobileNumber: string, otpCode: string): Promise<b
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { fullName, mobileNumber, country, email, fcmToken, deviceId, deviceType = 'android' } = req.body;
-    
+
     if (!mobileNumber) {
       throw new AppError("Mobile number is required", 400);
     }
-    
+
     if (fcmToken && !deviceId) {
       throw new AppError('deviceId is required when providing fcmToken', 400);
     }
@@ -212,7 +212,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         userId: user._id,
         deviceId: deviceId
       });
-      
+
       if (existingToken) {
         existingToken.fcmToken = fcmToken;
         existingToken.deviceType = deviceType;
@@ -241,17 +241,17 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    
+
     const { mobileNumber, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
     if (!mobileNumber) {
       throw new AppError("Mobile number is required", 400);
     }
-    
+
     if (fcmToken && !deviceId) {
       throw new AppError('deviceId is required when providing fcmToken', 400);
     }
-    
+
     let formattedNumber: string;
     try {
       formattedNumber = formatPhoneNumber(mobileNumber);
@@ -272,27 +272,27 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     console.log('OTP sent successfully');
 
 
-if (fcmToken && deviceId) {
-  const existingToken = await DeviceToken.findOne({
-    userId: existingUser._id,
-    deviceId: deviceId
-  });
+    if (fcmToken && deviceId) {
+      const existingToken = await DeviceToken.findOne({
+        userId: existingUser._id,
+        deviceId: deviceId
+      });
 
-  if (existingToken) {
-    existingToken.fcmToken = fcmToken;
-    existingToken.deviceType = deviceType;
-    await existingToken.save();
-    console.log(`Updated FCM token for user ${existingUser._id}, device ${deviceId}`);
-  } else {
-    await DeviceToken.create({
-      userId: existingUser._id,
-      fcmToken,
-      deviceId,
-      deviceType
-    });
-    console.log(`Created new FCM token for user ${existingUser._id}, device ${deviceId}`);
-  }
-}
+      if (existingToken) {
+        existingToken.fcmToken = fcmToken;
+        existingToken.deviceType = deviceType;
+        await existingToken.save();
+        console.log(`Updated FCM token for user ${existingUser._id}, device ${deviceId}`);
+      } else {
+        await DeviceToken.create({
+          userId: existingUser._id,
+          fcmToken,
+          deviceId,
+          deviceType
+        });
+        console.log(`Created new FCM token for user ${existingUser._id}, device ${deviceId}`);
+      }
+    }
 
 
     console.log('About to send success response...');
@@ -406,7 +406,7 @@ export const verifyLoginOTPNumber = async (req: Request, res: Response, next: Ne
 
 export const registerWithEmail = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { fullName, country, email, mobileNumber, fcmToken, deviceId, deviceType = 'android'  } = req.body;
+    const { fullName, country, email, mobileNumber, fcmToken, deviceId, deviceType = 'android' } = req.body;
 
     if (!email) {
       throw new AppError('Email is required', 400);
@@ -420,7 +420,7 @@ export const registerWithEmail = async (req: Request, res: Response, next: NextF
       throw new AppError('Email already registered', 400);
     }
 
-    const user = await User.create({ fullName,country, email,mobileNumber, isVerified: false });
+    const user = await User.create({ fullName, country, email, mobileNumber, isVerified: false });
 
 
     await OTPVerification.deleteMany({ email });
@@ -430,40 +430,40 @@ export const registerWithEmail = async (req: Request, res: Response, next: NextF
 
     console.log("🔹 Generated OTP (Plain):", otpCode);
 
-    
+
     const otpVerification = await OTPVerification.create({
       userId: user._id,
       email,
-      otpCode, 
+      otpCode,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
-        // Store FCM token only if both fcmToken and deviceId are provided
-        if (fcmToken && deviceId) {
-          // Check if this device token already exists
-          const existingToken = await DeviceToken.findOne({
-            userId: user._id,
-            deviceId: deviceId
-          });
-    
-          if (existingToken) {
-            // Update existing token
-            existingToken.fcmToken = fcmToken;
-            existingToken.deviceType = deviceType;
-            await existingToken.save();
-            console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
-          } else {
-            // Create new device token
-            await DeviceToken.create({
-              userId: user._id,
-              fcmToken,
-              deviceId,
-              deviceType
-            });
-            console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
-          }
-        }
-    
+    // Store FCM token only if both fcmToken and deviceId are provided
+    if (fcmToken && deviceId) {
+      // Check if this device token already exists
+      const existingToken = await DeviceToken.findOne({
+        userId: user._id,
+        deviceId: deviceId
+      });
+
+      if (existingToken) {
+        // Update existing token
+        existingToken.fcmToken = fcmToken;
+        existingToken.deviceType = deviceType;
+        await existingToken.save();
+        console.log(`Updated FCM token for user ${user._id}, device ${deviceId}`);
+      } else {
+        // Create new device token
+        await DeviceToken.create({
+          userId: user._id,
+          fcmToken,
+          deviceId,
+          deviceType
+        });
+        console.log(`Created new FCM token for user ${user._id}, device ${deviceId}`);
+      }
+    }
+
     // ✅ Send the **plain OTP** via email
     await emailHelper.sendEmail({
       to: email,
@@ -489,7 +489,7 @@ export const registerWithEmail = async (req: Request, res: Response, next: NextF
 
 export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, otpCode,fcmToken, deviceId, deviceType = 'android'} = req.body;
+    const { email, otpCode, fcmToken, deviceId, deviceType = 'android' } = req.body;
     console.log("🔹 User Entered OTP:", otpCode);
 
     if (!email || !otpCode) {
@@ -502,7 +502,7 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
     const verification = await OTPVerification.findOne({
       email,
       expiresAt: { $gt: new Date() },
-    }).sort({ createdAt: -1 }).lean(); 
+    }).sort({ createdAt: -1 }).lean();
 
     console.log("🔹 Retrieved Verification Data:", verification);
 
@@ -535,7 +535,7 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
         deviceId: deviceId
       });
 
-      if (existingToken) {                                                                                                                               
+      if (existingToken) {
         existingToken.fcmToken = fcmToken;
         existingToken.deviceType = deviceType;
         await existingToken.save();
@@ -552,7 +552,7 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
     }
     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '30d' });
 
-    res.json({ 
+    res.json({
       data: {
         user: {
           _id: user._id,
@@ -563,7 +563,7 @@ export const verifyEmailOTP = async (req: Request, res: Response, next: NextFunc
         token,
       },
     });
-    
+
   } catch (error) {
     console.error('Verification Error:', error);
     next(error);
@@ -742,7 +742,7 @@ export const verifyLoginOTP = async (req: Request, res: Response, next: NextFunc
 
 export const googleLoginOrRegister = async (req: Request, res: Response) => {
   try {
-    const { idToken, fcmToken, mobileNumber} = req.body;
+    const { idToken, fcmToken, mobileNumber } = req.body;
 
     if (!idToken) {
       return res.status(StatusCodes.BAD_REQUEST).json({

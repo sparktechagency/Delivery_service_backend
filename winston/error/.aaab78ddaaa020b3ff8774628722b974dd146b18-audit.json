@@ -1,0 +1,25 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 1
+    },
+    "auditLog": "D:\\Backend-sta\\Delivery_service_backend\\winston\\error\\.aaab78ddaaa020b3ff8774628722b974dd146b18-audit.json",
+    "files": [
+        {
+            "date": 1761647133639,
+            "name": "D:\\Backend-sta\\Delivery_service_backend\\winston\\error\\28-10-2025-16-error.log",
+            "hash": "22c6dc4db37254d1007d0be5d5d53a69f8871015f4725343717d57efbf561fae"
+        },
+        {
+            "date": 1761649421490,
+            "name": "D:\\Backend-sta\\Delivery_service_backend\\winston\\error\\28-10-2025-17-error.log",
+            "hash": "11f3c09a79d86266e792f42c2fb0a29a20dedd9cfb20246c4ec40926c44ce985"
+        },
+        {
+            "date": 1761653015627,
+            "name": "D:\\Backend-sta\\Delivery_service_backend\\winston\\error\\28-10-2025-18-error.log",
+            "hash": "87a34304a087f8b17cb1f69ef687a124bfeeee9de2337863ce6b34bb05863c83"
+        }
+    ],
+    "hashType": "sha256"
+}

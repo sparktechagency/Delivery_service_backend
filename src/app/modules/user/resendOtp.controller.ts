@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from './user.model';
-import { AppError } from '../../middlewares/error'; 
-import { formatPhoneNumber } from '../../../util/formatPhoneNumber'; 
+import { AppError } from '../../middlewares/error';
+import { formatPhoneNumber } from '../../../util/formatPhoneNumber';
 import { sendTwilioOTP } from '../../../util/twilio';
 
 const otpAttempts = new Map<string, { count: number; lastAttempt: Date }>();
 
 const RATE_LIMIT = {
-  maxAttempts: 3, 
-  windowMinutes: 15, 
+  maxAttempts: 3,
+  windowMinutes: 15,
   cooldownMinutes: 5,
 };
 
@@ -17,7 +17,7 @@ export const resendOTP = async (req: Request, res: Response, next: NextFunction)
   try {
     console.log('=== RESEND OTP (GENERIC) DEBUG ===');
     console.log('Request body:', req.body);
-    
+
     const { mobileNumber } = req.body;
 
     // Validate input
@@ -44,7 +44,7 @@ export const resendOTP = async (req: Request, res: Response, next: NextFunction)
 
     const context = user.isVerified ? 'login' : 'registration';
     const rateLimitKey = `resend_${context}_${formattedNumber}`;
-    
+
     console.log('OTP context:', context);
     console.log('User verified status:', user.isVerified);
 
@@ -54,12 +54,12 @@ export const resendOTP = async (req: Request, res: Response, next: NextFunction)
 
     if (userAttempts) {
       const timeDiff = (now.getTime() - userAttempts.lastAttempt.getTime()) / 1000 / 60; // minutes
-      
+
       // Check cooldown period
       if (timeDiff < RATE_LIMIT.cooldownMinutes) {
         const remainingTime = Math.ceil(RATE_LIMIT.cooldownMinutes - timeDiff);
         throw new AppError(
-          `Please wait ${remainingTime} minute(s) before requesting another OTP`, 
+          `Please wait ${remainingTime} minute(s) before requesting another OTP`,
           429
         );
       }
@@ -68,7 +68,7 @@ export const resendOTP = async (req: Request, res: Response, next: NextFunction)
       if (timeDiff < RATE_LIMIT.windowMinutes && userAttempts.count >= RATE_LIMIT.maxAttempts) {
         const remainingTime = Math.ceil(RATE_LIMIT.windowMinutes - timeDiff);
         throw new AppError(
-          `Too many OTP requests. Please try again after ${remainingTime} minute(s)`, 
+          `Too many OTP requests. Please try again after ${remainingTime} minute(s)`,
           429
         );
       }
@@ -90,7 +90,7 @@ export const resendOTP = async (req: Request, res: Response, next: NextFunction)
       lastAttempt: now
     });
 
-    const message = context === 'registration' 
+    const message = context === 'registration'
       ? "OTP resent successfully. Please verify to complete registration."
       : "OTP resent successfully. Please verify to complete login.";
 
@@ -100,7 +100,7 @@ export const resendOTP = async (req: Request, res: Response, next: NextFunction)
       userId: user._id,
       context
     });
-    
+
     console.log('Success response sent');
     console.log('=================================');
   } catch (error) {
@@ -120,7 +120,7 @@ export const getOTPStatus = async (req: Request, res: Response, next: NextFuncti
     }
 
     const formattedNumber = formatPhoneNumber(mobileNumber);
-    
+
     // Check if user exists
     const user = await User.findOne({ mobileNumber: formattedNumber });
     if (!user) {
@@ -130,7 +130,7 @@ export const getOTPStatus = async (req: Request, res: Response, next: NextFuncti
     const context = user.isVerified ? 'login' : 'registration';
     const rateLimitKey = `resend_${context}_${formattedNumber}`;
     const userAttempts = otpAttempts.get(rateLimitKey);
-    
+
     const now = new Date();
     let status = {
       canResend: true,
@@ -141,7 +141,7 @@ export const getOTPStatus = async (req: Request, res: Response, next: NextFuncti
 
     if (userAttempts) {
       const timeDiff = (now.getTime() - userAttempts.lastAttempt.getTime()) / 1000 / 60; // minutes
-      
+
       // Check if in cooldown period
       if (timeDiff < RATE_LIMIT.cooldownMinutes) {
         status.canResend = false;
