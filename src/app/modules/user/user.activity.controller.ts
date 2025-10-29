@@ -27,6 +27,130 @@ export const validateProfileAccess = (req: AuthRequest, res: Response, next: Nex
   throw new AppError('Unauthorized to access this profile', 403);
 };
 
+// export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const userId = req.params.userId;
+
+//     if (!userId) {
+//       throw new AppError("User ID is required", 400);
+//     }
+
+//     console.log('Searching for User ID:', userId);
+
+
+//     const user = await User.findById(new mongoose.Types.ObjectId(userId))
+//       .select('-passwordHash')
+//       .lean();
+
+//     console.log('Found User:', user);
+
+//     if (!user) {
+//       console.error('No user found with ID:', userId);
+//       throw new AppError("User not found", 404);
+//     }
+
+
+//     if (user.reviews && user.reviews.length > 0) {
+//       const totalRating = user.reviews.reduce((sum, review) => sum + review.rating, 0);
+//       const avgRating = totalRating / user.reviews.length;
+//       user.avgRating = parseFloat(avgRating.toFixed(2));
+//     } else {
+//       user.avgRating = 0;
+//     }
+
+//     const page = parseInt(req.query.page as string) || 1;
+//     const limit = parseInt(req.query.limit as string) || 10;
+//     const skip = (page - 1) * limit;
+
+//     const parcels = await ParcelRequest.find({
+//       $or: [
+//         { senderId: userId },
+//         { assignedDelivererId: userId },
+//         { deliveryRequests: userId }
+//       ],
+//       status: {
+//         $in: [
+//           DeliveryStatus.PENDING,
+//           DeliveryStatus.WAITING,
+//           DeliveryStatus.IN_TRANSIT
+//         ]
+//       }
+//     })
+//       .populate("senderId", "fullName email mobileNumber role profileImage")
+//       .populate("assignedDelivererId", "fullName email mobileNumber role profileImage")
+//       .populate("deliveryRequests", "fullName email mobileNumber role profileImage")
+//       .skip(skip)
+//       .limit(limit)
+//       .sort({ createdAt: -1 })
+//       .lean();
+
+//     const totalParcels = await ParcelRequest.countDocuments({
+//       $or: [
+//         { senderId: userId },
+//         { assignedDelivererId: userId },
+//         { deliveryRequests: userId }
+//       ],
+//       status: {
+//         $in: [
+//           DeliveryStatus.PENDING,
+//           DeliveryStatus.WAITING,
+//           DeliveryStatus.IN_TRANSIT
+//         ]
+//       }
+//     });
+
+//     const userProfile = {
+//       _id: user._id,
+//       fullName: user.fullName,
+//       email: user.email,
+//       mobileNumber: user.mobileNumber,
+//       image: user.image,
+//       role: user.role,
+//       freeDeliveries: user.freeDeliveries,
+//       totalOrders: user.totalOrders,
+//       totaltripsCompleted: user.TotaltripsCompleted,
+//       subscriptionType: user.subscriptionType,
+//       isVerified: user.isVerified,
+//       socialLinks: {
+//         facebook: user.facebook,
+//         instagram: user.instagram,
+//         whatsapp: user.whatsapp
+//       },
+//       stats: {
+//         totalSentParcels: user.totalSentParcels || 0,
+//         totalReceivedParcels: user.totalReceivedParcels || 0,
+//         avgRating: user.avgRating || 0,
+//         totalParcels
+//       }
+//     };
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "User profile and parcels fetched successfully",
+//       profile: userProfile,
+//       parcels: parcels,
+//       parcelCount: parcels.length,
+//       totalParcels
+//     });
+
+//   } catch (error) {
+//     console.error('Detailed Error in getUserProfileAndParcels:', error);
+
+//     if (error instanceof AppError) {
+//       res.status(error.statusCode).json({
+//         status: "error",
+//         message: error.message
+//       });
+//     } else {
+//       res.status(500).json({
+//         status: "error",
+//         message: "Internal server error",
+//         details: error instanceof Error ? error.message : 'Unknown error'
+//       });
+//     }
+//   }
+// };
+
 export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.params.userId;
@@ -36,7 +160,6 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
     }
 
     console.log('Searching for User ID:', userId);
-
 
     const user = await User.findById(new mongoose.Types.ObjectId(userId))
       .select('-passwordHash')
@@ -48,7 +171,6 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
       console.error('No user found with ID:', userId);
       throw new AppError("User not found", 404);
     }
-
 
     if (user.reviews && user.reviews.length > 0) {
       const totalRating = user.reviews.reduce((sum, review) => sum + review.rating, 0);
@@ -76,14 +198,20 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
         ]
       }
     })
+      .sort({ createdAt: -1 })
+      .limit(50)
       .populate("senderId", "fullName email mobileNumber role profileImage")
       .populate("assignedDelivererId", "fullName email mobileNumber role profileImage")
       .populate("deliveryRequests", "fullName email mobileNumber role profileImage")
-      .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 })
       .lean();
 
+
+    const totalPrice = parcels.reduce((total, parcel) => {
+      const price = parcel.price || 0;
+      return total + price;
+    }, 0);
+
+    // Get the total count of parcels associated with the user
     const totalParcels = await ParcelRequest.countDocuments({
       $or: [
         { senderId: userId },
@@ -99,6 +227,7 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
       }
     });
 
+    // Prepare user profile data
     const userProfile = {
       _id: user._id,
       fullName: user.fullName,
@@ -108,7 +237,7 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
       role: user.role,
       freeDeliveries: user.freeDeliveries,
       totalOrders: user.totalOrders,
-      totaltripsCompleted: user.TotaltripsCompleted,
+      totalTripsCompleted: user.TotaltripsCompleted,
       subscriptionType: user.subscriptionType,
       isVerified: user.isVerified,
       socialLinks: {
@@ -129,13 +258,15 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
       message: "User profile and parcels fetched successfully",
       profile: userProfile,
       parcels: parcels,
-      parcelCount: parcels.length,
-      totalParcels
+      parcelCount: parcels.length, // Count the parcels on this page
+      totalParcels, // Include the total number of parcels in the response
+      totalPrice // Include the total price of all parcels
     });
 
   } catch (error) {
     console.error('Detailed Error in getUserProfileAndParcels:', error);
 
+    // More detailed error response
     if (error instanceof AppError) {
       res.status(error.statusCode).json({
         status: "error",
@@ -150,7 +281,6 @@ export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, 
     }
   }
 };
-
 
 
 export const trackUserActivity = async (req: AuthRequest, res: Response, next: NextFunction) => {
