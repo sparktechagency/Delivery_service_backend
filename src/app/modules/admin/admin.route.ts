@@ -29,8 +29,8 @@ adminRouter.get('/profile', authenticate, authorize(UserRole.ADMIN), getAdminPro
 adminRouter.get('/orders', authenticate, authorize(UserRole.ADMIN), getOrders);
 
 //assign delivery global and single user free routes
-adminRouter.post('/global-free-Delivery', authenticate, updateGlobalFreeDeliveries );
-adminRouter.post('/single-free-delivery', authenticate, assignFreeDeliveriesToUser );
+adminRouter.post('/global-free-Delivery', authenticate, updateGlobalFreeDeliveries);
+adminRouter.post('/single-free-delivery', authenticate, assignFreeDeliveriesToUser);
 // User Management
 adminRouter.get('/users', authenticate, authorize(UserRole.ADMIN), getUsers);
 adminRouter.get('/parcel/:parcelId', authenticate, authorize(UserRole.ADMIN), getParcelDetailsById);
@@ -50,7 +50,7 @@ adminRouter.get('/newSubscribers', getNewSubscribers);
 adminRouter.get('/totalOrders', getTotalOrders);
 adminRouter.get('/totalOrders/number', getTotalOrdersNumber);
 adminRouter.get('/totalCompletedOrders', getTotalCompletedOrders);
-adminRouter.get('/transectionSummary', authenticate, authorize(UserRole.ADMIN),getTransactionSummary );
+adminRouter.get('/transectionSummary', authenticate, authorize(UserRole.ADMIN), getTransactionSummary);
 adminRouter.get('/transection', authenticate, authorize(UserRole.ADMIN), getTransactions);
 adminRouter.get('/transection/total', authenticate, authorize(UserRole.ADMIN), getTransactionsTotal);
 //parcel status

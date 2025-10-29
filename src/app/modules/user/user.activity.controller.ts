@@ -8,37 +8,139 @@ import { AppError } from '../../middlewares/error';
 import mongoose from 'mongoose';
 
 
-  export const validateProfileAccess = (req: AuthRequest, res: Response, next: NextFunction) => {
-    const requestedUserId = req.params.userId;
-    const currentUserId = req.user?.id;
-    const currentUserRole = req.user?.role;
-  
-    // Allow access if:
-    // 1. User is accessing their own profile
-    // 2. User is an admin
-    if (
-      requestedUserId === currentUserId || 
-      currentUserRole === UserRole.ADMIN
-    ) {
-      return next();
-    }
-  
-    // Unauthorized access
-    throw new AppError('Unauthorized to access this profile', 403);
-  };
-  export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const validateProfileAccess = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const requestedUserId = req.params.userId;
+  const currentUserId = req.user?.id;
+  const currentUserRole = req.user?.role;
+
+  // Allow access if:
+  // 1. User is accessing their own profile
+  // 2. User is an admin
+  if (
+    requestedUserId === currentUserId ||
+    currentUserRole === UserRole.ADMIN
+  ) {
+    return next();
+  }
+
+  // Unauthorized access
+  throw new AppError('Unauthorized to access this profile', 403);
+};
+//   export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+//   try {
+//     const userId = req.params.userId;
+
+//     if (!userId) {
+//       throw new AppError("User ID is required", 400);
+//     }
+
+//     console.log('Searching for User ID:', userId);
+
+//     // Fetch the user details by userId
+//     const user = await User.findById(new mongoose.Types.ObjectId(userId))
+//       .select('-passwordHash') // Exclude passwordHash from the response
+//       .lean();
+
+//     console.log('Found User:', user);
+
+//     if (!user) {
+//       console.error('No user found with ID:', userId);
+//       throw new AppError("User not found", 404);
+//     }
+
+//     if (user.reviews && user.reviews.length > 0) {
+//       const totalRating = user.reviews.reduce((sum, review) => sum + review.rating, 0);
+//       const avgRating = totalRating / user.reviews.length;
+//       user.avgRating = parseFloat(avgRating.toFixed(2)); // Round to 2 decimal places
+//     } else {
+//       user.avgRating = 0; // If no reviews, set avgRating to 0
+//     }
+
+//     // Fetch the parcels associated with the user
+//     const parcels = await ParcelRequest.find({
+//       $or: [
+//         { senderId: userId },
+//         { assignedDelivererId: userId },
+//         { deliveryRequests: userId }
+//       ],
+//       status: {
+//         $in: [
+//           DeliveryStatus.PENDING,
+//           DeliveryStatus.WAITING,
+//           DeliveryStatus.IN_TRANSIT
+//         ]
+//       }
+//     })
+//       .populate("senderId", "fullName email mobileNumber role profileImage")
+//       .populate("assignedDelivererId", "fullName email mobileNumber role profileImage")
+//       .populate("deliveryRequests", "fullName email mobileNumber role profileImage")
+//       .sort({ createdAt: -1 }) // Sort by most recent first
+//       .limit(10) // Limit to 10 most recent parcels
+//       .lean();
+
+//     // Prepare user profile data
+//     const userProfile = {
+//       _id: user._id,
+//       fullName: user.fullName,
+//       email: user.email,
+//       mobileNumber: user.mobileNumber,
+//       image: user.image,
+//       role: user.role,
+//       freeDeliveries: user.freeDeliveries,
+//       totalOrders: user.totalOrders,
+//       totaltripsCompleted: user.TotaltripsCompleted,
+//       subscriptionType: user.subscriptionType,
+//       isVerified: user.isVerified,
+//       socialLinks: {
+//         facebook: user.facebook,
+//         instagram: user.instagram,
+//         whatsapp: user.whatsapp
+//       },
+//       stats: {
+//         totalSentParcels: user.totalSentParcels || 0,
+//         totalReceivedParcels: user.totalReceivedParcels || 0,
+//         avgRating: user.avgRating || 0  // Include the avgRating here
+//       }
+//     };
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "User profile and parcels fetched successfully",
+//       profile: userProfile,
+//       parcels: parcels,
+//       parcelCount: parcels.length
+//     });
+
+//   } catch (error) {
+//     console.error('Detailed Error in getUserProfileAndParcels:', error);
+
+//     // More detailed error response
+//     if (error instanceof AppError) {
+//       res.status(error.statusCode).json({
+//         status: "error",
+//         message: error.message
+//       });
+//     } else {
+//       res.status(500).json({
+//         status: "error",
+//         message: "Internal server error",
+//         details: error instanceof Error ? error.message : 'Unknown error'
+//       });
+//     }
+//   }
+// };
+export const getUserProfileAndParcels = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.params.userId;
-    
+
     if (!userId) {
       throw new AppError("User ID is required", 400);
     }
 
     console.log('Searching for User ID:', userId);
 
-    // Fetch the user details by userId
     const user = await User.findById(new mongoose.Types.ObjectId(userId))
-      .select('-passwordHash') // Exclude passwordHash from the response
+      .select('-passwordHash')
       .lean();
 
     console.log('Found User:', user);
@@ -51,12 +153,11 @@ import mongoose from 'mongoose';
     if (user.reviews && user.reviews.length > 0) {
       const totalRating = user.reviews.reduce((sum, review) => sum + review.rating, 0);
       const avgRating = totalRating / user.reviews.length;
-      user.avgRating = parseFloat(avgRating.toFixed(2)); // Round to 2 decimal places
+      user.avgRating = parseFloat(avgRating.toFixed(2));
     } else {
-      user.avgRating = 0; // If no reviews, set avgRating to 0
+      user.avgRating = 0;
     }
 
-    // Fetch the parcels associated with the user
     const parcels = await ParcelRequest.find({
       $or: [
         { senderId: userId },
@@ -74,11 +175,18 @@ import mongoose from 'mongoose';
       .populate("senderId", "fullName email mobileNumber role profileImage")
       .populate("assignedDelivererId", "fullName email mobileNumber role profileImage")
       .populate("deliveryRequests", "fullName email mobileNumber role profileImage")
-      .sort({ createdAt: -1 }) // Sort by most recent first
-      .limit(10) // Limit to 10 most recent parcels
+      .sort({ createdAt: -1 })
+      .limit(10)
       .lean();
 
-    // Prepare user profile data
+    const totalParcels = await ParcelRequest.countDocuments({
+      $or: [
+        { senderId: userId },
+        { assignedDelivererId: userId },
+        { deliveryRequests: userId }
+      ]
+    });
+
     const userProfile = {
       _id: user._id,
       fullName: user.fullName,
@@ -99,7 +207,8 @@ import mongoose from 'mongoose';
       stats: {
         totalSentParcels: user.totalSentParcels || 0,
         totalReceivedParcels: user.totalReceivedParcels || 0,
-        avgRating: user.avgRating || 0  // Include the avgRating here
+        avgRating: user.avgRating || 0,  // Include the avgRating here
+        totalParcels // Add the total number of parcels
       }
     };
 
@@ -108,12 +217,13 @@ import mongoose from 'mongoose';
       message: "User profile and parcels fetched successfully",
       profile: userProfile,
       parcels: parcels,
-      parcelCount: parcels.length
+      parcelCount: parcels.length, // Count the parcels on this page
+      totalParcels // Include the total number of parcels in the response
     });
 
   } catch (error) {
     console.error('Detailed Error in getUserProfileAndParcels:', error);
-    
+
     // More detailed error response
     if (error instanceof AppError) {
       res.status(error.statusCode).json({
@@ -130,7 +240,7 @@ import mongoose from 'mongoose';
   }
 };
 
-  
+
 export const trackUserActivity = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
@@ -165,27 +275,28 @@ export const trackUserActivity = async (req: AuthRequest, res: Response, next: N
 };
 
 export const getUserActivityReport = async (req: Request, res: Response) => {
-    try {
-      const activities = await UserActivity.aggregate([
-        { $group: { 
-            _id: "$userId", 
-            totalTimeSpent: { $sum: "$timeSpent" },
-            date: { $first: "$activityDate" },
-          },
+  try {
+    const activities = await UserActivity.aggregate([
+      {
+        $group: {
+          _id: "$userId",
+          totalTimeSpent: { $sum: "$timeSpent" },
+          date: { $first: "$activityDate" },
         },
-        { $sort: { "date": -1 } },  
-      ]);
-  
-      res.status(200).json({
-        status: "success",
-        message: "User activity report fetched successfully",
-        data: activities,
-      });
-    } catch (error) {
-      console.error("❌ Error fetching activity report", error);
-      res.status(500).json({
-        status: "error",
-        message: "An error occurred while fetching user activity report",
-      });
-    }
-  };
+      },
+      { $sort: { "date": -1 } },
+    ]);
+
+    res.status(200).json({
+      status: "success",
+      message: "User activity report fetched successfully",
+      data: activities,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching activity report", error);
+    res.status(500).json({
+      status: "error",
+      message: "An error occurred while fetching user activity report",
+    });
+  }
+};

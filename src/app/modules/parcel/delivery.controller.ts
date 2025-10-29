@@ -1077,3 +1077,40 @@ export const getReviewsForUser = async (req: Request, res: Response, next: NextF
   }
 };
 
+//all completed parcel with pagination
+export const getAllCompletedParcels = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    // Fetch completed parcels with pagination
+    const completedParcels = await ParcelRequest.find({ status: DeliveryStatus.DELIVERED })
+      .skip(skip)
+      .limit(limit)
+      .populate('receiverId', 'fullName email')
+      .populate('senderId', 'fullName email');
+
+    // Get the total number of delivered parcels
+    const totalCompletedParcels = await ParcelRequest.countDocuments({ status: DeliveryStatus.DELIVERED });
+
+    if (completedParcels.length === 0) {
+      throw new AppError("No completed parcels found", 404);
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "Completed parcels fetched successfully",
+      data: {
+        completedParcels,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCompletedParcels / limit),
+          totalItems: totalCompletedParcels,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
